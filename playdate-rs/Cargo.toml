@@ -9,3 +9,4 @@ description = "Rust type-safe bindings for the Playdate SDK"
 
 [dependencies]
 playdate-rs-sys = { version = "0.0.1", path = "../playdate-rs-sys" }
+spin = "0.9.8"

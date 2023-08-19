@@ -9,4 +9,4 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-playdate-rs-sys = { path = "../../playdate-rs-sys" }
+playdate-rs = { path = "../../playdate-rs" }

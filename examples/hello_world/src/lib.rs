@@ -1,46 +1,53 @@
 #![no_std]
 
-use playdate_rs_sys::{
-    LCDSolidColor, PDStringEncoding, PDSystemEvent, PlaydateAPI, LCD_COLUMNS, LCD_ROWS,
-};
+use core::sync::atomic::{AtomicI32, Ordering};
 
-#[no_mangle]
-unsafe extern "C" fn eventHandler(pd: &mut PlaydateAPI, event: PDSystemEvent, _arg: u32) {
-    if event == PDSystemEvent::kEventInit {
-        ((*pd.system).setUpdateCallback.unwrap())(
-            Some(update),
-            pd as *mut PlaydateAPI as *mut ::core::ffi::c_void,
-        );
-    }
-}
+use playdate_rs::graphics::{LCDSolidColor, LCD_COLUMNS, LCD_ROWS};
+use playdate_rs::{register_playdate_app, App, PLAYDATE};
 
 const TEXT_WIDTH: i32 = 86;
 const TEXT_HEIGHT: i32 = 16;
 
-static mut X: i32 = (400 - TEXT_WIDTH) / 2;
-static mut Y: i32 = (240 - TEXT_HEIGHT) / 2;
-static mut DX: i32 = 1;
-static mut DY: i32 = 2;
-
-unsafe extern "C" fn update(userdata: *mut ::core::ffi::c_void) -> i32 {
-    let pd: &mut PlaydateAPI = &mut *(userdata as *mut PlaydateAPI);
-    ((*pd.graphics).clear.unwrap())(LCDSolidColor::kColorWhite as _);
-    let s = "Hello, world!";
-    ((*pd.graphics).drawText.unwrap())(
-        s.as_ptr() as _,
-        s.len(),
-        PDStringEncoding::kASCIIEncoding,
-        X,
-        Y,
-    );
-    X += DX;
-    Y += DY;
-    if X < 0 || X > LCD_COLUMNS as i32 - TEXT_WIDTH {
-        DX = -DX;
-    }
-    if Y < 0 || Y > LCD_ROWS as i32 - TEXT_HEIGHT {
-        DY = -DY;
-    }
-    ((*pd.system).drawFPS.unwrap())(0, 0);
-    return 1;
+pub struct HelloWorld {
+    x: AtomicI32,
+    y: AtomicI32,
+    dx: AtomicI32,
+    dy: AtomicI32,
 }
+
+static HELLO_WORLD: HelloWorld = HelloWorld {
+    x: AtomicI32::new((400 - TEXT_WIDTH) / 2),
+    y: AtomicI32::new((240 - TEXT_HEIGHT) / 2),
+    dx: AtomicI32::new(1),
+    dy: AtomicI32::new(2),
+};
+
+impl App for HelloWorld {
+    fn update(&self) {
+        PLAYDATE.graphics.clear(LCDSolidColor::kColorWhite as _);
+        PLAYDATE.graphics.draw_text(
+            "Hello, World!",
+            self.x.load(Ordering::Relaxed),
+            self.y.load(Ordering::Relaxed),
+        );
+        self.x
+            .fetch_add(self.dx.load(Ordering::Relaxed), Ordering::Relaxed);
+        self.y
+            .fetch_add(self.dy.load(Ordering::Relaxed), Ordering::Relaxed);
+        if self.x.load(Ordering::Relaxed) < 0
+            || self.x.load(Ordering::Relaxed) > LCD_COLUMNS as i32 - TEXT_WIDTH
+        {
+            self.dx
+                .store(-self.dx.load(Ordering::Relaxed), Ordering::Relaxed);
+        }
+        if self.y.load(Ordering::Relaxed) < 0
+            || self.y.load(Ordering::Relaxed) > LCD_ROWS as i32 - TEXT_HEIGHT
+        {
+            self.dy
+                .store(-self.dy.load(Ordering::Relaxed), Ordering::Relaxed);
+        }
+        PLAYDATE.system.draw_fps(0, 0);
+    }
+}
+
+register_playdate_app!(HELLO_WORLD);
