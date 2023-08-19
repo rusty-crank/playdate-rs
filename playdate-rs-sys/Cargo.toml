@@ -3,6 +3,7 @@ name = "playdate-rs-sys"
 version = "0.0.1"
 edition = "2021"
 license = "MIT"
+description = "Rust bindings for the Playdate SDK"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
