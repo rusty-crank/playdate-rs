@@ -1,0 +1,2 @@
+[alias]
+playdate = "run --package playdate-rs-cli --"

@@ -1,3 +1,8 @@
 [workspace]
 
-members = ["playdate-rs-sys", "playdate-rs", "examples/hello_world"]
+members = [
+    "examples/hello_world",
+    "playdate-rs",
+    "playdate-rs-cli",
+    "playdate-rs-sys",
+]
