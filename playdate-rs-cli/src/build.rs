@@ -2,7 +2,7 @@ use std::{path::PathBuf, process::Command};
 
 use cargo_metadata::{Metadata, MetadataCommand, Package, Target};
 
-use crate::Runnable;
+use crate::{util::CommandExt, Runnable};
 
 static PDXINFO: &'static str = include_str!("../pdxinfo");
 
@@ -78,7 +78,7 @@ impl Runnable<BuildInfo> for Build {
         Command::new("cargo")
             .arg("build")
             .args(self.get_cargo_flags())
-            .status()?;
+            .check()?;
         // Find dylib target
         let meta = self.load_metadata()?;
         let package = meta.root_package().unwrap();
@@ -93,20 +93,20 @@ impl Runnable<BuildInfo> for Build {
         let dylib = target_dir.join(format!("lib{}.so", target.name).replace("-", "_"));
         // Create pdx folder
         let pdx = target_dir.join(format!("{}.pdx", target.name));
-        Command::new("mkdir").arg("-p").arg(&pdx).status()?;
+        Command::new("mkdir").arg("-p").arg(&pdx).check()?;
         // Copy output files
         Command::new("rm")
             .arg("-f")
             .arg(pdx.join("pdex.so"))
-            .status()?;
+            .check()?;
         Command::new("cp")
             .arg(&dylib)
             .arg(pdx.join("pdex.so"))
-            .status()?;
+            .check()?;
         Command::new("rm")
             .arg("-f")
             .arg(pdx.join("pdxinfo"))
-            .status()?;
+            .check()?;
         let pdxinfo = self.load_pdxinfo(package, target)?;
         std::fs::write(pdx.join("pdxinfo"), pdxinfo)?;
         Ok(BuildInfo {

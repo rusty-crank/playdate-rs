@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process::Command};
 
-use crate::Runnable;
+use crate::{util::CommandExt, Runnable};
 
 /// Build the current playdate project
 #[derive(clap::Args, Debug)]
@@ -24,7 +24,7 @@ impl Runnable for Run {
             simulator.to_string_lossy(),
             build_info.pdx.to_string_lossy()
         );
-        Command::new(simulator).arg(build_info.pdx).status()?;
+        Command::new(simulator).arg(build_info.pdx).check()?;
         Ok(())
     }
 }

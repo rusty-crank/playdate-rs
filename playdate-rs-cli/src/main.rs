@@ -3,6 +3,9 @@ extern crate log;
 
 use clap::Parser;
 
+#[macro_use]
+mod util;
+
 mod build;
 mod run;
 
