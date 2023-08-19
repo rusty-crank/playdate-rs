@@ -83,8 +83,8 @@ macro_rules! register_playdate_app {
             event: $crate::system::SystemEvent,
             arg: u32,
         ) {
-            $crate::init_playdate_once(pd);
             if event == $crate::system::SystemEvent::kEventInit {
+                $crate::init_playdate_once(pd);
                 $crate::start(&$app);
             }
             $app.handle_event(event, arg);
