@@ -1,9 +1,10 @@
 [package]
 name = "playdate-rs"
-version = "0.0.1"
-edition = "2021"
-license = "MIT"
 description = "Rust type-safe bindings for the Playdate SDK"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
