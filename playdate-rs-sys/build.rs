@@ -21,7 +21,7 @@ fn main() {
         .clang_arg("-DTARGET_EXTENSION=1")
         .clang_arg("-DTARGET_SIMULATOR=1")
         // Include playdate headers only
-        .allowlist_file(inc("^pd_api/pd_api_.*\\.h$"))
+        .allowlist_file(inc("pd_api/pd_api_.*\\.h$"))
         .allowlist_file(inc("pd_api.h"))
         // Rust enum types
         .rustified_enum("^PDSystemEvent$")
