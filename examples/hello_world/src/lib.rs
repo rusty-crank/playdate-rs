@@ -25,8 +25,8 @@ unsafe impl Sync for HelloWorld {}
 #[playdate_rs::app]
 static HELLO_WORLD: HelloWorld = HelloWorld {
     text_loc: RefCell::new(TextLoc {
-        x: (400 - TEXT_WIDTH) / 2,
-        y: (240 - TEXT_HEIGHT) / 2,
+        x: (LCD_COLUMNS as i32 - TEXT_WIDTH) / 2,
+        y: (LCD_ROWS as i32 - TEXT_HEIGHT) / 2,
         dx: 1,
         dy: 2,
     }),
