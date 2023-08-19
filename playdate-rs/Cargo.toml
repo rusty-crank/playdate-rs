@@ -8,4 +8,4 @@ description = "Rust type-safe bindings for the Playdate SDK"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-playdate-rs-sys = { version = "*", path = "../playdate-rs-sys" }
+playdate-rs-sys = { version = "0.0.1", path = "../playdate-rs-sys" }
