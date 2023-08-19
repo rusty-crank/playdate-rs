@@ -6,7 +6,11 @@ pub extern crate playdate_rs_sys as sys;
 
 pub mod graphics;
 mod memory;
+#[macro_use]
+pub mod print;
 pub mod system;
+
+pub use playdate_rs_macros::app;
 
 pub struct Playdate {
     pub system: system::System,

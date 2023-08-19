@@ -3,6 +3,12 @@
 members = [
     "examples/hello_world",
     "playdate-rs",
+    "playdate-rs/macros",
     "playdate-rs-cli",
     "playdate-rs-sys",
 ]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
