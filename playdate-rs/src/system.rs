@@ -164,14 +164,13 @@ impl System {
         &self,
         title: impl AsRef<str>,
         callback: sys::PDMenuItemCallbackFunction,
-        userdata: *mut c_void,
     ) -> MenuItem {
         MenuItem::new(unsafe {
             let c_string = CString::new(title.as_ref()).unwrap();
             (*self.handle).addMenuItem.unwrap()(
                 c_string.as_ptr() as *mut c_char,
                 callback,
-                userdata,
+                core::ptr::null_mut(),
             )
         })
     }
@@ -188,7 +187,6 @@ impl System {
         title: impl AsRef<str>,
         value: i32,
         callback: sys::PDMenuItemCallbackFunction,
-        userdata: *mut c_void,
     ) -> MenuItem {
         MenuItem::new(unsafe {
             let c_string = CString::new(title.as_ref()).unwrap();
@@ -196,7 +194,7 @@ impl System {
                 c_string.as_ptr() as *mut c_char,
                 value,
                 callback,
-                userdata,
+                core::ptr::null_mut(),
             )
         })
     }
@@ -216,7 +214,6 @@ impl System {
         option_titles: &[&str],
         options_count: i32,
         callback: sys::PDMenuItemCallbackFunction,
-        userdata: *mut c_void,
     ) -> MenuItem {
         MenuItem::new(unsafe {
             let c_string = CString::new(title.as_ref()).unwrap();
@@ -233,7 +230,7 @@ impl System {
                 title_ptrs.as_mut_ptr(),
                 options_count,
                 callback,
-                userdata,
+                core::ptr::null_mut(),
             )
         })
     }
