@@ -1,5 +1,4 @@
 #![no_std]
-// #![feature(global_allocator, allocator_api, heap_api)]
 
 extern crate alloc;
 pub extern crate playdate_rs_sys as sys;
