@@ -4,7 +4,7 @@ use cargo_metadata::{Metadata, MetadataCommand, Package, Target};
 
 use crate::{util::CommandExt, Runnable};
 
-static PDXINFO: &'static str = include_str!("../pdxinfo");
+static PDXINFO: &str = include_str!("../pdxinfo");
 
 /// Build the current playdate project
 #[derive(clap::Args, Debug)]
@@ -90,7 +90,7 @@ impl Runnable<BuildInfo> for Build {
             anyhow::bail!("Current crate has no cdylib target");
         };
         let target_dir = self.get_target_dir(&meta)?;
-        let dylib = target_dir.join(format!("lib{}.so", target.name).replace("-", "_"));
+        let dylib = target_dir.join(format!("lib{}.so", target.name).replace('-', "_"));
         // Create pdx folder
         let pdx = target_dir.join(format!("{}.pdx", target.name));
         Command::new("mkdir").arg("-p").arg(&pdx).check()?;

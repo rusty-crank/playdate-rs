@@ -135,6 +135,7 @@ impl Graphics {
     }
 
     /// Draws a filled triangle with points at x1, y1, x2, y2, and x3, y3.
+    #[allow(clippy::too_many_arguments)]
     pub fn fill_triangle(
         &self,
         x1: i32,
@@ -165,6 +166,7 @@ impl Graphics {
     }
 
     /// Draws an ellipse inside the rectangle {x, y, width, height} of width lineWidth (inset from the rectangle bounds). If startAngle != _endAngle, this draws an arc between the given angles. Angles are given in degrees, clockwise from due north.
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_ellipse(
         &self,
         x: i32,
@@ -191,6 +193,7 @@ impl Graphics {
     }
 
     /// Fills an ellipse inside the rectangle {x, y, width, height}. If startAngle != _endAngle, this draws a wedge/Pacman between the given angles. Angles are given in degrees, clockwise from due north.
+    #[allow(clippy::too_many_arguments)]
     pub fn fill_ellipse(
         &self,
         x: i32,
@@ -360,11 +363,18 @@ impl Graphics {
     }
 
     /// Returns the LCDFont object for the font file at path. In case of error, outErr points to a string describing the error.
-    pub fn load_font(&self, path: impl AsRef<str>, outerr: *mut *const c_char) -> Font {
-        Font::new(unsafe {
+    pub fn load_font(&self, path: impl AsRef<str>) -> Result<Font, String> {
+        unsafe {
             let c_string = CString::new(path.as_ref()).unwrap();
-            ((*self.handle).loadFont.unwrap())(c_string.as_ptr() as _, outerr)
-        })
+            let mut err = core::ptr::null();
+            let font = ((*self.handle).loadFont.unwrap())(c_string.as_ptr() as _, &mut err);
+            if !err.is_null() {
+                let err = CString::from_raw(err as *mut c_char);
+                let err = err.into_string().unwrap();
+                return Err(err);
+            }
+            Ok(Font::new(font))
+        }
     }
 
     /// Returns an LCDFontPage object for the given character code. Each LCDFontPage contains information for 256 characters; specifically, if (c1 & ~0xff) == (c2 & ~0xff), then c1 and c2 belong to the same page and the same LCDFontPage can be used to fetch the character data for both instead of searching for the page twice.
@@ -466,6 +476,7 @@ impl Graphics {
     }
 
     /// Returns 1 if any of the opaque pixels in bitmap1 when positioned at x1, y1 with flip1 overlap any of the opaque pixels in bitmap2 at x2, y2 with flip2 within the non-empty rect, or 0 if no pixels overlap or if one or both fall completely outside of rect.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn check_mask_collision(
         &self,
         bitmap1: *mut sys::LCDBitmap,
@@ -517,6 +528,7 @@ impl Graphics {
     }
 
     /// Draws the bitmap scaled to xscale and yscale then rotated by degrees with its center as given by proportions centerx and centery at x, y; that is: if centerx and centery are both 0.5 the center of the image is at (x,y), if centerx and centery are both 0 the top left corner of the image (before rotation) is at (x,y), etc.
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_rotated_bitmap(
         &self,
         bitmap: &Bitmap,
@@ -571,14 +583,16 @@ impl Graphics {
     }
 
     /// Returns an LCDFont object wrapping the LCDFontData data comprising the contents (minus 16-byte header) of an uncompressed pft file. wide corresponds to the flag in the header indicating whether the font contains glyphs at codepoints above U+1FFFF.
-    pub fn make_font_from_data(&self, data: *mut sys::LCDFontData, wide: i32) -> Font {
-        Font::new(unsafe { ((*self.handle).makeFontFromData.unwrap())(data, wide) })
+    /// # Safety
+    /// Assumes that the LCDFontData is valid.
+    pub unsafe fn make_font_from_data(&self, data: *mut sys::LCDFontData, wide: i32) -> Font {
+        Font::new(((*self.handle).makeFontFromData.unwrap())(data, wide))
     }
 }
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Bitmap {
-    handle: *mut sys::LCDBitmap,
+    pub(crate) handle: *mut sys::LCDBitmap,
     forget: bool,
 }
 
@@ -623,6 +637,7 @@ impl Bitmap {
     }
 
     /// Returns `true` if any of the opaque pixels in `self` when positioned at `x1`, `y1` with `flip1` overlap any of the opaque pixels in `other` at `x2`, `y2` with `flip2` within the non-empty rect, or `false` if no pixels overlap or if one or both fall completely outside of rect.
+    #[allow(clippy::too_many_arguments)]
     pub fn check_mask_collision(
         &self,
         x1: i32,
