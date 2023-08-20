@@ -1,183 +1,837 @@
-pub struct Sprite {
+use alloc::vec::Vec;
+
+use crate::{
+    graphics::{Bitmap, LCDRect},
+    PLAYDATE,
+};
+
+pub use sys::{CollisionPoint, CollisionVector, PDRect as Rect, SpriteCollisionResponseType};
+
+pub struct _Sprite {
     #[allow(unused)]
     handle: *const sys::playdate_sprite,
 }
 
-impl Sprite {
+impl _Sprite {
     pub(crate) fn new(handle: *const sys::playdate_sprite) -> Self {
         Self { handle }
     }
 
-    // pub setAlwaysRedraw: ::core::option::Option<unsafe extern "C" fn(flag: ::core::ffi::c_int)>,
-    // pub addDirtyRect: ::core::option::Option<unsafe extern "C" fn(dirtyRect: LCDRect)>,
-    // pub drawSprites: ::core::option::Option<unsafe extern "C" fn()>,
-    // pub updateAndDrawSprites: ::core::option::Option<unsafe extern "C" fn()>,
-    // pub newSprite: ::core::option::Option<unsafe extern "C" fn() -> *mut LCDSprite>,
-    // pub freeSprite: ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite)>,
-    // pub copy:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite) -> *mut LCDSprite>,
-    // pub addSprite: ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite)>,
-    // pub removeSprite: ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite)>,
-    // pub removeSprites: ::core::option::Option<
-    //     unsafe extern "C" fn(sprites: *mut *mut LCDSprite, count: ::core::ffi::c_int),
-    // >,
-    // pub removeAllSprites: ::core::option::Option<unsafe extern "C" fn()>,
-    // pub getSpriteCount: ::core::option::Option<unsafe extern "C" fn() -> ::core::ffi::c_int>,
-    // pub setBounds:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite, bounds: PDRect)>,
-    // pub getBounds: ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite) -> PDRect>,
-    // pub moveTo:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite, x: f32, y: f32)>,
-    // pub moveBy:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite, dx: f32, dy: f32)>,
-    // pub setImage: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, image: *mut LCDBitmap, flip: LCDBitmapFlip),
-    // >,
-    // pub getImage:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite) -> *mut LCDBitmap>,
-    // pub setSize:
-    //     ::core::option::Option<unsafe extern "C" fn(s: *mut LCDSprite, width: f32, height: f32)>,
-    // pub setZIndex:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite, zIndex: i16)>,
-    // pub getZIndex: ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite) -> i16>,
-    // pub setDrawMode: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, mode: LCDBitmapDrawMode),
-    // >,
-    // pub setImageFlip:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite, flip: LCDBitmapFlip)>,
-    // pub getImageFlip:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite) -> LCDBitmapFlip>,
-    // pub setStencil: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, stencil: *mut LCDBitmap),
-    // >,
-    // pub setClipRect:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite, clipRect: LCDRect)>,
-    // pub clearClipRect: ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite)>,
-    // pub setClipRectsInRange: ::core::option::Option<
-    //     unsafe extern "C" fn(
-    //         clipRect: LCDRect,
-    //         startZ: ::core::ffi::c_int,
-    //         endZ: ::core::ffi::c_int,
-    //     ),
-    // >,
-    // pub clearClipRectsInRange: ::core::option::Option<
-    //     unsafe extern "C" fn(startZ: ::core::ffi::c_int, endZ: ::core::ffi::c_int),
-    // >,
-    // pub setUpdatesEnabled: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, flag: ::core::ffi::c_int),
-    // >,
-    // pub updatesEnabled:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite) -> ::core::ffi::c_int>,
-    // pub setCollisionsEnabled: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, flag: ::core::ffi::c_int),
-    // >,
-    // pub collisionsEnabled:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite) -> ::core::ffi::c_int>,
-    // pub setVisible: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, flag: ::core::ffi::c_int),
-    // >,
-    // pub isVisible:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite) -> ::core::ffi::c_int>,
-    // pub setOpaque: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, flag: ::core::ffi::c_int),
-    // >,
-    // pub markDirty: ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite)>,
-    // pub setTag: ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite, tag: u8)>,
-    // pub getTag: ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite) -> u8>,
-    // pub setIgnoresDrawOffset: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, flag: ::core::ffi::c_int),
-    // >,
-    // pub setUpdateFunction: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, func: LCDSpriteUpdateFunction),
-    // >,
-    // pub setDrawFunction: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, func: LCDSpriteDrawFunction),
-    // >,
-    // pub getPosition: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, x: *mut f32, y: *mut f32),
-    // >,
-    // pub resetCollisionWorld: ::core::option::Option<unsafe extern "C" fn()>,
-    // pub setCollideRect:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite, collideRect: PDRect)>,
-    // pub getCollideRect:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite) -> PDRect>,
-    // pub clearCollideRect: ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite)>,
-    // pub setCollisionResponseFunction: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, func: LCDSpriteCollisionFilterProc),
-    // >,
-    // pub checkCollisions: ::core::option::Option<
-    //     unsafe extern "C" fn(
-    //         sprite: *mut LCDSprite,
-    //         goalX: f32,
-    //         goalY: f32,
-    //         actualX: *mut f32,
-    //         actualY: *mut f32,
-    //         len: *mut ::core::ffi::c_int,
-    //     ) -> *mut SpriteCollisionInfo,
-    // >,
-    // pub moveWithCollisions: ::core::option::Option<
-    //     unsafe extern "C" fn(
-    //         sprite: *mut LCDSprite,
-    //         goalX: f32,
-    //         goalY: f32,
-    //         actualX: *mut f32,
-    //         actualY: *mut f32,
-    //         len: *mut ::core::ffi::c_int,
-    //     ) -> *mut SpriteCollisionInfo,
-    // >,
-    // pub querySpritesAtPoint: ::core::option::Option<
-    //     unsafe extern "C" fn(x: f32, y: f32, len: *mut ::core::ffi::c_int) -> *mut *mut LCDSprite,
-    // >,
-    // pub querySpritesInRect: ::core::option::Option<
-    //     unsafe extern "C" fn(
-    //         x: f32,
-    //         y: f32,
-    //         width: f32,
-    //         height: f32,
-    //         len: *mut ::core::ffi::c_int,
-    //     ) -> *mut *mut LCDSprite,
-    // >,
-    // pub querySpritesAlongLine: ::core::option::Option<
-    //     unsafe extern "C" fn(
-    //         x1: f32,
-    //         y1: f32,
-    //         x2: f32,
-    //         y2: f32,
-    //         len: *mut ::core::ffi::c_int,
-    //     ) -> *mut *mut LCDSprite,
-    // >,
-    // pub querySpriteInfoAlongLine: ::core::option::Option<
-    //     unsafe extern "C" fn(
-    //         x1: f32,
-    //         y1: f32,
-    //         x2: f32,
-    //         y2: f32,
-    //         len: *mut ::core::ffi::c_int,
-    //     ) -> *mut SpriteQueryInfo,
-    // >,
-    // pub overlappingSprites: ::core::option::Option<
-    //     unsafe extern "C" fn(
-    //         sprite: *mut LCDSprite,
-    //         len: *mut ::core::ffi::c_int,
-    //     ) -> *mut *mut LCDSprite,
-    // >,
-    // pub allOverlappingSprites: ::core::option::Option<
-    //     unsafe extern "C" fn(len: *mut ::core::ffi::c_int) -> *mut *mut LCDSprite,
-    // >,
-    // pub setStencilPattern:
-    //     ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite, pattern: *mut u8)>,
-    // pub clearStencil: ::core::option::Option<unsafe extern "C" fn(sprite: *mut LCDSprite)>,
-    // pub setUserdata: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite, userdata: *mut ::core::ffi::c_void),
-    // >,
-    // pub getUserdata: ::core::option::Option<
-    //     unsafe extern "C" fn(sprite: *mut LCDSprite) -> *mut ::core::ffi::c_void,
-    // >,
-    // pub setStencilImage: ::core::option::Option<
-    //     unsafe extern "C" fn(
-    //         sprite: *mut LCDSprite,
-    //         stencil: *mut LCDBitmap,
-    //         tile: ::core::ffi::c_int,
-    //     ),
-    // >,
+    /// When flag is set to 1, the given sprite will always redraw.
+    pub fn set_always_redraw(&self, flag: bool) {
+        unsafe {
+            (*self.handle).setAlwaysRedraw.unwrap()(flag as i32);
+        }
+    }
+
+    /// Marks the given dirtyRect (in screen coordinates) as needing a redraw. Graphics drawing functions now call this automatically, adding their drawn areas to the sprite’s dirty list, so there’s usually no need to call this manually.
+    pub fn add_dirty_rect(&self, dirty_rect: LCDRect) {
+        unsafe {
+            (*self.handle).addDirtyRect.unwrap()(dirty_rect);
+        }
+    }
+
+    /// Draws every sprite in the display list.
+    pub fn draw_sprites(&self) {
+        unsafe {
+            (*self.handle).drawSprites.unwrap()();
+        }
+    }
+
+    /// Updates and draws every sprite in the display list.
+    pub fn update_and_draw_sprites(&self) {
+        unsafe {
+            (*self.handle).updateAndDrawSprites.unwrap()();
+        }
+    }
+
+    /// Allocates and returns a new LCDSprite.
+    pub fn new_sprite(&self) -> Sprite {
+        Sprite::from(unsafe { (*self.handle).newSprite.unwrap()() })
+    }
+
+    /// Frees the given sprite.
+    pub(crate) fn free_sprite(&self, sprite: *mut sys::LCDSprite) {
+        unsafe {
+            (*self.handle).freeSprite.unwrap()(sprite);
+        }
+    }
+
+    /// Allocates and returns a copy of the given sprite.
+    pub(crate) fn copy(&self, sprite: *mut sys::LCDSprite) -> *mut sys::LCDSprite {
+        unsafe { (*self.handle).copy.unwrap()(sprite) }
+    }
+
+    /// Adds the given sprite to the display list, so that it is drawn in the current scene.
+    pub fn add_sprite(&self, sprite: &Sprite) {
+        unsafe {
+            (*self.handle).addSprite.unwrap()(sprite.handle);
+        }
+    }
+
+    /// Removes the given sprite from the display list.
+    pub fn remove_sprite(&self, sprite: &Sprite) {
+        unsafe {
+            (*self.handle).removeSprite.unwrap()(sprite.handle);
+        }
+    }
+
+    /// Removes the given count sized array of sprites from the display list.
+    pub fn remove_sprites(&self, sprites: &[&Sprite]) {
+        let mut sprites: Vec<_> = sprites.iter().map(|s| s.handle).collect();
+        unsafe {
+            (*self.handle).removeSprites.unwrap()(sprites.as_mut_ptr(), sprites.len() as i32);
+        }
+    }
+
+    /// Removes all sprites from the display list.
+    pub fn remove_all_sprites(&self) {
+        unsafe {
+            (*self.handle).removeAllSprites.unwrap()();
+        }
+    }
+
+    /// Returns the total number of sprites in the display list.
+    pub fn get_sprite_count(&self) -> i32 {
+        unsafe { (*self.handle).getSpriteCount.unwrap()() }
+    }
+
+    /// Sets the bounds of the given sprite with bounds.
+    pub(crate) fn set_bounds(&self, sprite: *mut sys::LCDSprite, bounds: Rect) {
+        unsafe {
+            (*self.handle).setBounds.unwrap()(sprite, bounds.into());
+        }
+    }
+
+    /// Returns the bounds of the given sprite as an PDRect;
+    pub(crate) fn get_bounds(&self, sprite: *mut sys::LCDSprite) -> Rect {
+        unsafe { (*self.handle).getBounds.unwrap()(sprite).into() }
+    }
+
+    /// Moves the given sprite to x, y and resets its bounds based on the bitmap dimensions and center.
+    pub(crate) fn move_to(&self, sprite: *mut sys::LCDSprite, x: f32, y: f32) {
+        unsafe {
+            (*self.handle).moveTo.unwrap()(sprite, x, y);
+        }
+    }
+
+    /// Moves the given sprite to by offsetting its current position by dx, dy.
+    pub(crate) fn move_by(&self, sprite: *mut sys::LCDSprite, dx: f32, dy: f32) {
+        unsafe {
+            (*self.handle).moveBy.unwrap()(sprite, dx, dy);
+        }
+    }
+
+    /// Sets the given sprite's image to the given bitmap.
+    pub(crate) fn set_image(
+        &self,
+        sprite: *mut sys::LCDSprite,
+        image: *mut sys::LCDBitmap,
+        flip: sys::LCDBitmapFlip,
+    ) {
+        unsafe {
+            (*self.handle).setImage.unwrap()(sprite, image, flip);
+        }
+    }
+
+    /// Returns the LCDBitmap currently assigned to the given sprite.
+    pub(crate) fn get_image(&self, sprite: *mut sys::LCDSprite) -> *mut sys::LCDBitmap {
+        unsafe { (*self.handle).getImage.unwrap()(sprite) }
+    }
+
+    /// Sets the size. The size is used to set the sprite’s bounds when calling moveTo().
+    pub(crate) fn set_size(&self, sprite: *mut sys::LCDSprite, width: f32, height: f32) {
+        unsafe {
+            (*self.handle).setSize.unwrap()(sprite, width, height);
+        }
+    }
+
+    /// Sets the Z order of the given sprite. Higher Z sprites are drawn on top of those with lower Z order.
+    pub(crate) fn set_z_index(&self, sprite: *mut sys::LCDSprite, z_index: i16) {
+        unsafe {
+            (*self.handle).setZIndex.unwrap()(sprite, z_index);
+        }
+    }
+
+    /// Returns the Z index of the given sprite.
+    pub(crate) fn get_z_index(&self, sprite: *mut sys::LCDSprite) -> i16 {
+        unsafe { (*self.handle).getZIndex.unwrap()(sprite) }
+    }
+
+    /// Sets the mode for drawing the sprite’s bitmap.
+    pub(crate) fn set_draw_mode(&self, sprite: *mut sys::LCDSprite, mode: sys::LCDBitmapDrawMode) {
+        unsafe {
+            (*self.handle).setDrawMode.unwrap()(sprite, mode);
+        }
+    }
+
+    /// Flips the bitmap.
+    pub(crate) fn set_image_flip(&self, sprite: *mut sys::LCDSprite, flip: sys::LCDBitmapFlip) {
+        unsafe {
+            (*self.handle).setImageFlip.unwrap()(sprite, flip);
+        }
+    }
+
+    /// Returns the flip setting of the sprite’s bitmap.
+    pub(crate) fn get_image_flip(&self, sprite: *mut sys::LCDSprite) -> sys::LCDBitmapFlip {
+        unsafe { (*self.handle).getImageFlip.unwrap()(sprite) }
+    }
+
+    /// Specifies a stencil image to be set on the frame buffer before the sprite is drawn.
+    pub(crate) fn set_stencil(&self, sprite: *mut sys::LCDSprite, stencil: *mut sys::LCDBitmap) {
+        unsafe {
+            (*self.handle).setStencil.unwrap()(sprite, stencil);
+        }
+    }
+
+    /// Sets the clipping rectangle for sprite drawing.
+    pub(crate) fn set_clip_rect(&self, sprite: *mut sys::LCDSprite, clip_rect: LCDRect) {
+        unsafe {
+            (*self.handle).setClipRect.unwrap()(sprite, clip_rect);
+        }
+    }
+
+    /// Clears the sprite’s clipping rectangle.
+    pub(crate) fn clear_clip_rect(&self, sprite: *mut sys::LCDSprite) {
+        unsafe {
+            (*self.handle).clearClipRect.unwrap()(sprite);
+        }
+    }
+
+    /// Sets the clipping rectangle for all sprites with a Z index within startZ and endZ inclusive.
+    pub fn set_clip_rects_in_range(&self, clip_rect: LCDRect, start_z: i32, end_z: i32) {
+        unsafe {
+            (*self.handle).setClipRectsInRange.unwrap()(clip_rect, start_z, end_z);
+        }
+    }
+
+    /// Clears the clipping rectangle for all sprites with a Z index within startZ and endZ inclusive.
+    pub fn clear_clip_rects_in_range(&self, start_z: i32, end_z: i32) {
+        unsafe {
+            (*self.handle).clearClipRectsInRange.unwrap()(start_z, end_z);
+        }
+    }
+
+    /// Set the updatesEnabled flag of the given sprite (determines whether the sprite has its update function called). One is true, 0 is false.
+    pub(crate) fn set_updates_enabled(&self, sprite: *mut sys::LCDSprite, flag: i32) {
+        unsafe {
+            (*self.handle).setUpdatesEnabled.unwrap()(sprite, flag);
+        }
+    }
+
+    /// Get the updatesEnabled flag of the given sprite.
+    pub(crate) fn updates_enabled(&self, sprite: *mut sys::LCDSprite) -> i32 {
+        unsafe { (*self.handle).updatesEnabled.unwrap()(sprite) }
+    }
+
+    /// Set the collisionsEnabled flag of the given sprite (along with the collideRect, this determines whether the sprite participates in collisions). One is true, 0 is false. Set to 1 by default.
+    pub(crate) fn set_collisions_enabled(&self, sprite: *mut sys::LCDSprite, flag: i32) {
+        unsafe {
+            (*self.handle).setCollisionsEnabled.unwrap()(sprite, flag);
+        }
+    }
+
+    /// Get the collisionsEnabled flag of the given sprite.
+    pub(crate) fn collisions_enabled(&self, sprite: *mut sys::LCDSprite) -> i32 {
+        unsafe { (*self.handle).collisionsEnabled.unwrap()(sprite) }
+    }
+
+    /// Set the visible flag of the given sprite (determines whether the sprite has its draw function called). One is true, 0 is false.
+    pub(crate) fn set_visible(&self, sprite: *mut sys::LCDSprite, flag: i32) {
+        unsafe {
+            (*self.handle).setVisible.unwrap()(sprite, flag);
+        }
+    }
+
+    /// Get the visible flag of the given sprite.
+    pub(crate) fn is_visible(&self, sprite: *mut sys::LCDSprite) -> i32 {
+        unsafe { (*self.handle).isVisible.unwrap()(sprite) }
+    }
+
+    /// Marking a sprite opaque tells the sprite system that it doesn’t need to draw anything underneath the sprite, since it will be overdrawn anyway. If you set an image without a mask/alpha channel on the sprite, it automatically sets the opaque flag.
+    pub(crate) fn set_opaque(&self, sprite: *mut sys::LCDSprite, flag: i32) {
+        unsafe {
+            (*self.handle).setOpaque.unwrap()(sprite, flag);
+        }
+    }
+
+    /// Forces the given sprite to redraw.
+    pub(crate) fn mark_dirty(&self, sprite: *mut sys::LCDSprite) {
+        unsafe {
+            (*self.handle).markDirty.unwrap()(sprite);
+        }
+    }
+
+    /// Sets the tag of the given sprite. This can be useful for identifying sprites or types of sprites when using the collision API.
+    pub(crate) fn set_tag(&self, sprite: *mut sys::LCDSprite, tag: u8) {
+        unsafe {
+            (*self.handle).setTag.unwrap()(sprite, tag);
+        }
+    }
+
+    /// Returns the tag of the given sprite.
+    pub(crate) fn get_tag(&self, sprite: *mut sys::LCDSprite) -> u8 {
+        unsafe { (*self.handle).getTag.unwrap()(sprite) }
+    }
+
+    /// When flag is set to 1, the sprite will draw in screen coordinates, ignoring the currently-set drawOffset.
+    ///
+    /// This only affects drawing, and should not be used on sprites being used for collisions, which will still happen in world-space.
+    pub(crate) fn set_ignores_draw_offset(&self, sprite: *mut sys::LCDSprite, flag: i32) {
+        unsafe {
+            (*self.handle).setIgnoresDrawOffset.unwrap()(sprite, flag);
+        }
+    }
+
+    /// Sets the update function for the given sprite.
+    pub(crate) fn set_update_function(
+        &self,
+        sprite: *mut sys::LCDSprite,
+        func: sys::LCDSpriteUpdateFunction,
+    ) {
+        unsafe {
+            (*self.handle).setUpdateFunction.unwrap()(sprite, func);
+        }
+    }
+
+    /// Sets the draw function for the given sprite.
+    pub(crate) fn set_draw_function(
+        &self,
+        sprite: *mut sys::LCDSprite,
+        func: sys::LCDSpriteDrawFunction,
+    ) {
+        unsafe {
+            (*self.handle).setDrawFunction.unwrap()(sprite, func);
+        }
+    }
+
+    /// Sets x and y to the current position of sprite.
+    pub(crate) fn get_position(&self, sprite: *mut sys::LCDSprite) -> (f32, f32) {
+        let mut x = 0.0;
+        let mut y = 0.0;
+        unsafe {
+            (*self.handle).getPosition.unwrap()(sprite, &mut x, &mut y);
+        }
+        (x, y)
+    }
+
+    /// Frees and reallocates internal collision data, resetting everything to its default state.
+    pub fn reset_collision_world(&self) {
+        unsafe {
+            (*self.handle).resetCollisionWorld.unwrap()();
+        }
+    }
+
+    /// Marks the area of the given sprite, relative to its bounds, to be checked for collisions with other sprites' collide rects.
+    pub(crate) fn set_collide_rect(&self, sprite: *mut sys::LCDSprite, collide_rect: Rect) {
+        unsafe {
+            (*self.handle).setCollideRect.unwrap()(sprite, collide_rect.into());
+        }
+    }
+
+    /// Returns the given sprite’s collide rect.
+    pub(crate) fn get_collide_rect(&self, sprite: *mut sys::LCDSprite) -> Rect {
+        unsafe { (*self.handle).getCollideRect.unwrap()(sprite).into() }
+    }
+
+    /// Clears the given sprite’s collide rect.
+    pub(crate) fn clear_collide_rect(&self, sprite: *mut sys::LCDSprite) {
+        unsafe {
+            (*self.handle).clearCollideRect.unwrap()(sprite);
+        }
+    }
+
+    /// Set a callback that returns a SpriteCollisionResponseType for a collision between sprite and other.
+    pub(crate) fn set_collision_response_function(
+        &self,
+        sprite: *mut sys::LCDSprite,
+        func: sys::LCDSpriteCollisionFilterProc,
+    ) {
+        unsafe {
+            (*self.handle).setCollisionResponseFunction.unwrap()(sprite, func);
+        }
+    }
+
+    /// Returns the same values as playdate->sprite->moveWithCollisions() but does not actually move the sprite.
+    pub fn check_collisions(
+        &self,
+        sprite: *mut sys::LCDSprite,
+        goal_x: f32,
+        goal_y: f32,
+    ) -> Vec<SpriteCollisionInfo> {
+        let mut actual_x = 0.0;
+        let mut actual_y = 0.0;
+        let mut len = 0;
+        let info = unsafe {
+            (*self.handle).checkCollisions.unwrap()(
+                sprite,
+                goal_x,
+                goal_y,
+                &mut actual_x,
+                &mut actual_y,
+                &mut len,
+            )
+        };
+        let mut result = Vec::new();
+        for i in 0..len {
+            let info = unsafe { info.offset(i as isize).as_ref().unwrap() };
+            result.push(SpriteCollisionInfo::new(info));
+        }
+        result
+    }
+
+    /// Moves the given sprite towards goalX, goalY taking collisions into account and returns an array of SpriteCollisionInfo. len is set to the size of the array and actualX, actualY are set to the sprite’s position after collisions. If no collisions occurred, this will be the same as goalX, goalY.
+    pub fn move_with_collisions(
+        &self,
+        sprite: *mut sys::LCDSprite,
+        goal_x: f32,
+        goal_y: f32,
+    ) -> Vec<SpriteCollisionInfo> {
+        let mut actual_x = 0.0;
+        let mut actual_y = 0.0;
+        let mut len = 0;
+        let info = unsafe {
+            (*self.handle).moveWithCollisions.unwrap()(
+                sprite,
+                goal_x,
+                goal_y,
+                &mut actual_x,
+                &mut actual_y,
+                &mut len,
+            )
+        };
+        let mut result = Vec::new();
+        for i in 0..len {
+            let info = unsafe { info.offset(i as isize).as_ref().unwrap() };
+            result.push(SpriteCollisionInfo::new(info));
+        }
+        result
+    }
+
+    pub fn query_sprites_at_point(&self, x: f32, y: f32) -> Vec<Sprite> {
+        let mut len = 0;
+        let sprites = unsafe { (*self.handle).querySpritesAtPoint.unwrap()(x, y, &mut len) };
+        let mut result = Vec::new();
+        for i in 0..len {
+            let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
+            result.push(Sprite::from_ref(*sprite));
+        }
+        result
+    }
+
+    pub fn query_sprites_in_rect(&self, x: f32, y: f32, width: f32, height: f32) -> Vec<Sprite> {
+        let mut len = 0;
+        let sprites =
+            unsafe { (*self.handle).querySpritesInRect.unwrap()(x, y, width, height, &mut len) };
+        let mut result = Vec::new();
+        for i in 0..len {
+            let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
+            result.push(Sprite::from_ref(*sprite));
+        }
+        result
+    }
+
+    pub fn query_sprites_along_line(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<Sprite> {
+        let mut len = 0;
+        let sprites =
+            unsafe { (*self.handle).querySpritesAlongLine.unwrap()(x1, y1, x2, y2, &mut len) };
+        let mut result = Vec::new();
+        for i in 0..len {
+            let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
+            result.push(Sprite::from_ref(*sprite));
+        }
+        result
+    }
+
+    pub fn query_sprite_info_along_line(
+        &self,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+    ) -> Vec<SpriteQueryInfo> {
+        let mut len = 0;
+        let info =
+            unsafe { (*self.handle).querySpriteInfoAlongLine.unwrap()(x1, y1, x2, y2, &mut len) };
+        let mut result = Vec::new();
+        for i in 0..len {
+            let info = unsafe { info.offset(i as isize).as_ref().unwrap() };
+            result.push(SpriteQueryInfo::new(info));
+        }
+        result
+    }
+
+    /// Returns an array of sprites that have collide rects that are currently overlapping the given sprite’s collide rect.
+    pub fn overlapping_sprites(&self, sprite: &Sprite) -> Vec<Sprite> {
+        let mut len = 0;
+        let sprites =
+            unsafe { (*self.handle).overlappingSprites.unwrap()(sprite.handle, &mut len) };
+        let mut result = Vec::new();
+        for i in 0..len {
+            let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
+            result.push(Sprite::from_ref(*sprite));
+        }
+        result
+    }
+
+    /// Returns an array of all sprites that have collide rects that are currently overlapping. Each consecutive pair of sprites is overlapping (eg. 0 & 1 overlap, 2 & 3 overlap, etc).
+    pub fn all_overlapping_sprites(&self) -> Vec<Sprite> {
+        let mut len = 0;
+        let sprites = unsafe { (*self.handle).allOverlappingSprites.unwrap()(&mut len) };
+        let mut result = Vec::new();
+        for i in 0..len {
+            let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
+            result.push(Sprite::from_ref(*sprite));
+        }
+        result
+    }
+
+    /// Sets the sprite’s stencil to the given pattern.
+    pub(crate) fn set_stencil_pattern(&self, sprite: *mut sys::LCDSprite, pattern: *mut u8) {
+        unsafe {
+            (*self.handle).setStencilPattern.unwrap()(sprite, pattern);
+        }
+    }
+
+    /// Clears the sprite’s stencil.
+    pub(crate) fn clear_stencil(&self, sprite: *mut sys::LCDSprite) {
+        unsafe {
+            (*self.handle).clearStencil.unwrap()(sprite);
+        }
+    }
+
+    /// Sets the sprite’s userdata, an arbitrary pointer used for associating the sprite with other data.
+    pub(crate) fn set_userdata(
+        &self,
+        sprite: *mut sys::LCDSprite,
+        userdata: *mut core::ffi::c_void,
+    ) {
+        unsafe {
+            (*self.handle).setUserdata.unwrap()(sprite, userdata);
+        }
+    }
+
+    /// Gets the sprite’s userdata, an arbitrary pointer used for associating the sprite with other data.
+    pub(crate) fn get_userdata(&self, sprite: *mut sys::LCDSprite) -> *mut core::ffi::c_void {
+        unsafe { (*self.handle).getUserdata.unwrap()(sprite) }
+    }
+
+    /// Specifies a stencil image to be set on the frame buffer before the sprite is drawn. If tile is set, the stencil will be tiled. Tiled stencils must have width evenly divisible by 32.
+    pub(crate) fn set_stencil_image(
+        &self,
+        sprite: *mut sys::LCDSprite,
+        stencil: *mut sys::LCDBitmap,
+        tile: i32,
+    ) {
+        unsafe {
+            (*self.handle).setStencilImage.unwrap()(sprite, stencil, tile);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Sprite {
+    handle: *mut sys::LCDSprite,
+    forget: bool,
+}
+
+impl PartialEq for Sprite {
+    fn eq(&self, other: &Self) -> bool {
+        self.handle == other.handle
+    }
+}
+
+impl Eq for Sprite {}
+
+unsafe impl Sync for Sprite {}
+unsafe impl Send for Sprite {}
+
+impl Sprite {
+    pub(crate) fn from(handle: *mut sys::LCDSprite) -> Self {
+        Self {
+            handle,
+            forget: false,
+        }
+    }
+
+    pub(crate) fn from_ref(handle: *mut sys::LCDSprite) -> Self {
+        Self {
+            handle,
+            forget: true,
+        }
+    }
+
+    /// Allocates and returns a new Sprite.
+    pub fn new() -> Self {
+        PLAYDATE.sprite.new_sprite()
+    }
+
+    /// Sets x and y to the current position of sprite.
+    pub fn get_position(&self) -> (f32, f32) {
+        PLAYDATE.sprite.get_position(self.handle)
+    }
+
+    /// Sets the bounds of the given sprite with bounds.
+    pub fn set_bounds(&self, bounds: Rect) {
+        PLAYDATE.sprite.set_bounds(self.handle, bounds);
+    }
+
+    /// Returns the bounds of the given sprite as an PDRect;
+    pub fn get_bounds(&self) -> Rect {
+        PLAYDATE.sprite.get_bounds(self.handle)
+    }
+
+    /// Moves the given sprite to x, y and resets its bounds based on the bitmap dimensions and center.
+    pub fn move_to(&self, x: f32, y: f32) {
+        PLAYDATE.sprite.move_to(self.handle, x, y);
+    }
+
+    /// Moves the given sprite to by offsetting its current position by dx, dy.
+    pub fn move_by(&self, dx: f32, dy: f32) {
+        PLAYDATE.sprite.move_by(self.handle, dx, dy);
+    }
+
+    /// Sets the given sprite's image to the given bitmap.
+    pub fn set_image(&self, image: &Bitmap, flip: sys::LCDBitmapFlip) {
+        PLAYDATE.sprite.set_image(self.handle, image.handle, flip);
+    }
+
+    /// Returns the LCDBitmap currently assigned to the given sprite.
+    pub fn get_image(&self) -> Bitmap {
+        Bitmap::from_ref(PLAYDATE.sprite.get_image(self.handle))
+    }
+
+    /// Sets the size. The size is used to set the sprite’s bounds when calling moveTo().
+    pub fn set_size(&self, width: f32, height: f32) {
+        PLAYDATE.sprite.set_size(self.handle, width, height);
+    }
+
+    /// Sets the Z order of the given sprite. Higher Z sprites are drawn on top of those with lower Z order.
+    pub fn set_z_index(&self, z_index: i16) {
+        PLAYDATE.sprite.set_z_index(self.handle, z_index);
+    }
+
+    /// Returns the Z index of the given sprite.
+    pub fn get_z_index(&self) -> i16 {
+        PLAYDATE.sprite.get_z_index(self.handle)
+    }
+
+    /// Sets the mode for drawing the sprite’s bitmap.
+    pub fn set_draw_mode(&self, mode: sys::LCDBitmapDrawMode) {
+        PLAYDATE.sprite.set_draw_mode(self.handle, mode);
+    }
+
+    /// Flips the bitmap.
+    pub fn set_image_flip(&self, flip: sys::LCDBitmapFlip) {
+        PLAYDATE.sprite.set_image_flip(self.handle, flip);
+    }
+
+    /// Returns the flip setting of the sprite’s bitmap.
+    pub fn get_image_flip(&self) -> sys::LCDBitmapFlip {
+        PLAYDATE.sprite.get_image_flip(self.handle)
+    }
+
+    /// Specifies a stencil image to be set on the frame buffer before the sprite is drawn.
+    pub fn set_stencil(&self, stencil: &Bitmap) {
+        PLAYDATE.sprite.set_stencil(self.handle, stencil.handle);
+    }
+
+    /// Sets the clipping rectangle for sprite drawing.
+    pub fn set_clip_rect(&self, clip_rect: LCDRect) {
+        PLAYDATE.sprite.set_clip_rect(self.handle, clip_rect);
+    }
+
+    /// Clears the sprite’s clipping rectangle.
+    pub fn clear_clip_rect(&self) {
+        PLAYDATE.sprite.clear_clip_rect(self.handle);
+    }
+
+    /// Set the updatesEnabled flag of the given sprite (determines whether the sprite has its update function called).
+    pub fn set_updates_enabled(&self, flag: bool) {
+        PLAYDATE.sprite.set_updates_enabled(self.handle, flag as _);
+    }
+
+    /// Get the updatesEnabled flag of the given sprite.
+    pub fn updates_enabled(&self) -> bool {
+        PLAYDATE.sprite.updates_enabled(self.handle) == 1
+    }
+
+    /// Set the collisionsEnabled flag of the given sprite (along with the collideRect, this determines whether the sprite participates in collisions). Set to true by default.
+    pub fn set_collisions_enabled(&self, flag: bool) {
+        PLAYDATE
+            .sprite
+            .set_collisions_enabled(self.handle, flag as _);
+    }
+
+    /// Get the collisionsEnabled flag of the given sprite.
+    pub fn collisions_enabled(&self) -> bool {
+        PLAYDATE.sprite.collisions_enabled(self.handle) == 1
+    }
+
+    /// Set the visible flag of the given sprite (determines whether the sprite has its draw function called).
+    pub fn set_visible(&self, flag: bool) {
+        PLAYDATE.sprite.set_visible(self.handle, flag as _);
+    }
+
+    /// Get the visible flag of the given sprite.
+    pub fn is_visible(&self) -> bool {
+        PLAYDATE.sprite.is_visible(self.handle) == 1
+    }
+
+    /// Marking a sprite opaque tells the sprite system that it doesn’t need to draw anything underneath the sprite, since it will be overdrawn anyway. If you set an image without a mask/alpha channel on the sprite, it automatically sets the opaque flag.
+    pub fn set_opaque(&self, flag: bool) {
+        PLAYDATE.sprite.set_opaque(self.handle, flag as _);
+    }
+
+    /// Forces the given sprite to redraw.
+    pub fn mark_dirty(&self) {
+        PLAYDATE.sprite.mark_dirty(self.handle);
+    }
+
+    /// Sets the tag of the given sprite. This can be useful for identifying sprites or types of sprites when using the collision API.
+    pub fn set_tag(&self, tag: u8) {
+        PLAYDATE.sprite.set_tag(self.handle, tag);
+    }
+
+    /// Returns the tag of the given sprite.
+    pub fn get_tag(&self) -> u8 {
+        PLAYDATE.sprite.get_tag(self.handle)
+    }
+
+    /// When flag is set to 1, the sprite will draw in screen coordinates, ignoring the currently-set drawOffset.
+    ///
+    /// This only affects drawing, and should not be used on sprites being used for collisions, which will still happen in world-space.
+    pub fn set_ignores_draw_offset(&self, flag: i32) {
+        PLAYDATE.sprite.set_ignores_draw_offset(self.handle, flag);
+    }
+
+    /// Sets the update function for the given sprite.
+    pub fn set_update_function(&self, func: sys::LCDSpriteUpdateFunction) {
+        PLAYDATE.sprite.set_update_function(self.handle, func);
+    }
+
+    /// Sets the draw function for the given sprite.
+    pub fn set_draw_function(&self, func: sys::LCDSpriteDrawFunction) {
+        PLAYDATE.sprite.set_draw_function(self.handle, func);
+    }
+
+    /// Marks the area of the given sprite, relative to its bounds, to be checked for collisions with other sprites' collide rects.
+    pub fn set_collide_rect(&self, collide_rect: Rect) {
+        PLAYDATE.sprite.set_collide_rect(self.handle, collide_rect);
+    }
+
+    /// Returns the given sprite’s collide rect.
+    pub fn get_collide_rect(&self) -> Rect {
+        PLAYDATE.sprite.get_collide_rect(self.handle)
+    }
+
+    /// Clears the given sprite’s collide rect.
+    pub fn clear_collide_rect(&self) {
+        PLAYDATE.sprite.clear_collide_rect(self.handle);
+    }
+
+    /// Set a callback that returns a SpriteCollisionResponseType for a collision between sprite and other.
+    pub fn set_collision_response_function(&self, func: sys::LCDSpriteCollisionFilterProc) {
+        PLAYDATE
+            .sprite
+            .set_collision_response_function(self.handle, func);
+    }
+
+    /// Sets the sprite’s stencil to the given pattern.
+    pub fn set_stencil_pattern(&self, pattern: *mut u8) {
+        PLAYDATE.sprite.set_stencil_pattern(self.handle, pattern);
+    }
+
+    /// Clears the sprite’s stencil.
+    pub fn clear_stencil(&self) {
+        PLAYDATE.sprite.clear_stencil(self.handle);
+    }
+
+    /// Sets the sprite’s userdata, an arbitrary pointer used for associating the sprite with other data.
+    pub fn set_userdata(&self, userdata: *mut core::ffi::c_void) {
+        PLAYDATE.sprite.set_userdata(self.handle, userdata);
+    }
+
+    /// Gets the sprite’s userdata, an arbitrary pointer used for associating the sprite with other data.
+    pub fn get_userdata(&self) -> *mut core::ffi::c_void {
+        PLAYDATE.sprite.get_userdata(self.handle)
+    }
+
+    /// Specifies a stencil image to be set on the frame buffer before the sprite is drawn. If tile is set, the stencil will be tiled. Tiled stencils must have width evenly divisible by 32.
+    pub fn set_stencil_image(&self, stencil: &Bitmap, tile: i32) {
+        PLAYDATE
+            .sprite
+            .set_stencil_image(self.handle, stencil.handle, tile);
+    }
+}
+
+impl Drop for Sprite {
+    fn drop(&mut self) {
+        if self.forget {
+            return;
+        }
+        PLAYDATE.sprite.free_sprite(self.handle as *mut _);
+    }
+}
+
+impl Clone for Sprite {
+    fn clone(&self) -> Self {
+        let handle = PLAYDATE.sprite.copy(self.handle as *mut _);
+        Self {
+            handle,
+            forget: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpriteCollisionInfo {
+    pub sprite: Sprite,
+    pub other: Sprite,
+    pub response_type: SpriteCollisionResponseType,
+    pub overlaps: u8,
+    pub ti: f32,
+    pub move_: CollisionPoint,
+    pub normal: CollisionVector,
+    pub touch: CollisionPoint,
+    pub sprite_rect: Rect,
+    pub other_rect: Rect,
+}
+
+impl SpriteCollisionInfo {
+    fn new(info: &sys::SpriteCollisionInfo) -> Self {
+        Self {
+            sprite: Sprite::from_ref(info.sprite),
+            other: Sprite::from_ref(info.other),
+            response_type: info.responseType,
+            overlaps: info.overlaps,
+            ti: info.ti,
+            move_: info.move_.into(),
+            normal: info.normal.into(),
+            touch: info.touch.into(),
+            sprite_rect: info.spriteRect.into(),
+            other_rect: info.otherRect.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpriteQueryInfo {
+    pub sprite: Sprite,
+    pub ti1: f32,
+    pub ti2: f32,
+    pub entry_point: CollisionPoint,
+    pub exit_point: CollisionPoint,
+}
+
+impl SpriteQueryInfo {
+    fn new(info: &sys::SpriteQueryInfo) -> Self {
+        Self {
+            sprite: Sprite::from_ref(info.sprite),
+            ti1: info.ti1,
+            ti2: info.ti2,
+            entry_point: info.entryPoint.into(),
+            exit_point: info.exitPoint.into(),
+        }
+    }
 }

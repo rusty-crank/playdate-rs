@@ -4,7 +4,7 @@ use alloc::ffi::CString;
 
 pub use sys::{
     LCDBitmapDrawMode, LCDBitmapFlip, LCDColor, LCDFontData, LCDLineCapStyle, LCDPolygonFillRule,
-    LCDRect as Rect, LCDSolidColor, LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
+    LCDRect, LCDSolidColor, LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
 };
 
 use crate::{error::Error, PLAYDATE};
@@ -239,7 +239,7 @@ impl Graphics {
 
     /// Allocates and returns a new width by height LCDBitmap filled with bgcolor.
     pub fn new_bitmap(&self, width: i32, height: i32, bgcolor: LCDColor) -> Bitmap {
-        Bitmap::new(unsafe { ((*self.handle).newBitmap.unwrap())(width, height, bgcolor) })
+        Bitmap::from(unsafe { ((*self.handle).newBitmap.unwrap())(width, height, bgcolor) })
     }
 
     /// Frees the given bitmap.
@@ -260,7 +260,7 @@ impl Graphics {
                 let err = err.into_string().unwrap();
                 return Err(Error::FailedToLoadBitMapFromFile(err));
             }
-            Ok(Bitmap::new(ptr))
+            Ok(Bitmap::from(ptr))
         }
     }
 
@@ -443,13 +443,13 @@ impl Graphics {
         if ptr.is_null() {
             None
         } else {
-            Some(Bitmap::new_ref(ptr))
+            Some(Bitmap::from_ref(ptr))
         }
     }
 
     /// Returns a copy the contents of the working frame buffer as a bitmap. The caller is responsible for freeing the returned bitmap with playdate->graphics->freeBitmap().
     pub fn copy_frame_buffer_bitmap(&self) -> Bitmap {
-        Bitmap::new(unsafe { ((*self.handle).copyFrameBufferBitmap.unwrap())() })
+        Bitmap::from(unsafe { ((*self.handle).copyFrameBufferBitmap.unwrap())() })
     }
 
     /// After updating pixels in the buffer returned by getFrame(), you must tell the graphics system which rows were updated. This function marks a contiguous range of rows as updated (e.g., markUpdatedRows(0,LCD_ROWS-1) tells the system to update the entire display). Both “start” and “end” are included in the range.
@@ -491,7 +491,7 @@ impl Graphics {
         x2: i32,
         y2: i32,
         flip2: LCDBitmapFlip,
-        rect: Rect,
+        rect: LCDRect,
     ) -> i32 {
         unsafe {
             ((*self.handle).checkMaskCollision.unwrap())(
@@ -528,7 +528,7 @@ impl Graphics {
 
     /// Returns a bitmap containing the contents of the display buffer. The system owns this bitmap—​do not free it!
     pub fn get_display_buffer_bitmap(&self) -> Bitmap {
-        Bitmap::new_ref(unsafe { ((*self.handle).getDisplayBufferBitmap.unwrap())() })
+        Bitmap::from_ref(unsafe { ((*self.handle).getDisplayBufferBitmap.unwrap())() })
     }
 
     /// Draws the bitmap scaled to xscale and yscale then rotated by degrees with its center as given by proportions centerx and centery at x, y; that is: if centerx and centery are both 0.5 the center of the image is at (x,y), if centerx and centery are both 0 the top left corner of the image (before rotation) is at (x,y), etc.
@@ -576,7 +576,7 @@ impl Graphics {
 
     /// Gets a mask image for the given bitmap. If the image doesn’t have a mask, getBitmapMask returns NULL.
     pub(crate) fn get_bitmap_mask(&self, bitmap: *mut sys::LCDBitmap) -> Bitmap {
-        Bitmap::new_ref(unsafe { ((*self.handle).getBitmapMask.unwrap())(bitmap) })
+        Bitmap::from_ref(unsafe { ((*self.handle).getBitmapMask.unwrap())(bitmap) })
     }
 
     /// Sets the stencil used for drawing. If the tile flag is set the stencil image will be tiled. Tiled stencils must have width equal to a multiple of 32 pixels.
@@ -594,7 +594,7 @@ impl Graphics {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Debug)]
 pub struct Bitmap {
     pub(crate) handle: *mut sys::LCDBitmap,
     forget: bool,
@@ -603,19 +603,32 @@ pub struct Bitmap {
 unsafe impl Send for Bitmap {}
 unsafe impl Sync for Bitmap {}
 
+impl PartialEq for Bitmap {
+    fn eq(&self, other: &Self) -> bool {
+        self.handle == other.handle
+    }
+}
+
+impl Eq for Bitmap {}
+
 impl Bitmap {
-    pub(crate) fn new(handle: *mut sys::LCDBitmap) -> Self {
+    pub(crate) fn from(handle: *mut sys::LCDBitmap) -> Self {
         Self {
             handle,
             forget: false,
         }
     }
 
-    pub(crate) fn new_ref(handle: *mut sys::LCDBitmap) -> Self {
+    pub(crate) fn from_ref(handle: *mut sys::LCDBitmap) -> Self {
         Self {
             handle,
             forget: true,
         }
+    }
+
+    /// Allocates and returns a new width by height Bitmap filled with bgcolor.
+    pub fn new(width: i32, height: i32, bgcolor: LCDColor) -> Self {
+        PLAYDATE.graphics.new_bitmap(width, height, bgcolor)
     }
 
     /// Clears bitmap, filling with the given bgcolor.
@@ -651,7 +664,7 @@ impl Bitmap {
         x2: i32,
         y2: i32,
         flip2: LCDBitmapFlip,
-        rect: Rect,
+        rect: LCDRect,
     ) -> bool {
         PLAYDATE.graphics.check_mask_collision(
             self.handle,
@@ -702,7 +715,7 @@ impl Bitmap {
         yscale: f32,
         alloced_size: *mut i32,
     ) -> Bitmap {
-        Self::new(PLAYDATE.graphics.rotated_bitmap(
+        Self::from(PLAYDATE.graphics.rotated_bitmap(
             self.handle,
             rotation,
             xscale,
@@ -779,7 +792,7 @@ impl BitmapTable {
         if ptr.is_null() {
             return None;
         }
-        Some(Bitmap::new_ref(ptr))
+        Some(Bitmap::from_ref(ptr))
     }
 
     /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
@@ -860,7 +873,7 @@ impl FontPage {
         let bitmap = if bitmap.is_null() {
             None
         } else {
-            Some(Bitmap::new_ref(bitmap))
+            Some(Bitmap::from_ref(bitmap))
         };
         let advance = if advance == 0 { None } else { Some(advance) };
         (glyph, bitmap, advance)

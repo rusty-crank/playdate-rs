@@ -140,7 +140,7 @@ impl VideoPlayer {
     pub fn get_context(&self) -> Bitmap {
         let ptr = PLAYDATE.graphics.video.get_context(self.handle);
         // FIXME: ptr maybe malloced
-        Bitmap::new_ref(ptr)
+        Bitmap::from_ref(ptr)
     }
 }
 
