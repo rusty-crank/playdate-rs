@@ -1,4 +1,5 @@
 use alloc::string::String;
+use no_std_io::io;
 
 #[derive(Debug)]
 pub enum Error {
@@ -8,8 +9,8 @@ pub enum Error {
     FailedToSetBitmapMask,
     FailedToLoadBitMapFromFile(String),
     FailedToLoadBitMapFromBitMapTable(String),
-    // File System
-    FS(String),
+    // IO Error
+    IO(io::Error),
     // Lua
     Lua(String),
     // All other unknown errors

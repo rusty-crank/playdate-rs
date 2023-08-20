@@ -18,6 +18,7 @@ pub mod sprite;
 pub mod system;
 pub mod video;
 
+pub use no_std_io::io;
 pub use playdate_rs_macros::app;
 
 pub struct Playdate {
