@@ -11,11 +11,15 @@ use crate::PLAYDATE;
 
 pub struct Graphics {
     handle: *const sys::playdate_graphics,
+    pub video: crate::video::Video,
 }
 
 impl Graphics {
     pub(crate) fn new(handle: *const sys::playdate_graphics) -> Self {
-        Graphics { handle }
+        Graphics {
+            handle,
+            video: crate::video::Video::new(unsafe { (*handle).video }),
+        }
     }
 
     // pub video: *const playdate_video,
@@ -600,14 +604,14 @@ unsafe impl Send for Bitmap {}
 unsafe impl Sync for Bitmap {}
 
 impl Bitmap {
-    fn new(handle: *mut sys::LCDBitmap) -> Self {
+    pub(crate) fn new(handle: *mut sys::LCDBitmap) -> Self {
         Self {
             handle,
             forget: false,
         }
     }
 
-    fn new_ref(handle: *mut sys::LCDBitmap) -> Self {
+    pub(crate) fn new_ref(handle: *mut sys::LCDBitmap) -> Self {
         Self {
             handle,
             forget: true,

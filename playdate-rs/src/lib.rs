@@ -9,6 +9,7 @@ mod memory;
 #[macro_use]
 pub mod print;
 pub mod system;
+pub mod video;
 
 pub use playdate_rs_macros::app;
 
