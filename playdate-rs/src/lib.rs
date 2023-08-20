@@ -11,6 +11,7 @@ pub mod print;
 pub mod display;
 pub mod error;
 pub mod fs;
+pub mod scoreboards;
 pub mod system;
 pub mod video;
 
@@ -23,8 +24,7 @@ pub struct Playdate {
     // pub sprite: *const playdate_sprite,
     pub display: display::Display,
     // pub sound: *const playdate_sound,
-    // pub scoreboards: *const playdate_scoreboards,
-
+    pub scoreboards: scoreboards::Scoreboards,
     // Not supported:
     // pub lua: *const playdate_lua,
     // pub json: *const playdate_json,
@@ -41,6 +41,7 @@ impl Playdate {
             file: fs::FileSystem::new(playdate_ref.file),
             graphics: graphics::Graphics::new(playdate_ref.graphics),
             display: display::Display::new(playdate_ref.display),
+            scoreboards: scoreboards::Scoreboards::new(playdate_ref.scoreboards),
         }
     }
 }
