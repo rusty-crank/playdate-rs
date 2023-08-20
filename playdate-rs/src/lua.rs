@@ -1,3 +1,7 @@
+use alloc::{borrow::ToOwned, ffi::CString};
+
+use crate::error::Error;
+
 pub struct Lua {
     #[allow(unused)]
     handle: *const sys::playdate_lua,
@@ -7,6 +11,22 @@ impl Lua {
     pub(crate) fn new(handle: *const sys::playdate_lua) -> Self {
         Self { handle }
     }
+
+    pub fn add_function(&self, f: sys::lua_CFunction, name: impl AsRef<str>) -> Result<(), Error> {
+        let c_string = CString::new(name.as_ref()).unwrap();
+        unsafe {
+            let mut err = core::ptr::null();
+            (*self.handle).addFunction.unwrap()(f, c_string.as_ptr(), &mut err);
+            if !err.is_null() {
+                let c_str = ::core::ffi::CStr::from_ptr(err);
+                let err_str = c_str.to_str().unwrap();
+                Err(Error::Lua(err_str.to_owned()))
+            } else {
+                Ok(())
+            }
+        }
+    }
+
     // pub addFunction: ::core::option::Option<
     //     unsafe extern "C" fn(
     //         f: lua_CFunction,

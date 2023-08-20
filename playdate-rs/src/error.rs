@@ -10,6 +10,8 @@ pub enum Error {
     FailedToLoadBitMapFromBitMapTable(String),
     // File System
     FS(String),
+    // Lua
+    Lua(String),
     // All other unknown errors
     Unknown(String),
 }

@@ -21,6 +21,7 @@ pub mod video;
 pub use playdate_rs_macros::app;
 
 pub struct Playdate {
+    pub raw_api: *mut sys::PlaydateAPI,
     pub system: system::System,
     pub file: fs::FileSystem,
     pub graphics: graphics::Graphics,
@@ -37,9 +38,10 @@ unsafe impl Sync for Playdate {}
 unsafe impl Send for Playdate {}
 
 impl Playdate {
-    fn new(playdate: *mut playdate_rs_sys::PlaydateAPI) -> Self {
+    fn new(playdate: *mut sys::PlaydateAPI) -> Self {
         let playdate_ref = unsafe { &*playdate };
         Self {
+            raw_api: playdate,
             system: system::System::new(playdate_ref.system),
             file: fs::FileSystem::new(playdate_ref.file),
             graphics: graphics::Graphics::new(playdate_ref.graphics),
@@ -54,7 +56,7 @@ impl Playdate {
 
 static INIT: spin::Once = spin::Once::new();
 
-static mut PLAYDATE_PTR: *mut playdate_rs_sys::PlaydateAPI = core::ptr::null_mut();
+static mut PLAYDATE_PTR: *mut sys::PlaydateAPI = core::ptr::null_mut();
 
 pub static PLAYDATE: spin::Lazy<Playdate> =
     spin::Lazy::new(|| Playdate::new(unsafe { PLAYDATE_PTR }));
@@ -65,7 +67,7 @@ pub trait App {
     fn handle_event(&self, _event: system::SystemEvent, _arg: u32) {}
 }
 
-pub fn init_playdate_once(pd: *mut playdate_rs_sys::PlaydateAPI) {
+pub fn init_playdate_once(pd: *mut sys::PlaydateAPI) {
     INIT.call_once(|| unsafe {
         PLAYDATE_PTR = pd;
         spin::Lazy::force(&PLAYDATE);
