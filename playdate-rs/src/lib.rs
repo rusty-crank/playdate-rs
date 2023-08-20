@@ -8,6 +8,8 @@ pub mod graphics;
 mod memory;
 #[macro_use]
 pub mod print;
+pub mod error;
+pub mod fs;
 pub mod system;
 pub mod video;
 
@@ -15,7 +17,7 @@ pub use playdate_rs_macros::app;
 
 pub struct Playdate {
     pub system: system::System,
-    // pub file: *const playdate_file,
+    pub file: fs::FileSystem,
     pub graphics: graphics::Graphics,
     // pub sprite: *const playdate_sprite,
     // pub display: *const playdate_display,
@@ -33,6 +35,7 @@ impl Playdate {
         let playdate_ref = unsafe { &*playdate };
         Self {
             system: system::System::new(playdate_ref.system),
+            file: fs::FileSystem::new(playdate_ref.file),
             graphics: graphics::Graphics::new(playdate_ref.graphics),
         }
     }

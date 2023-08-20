@@ -1,13 +1,13 @@
 use core::ffi::{c_char, c_void};
 
-use alloc::{ffi::CString, format, string::String};
+use alloc::ffi::CString;
 
 pub use sys::{
     LCDBitmapDrawMode, LCDBitmapFlip, LCDColor, LCDFontData, LCDLineCapStyle, LCDPolygonFillRule,
     LCDRect as Rect, LCDSolidColor, LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
 };
 
-use crate::PLAYDATE;
+use crate::{error::Error, PLAYDATE};
 
 pub struct Graphics {
     handle: *const sys::playdate_graphics,
@@ -250,7 +250,7 @@ impl Graphics {
     }
 
     /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
-    pub fn load_bitmap(&self, path: impl AsRef<str>) -> Result<Bitmap, String> {
+    pub fn load_bitmap(&self, path: impl AsRef<str>) -> Result<Bitmap, Error> {
         unsafe {
             let c_string = CString::new(path.as_ref()).unwrap();
             let mut err: *const c_char = core::ptr::null();
@@ -258,7 +258,7 @@ impl Graphics {
             if !err.is_null() {
                 let err = CString::from_raw(err as *mut c_char);
                 let err = err.into_string().unwrap();
-                return Err(err);
+                return Err(Error::FailedToLoadBitMapFromFile(err));
             }
             Ok(Bitmap::new(ptr))
         }
@@ -330,7 +330,7 @@ impl Graphics {
     }
 
     /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
-    pub fn load_bitmap_table(&self, path: impl AsRef<str>) -> Result<BitmapTable, String> {
+    pub fn load_bitmap_table(&self, path: impl AsRef<str>) -> Result<BitmapTable, Error> {
         unsafe {
             let c_string = CString::new(path.as_ref()).unwrap();
             let mut err = core::ptr::null();
@@ -338,7 +338,7 @@ impl Graphics {
             if !err.is_null() {
                 let err = CString::from_raw(err as *mut c_char);
                 let err = err.into_string().unwrap();
-                return Err(err);
+                return Err(Error::FailedToLoadBitMapTableFromFile(err));
             }
             Ok(BitmapTable::new(ptr))
         }
@@ -367,7 +367,7 @@ impl Graphics {
     }
 
     /// Returns the LCDFont object for the font file at path. In case of error, outErr points to a string describing the error.
-    pub fn load_font(&self, path: impl AsRef<str>) -> Result<Font, String> {
+    pub fn load_font(&self, path: impl AsRef<str>) -> Result<Font, Error> {
         unsafe {
             let c_string = CString::new(path.as_ref()).unwrap();
             let mut err = core::ptr::null();
@@ -375,7 +375,7 @@ impl Graphics {
             if !err.is_null() {
                 let err = CString::from_raw(err as *mut c_char);
                 let err = err.into_string().unwrap();
-                return Err(err);
+                return Err(Error::FailedToLoadFont(err));
             }
             Ok(Font::new(font))
         }
@@ -626,10 +626,10 @@ impl Bitmap {
     }
 
     /// Sets a mask image for the given bitmap. The set mask must be the same size as the target bitmap.
-    pub fn set_mask(&self, mask: &Bitmap) -> Result<(), String> {
+    pub fn set_mask(&self, mask: &Bitmap) -> Result<(), Error> {
         let result = -PLAYDATE.graphics.set_bitmap_mask(self.handle, mask.handle);
         if result != 1 {
-            Err(format!("set_bitmap_mask failed: {}", result))
+            Err(Error::FailedToSetBitmapMask)
         } else {
             Ok(())
         }
@@ -681,7 +681,7 @@ impl Bitmap {
     }
 
     /// Loads the image at path into the previously allocated bitmap.
-    pub fn load(&self, path: impl AsRef<str>) -> Result<(), String> {
+    pub fn load(&self, path: impl AsRef<str>) -> Result<(), Error> {
         let mut err: *const c_char = core::ptr::null();
         PLAYDATE
             .graphics
@@ -689,7 +689,7 @@ impl Bitmap {
         if !err.is_null() {
             let err = unsafe { CString::from_raw(err as *mut c_char) };
             let err = err.into_string().unwrap();
-            return Err(err);
+            return Err(Error::FailedToLoadBitMapFromFile(err));
         }
         Ok(())
     }
@@ -783,7 +783,7 @@ impl BitmapTable {
     }
 
     /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
-    pub fn load(&self, path: impl AsRef<str>) -> Result<(), String> {
+    pub fn load(&self, path: impl AsRef<str>) -> Result<(), Error> {
         let mut err: *const c_char = core::ptr::null();
         PLAYDATE
             .graphics
@@ -791,7 +791,7 @@ impl BitmapTable {
         if !err.is_null() {
             let err = unsafe { CString::from_raw(err as *mut c_char) };
             let err = err.into_string().unwrap();
-            return Err(err);
+            return Err(Error::FailedToLoadBitMapFromBitMapTable(err));
         }
         Ok(())
     }
