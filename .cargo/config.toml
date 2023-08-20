@@ -1,2 +1,2 @@
 [alias]
-playdate = "run --package cargo-playdate --"
+playdate = "run --package playdate-rs-cli --"

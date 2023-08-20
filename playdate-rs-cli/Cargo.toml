@@ -1,5 +1,5 @@
 [package]
-name = "cargo-playdate"
+name = "playdate-rs-cli"
 description = "playdate-rs command line tools"
 version = { workspace = true }
 authors = { workspace = true }
