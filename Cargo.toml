@@ -1,10 +1,10 @@
 [workspace]
 
 members = [
+    "cargo-playdate",
     "examples/hello_world",
     "playdate-rs",
     "playdate-rs/macros",
-    "playdate-rs-cli",
     "playdate-rs-sys",
 ]
 

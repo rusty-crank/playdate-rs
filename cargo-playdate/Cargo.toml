@@ -1,5 +1,5 @@
 [package]
-name = "playdate-rs-cli"
+name = "cargo-playdate"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
