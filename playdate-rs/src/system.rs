@@ -129,7 +129,7 @@ impl System {
         callback: sys::PDMenuItemCallbackFunction,
         userdata: *mut c_void,
     ) -> MenuItem {
-        MenuItem(unsafe {
+        MenuItem::new(unsafe {
             let c_string = CString::new(title.as_ref()).unwrap();
             (*self.handle).addMenuItem.unwrap()(
                 c_string.as_ptr() as *mut c_char,
@@ -146,7 +146,7 @@ impl System {
         callback: sys::PDMenuItemCallbackFunction,
         userdata: *mut c_void,
     ) -> MenuItem {
-        MenuItem(unsafe {
+        MenuItem::new(unsafe {
             let c_string = CString::new(title.as_ref()).unwrap();
             (*self.handle).addCheckmarkMenuItem.unwrap()(
                 c_string.as_ptr() as *mut c_char,
@@ -165,7 +165,7 @@ impl System {
         callback: sys::PDMenuItemCallbackFunction,
         userdata: *mut c_void,
     ) -> MenuItem {
-        MenuItem(unsafe {
+        MenuItem::new(unsafe {
             let c_string = CString::new(title.as_ref()).unwrap();
             (*self.handle).addOptionsMenuItem.unwrap()(
                 c_string.as_ptr() as *mut c_char,
@@ -271,40 +271,51 @@ impl System {
     }
 }
 
-#[derive(PartialEq, Eq)]
-pub struct MenuItem(*mut sys::PDMenuItem);
+#[derive(PartialEq, Eq, Debug)]
+pub struct MenuItem {
+    handle: *mut sys::PDMenuItem,
+}
+
+unsafe impl Send for MenuItem {}
+unsafe impl Sync for MenuItem {}
 
 impl MenuItem {
+    fn new(handle: *mut sys::PDMenuItem) -> Self {
+        MenuItem { handle }
+    }
+
     pub fn get_value(&self) -> i32 {
-        PLAYDATE.system.get_menu_item_value(self.0)
+        PLAYDATE.system.get_menu_item_value(self.handle)
     }
 
     pub fn set_value(&self, value: i32) {
-        PLAYDATE.system.set_menu_item_value(self.0, value)
+        PLAYDATE.system.set_menu_item_value(self.handle, value)
     }
 
     pub fn get_title(&self) -> &str {
-        let c_buf = PLAYDATE.system.get_menu_item_title(self.0);
+        let c_buf = PLAYDATE.system.get_menu_item_title(self.handle);
         let c_str: &CStr = unsafe { CStr::from_ptr(c_buf) };
         let s: &str = c_str.to_str().unwrap();
         s
     }
 
     pub fn set_title(&self, title: impl AsRef<str>) {
-        PLAYDATE.system.set_menu_item_title(self.0, title)
+        PLAYDATE.system.set_menu_item_title(self.handle, title)
     }
 
     pub fn get_userdata(&self) -> *mut c_void {
-        PLAYDATE.system.get_menu_item_userdata(self.0)
+        PLAYDATE.system.get_menu_item_userdata(self.handle)
     }
 
     pub fn set_userdata(&self, userdata: *mut c_void) {
-        PLAYDATE.system.set_menu_item_userdata(self.0, userdata)
+        PLAYDATE
+            .system
+            .set_menu_item_userdata(self.handle, userdata)
     }
 }
 
 impl Drop for MenuItem {
     fn drop(&mut self) {
-        PLAYDATE.system.remove_menu_item(self.0);
+        PLAYDATE.system.remove_menu_item(self.handle);
     }
 }
