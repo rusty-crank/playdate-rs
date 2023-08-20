@@ -81,7 +81,9 @@ impl Runnable<BuildInfo> for Build {
             .check()?;
         // Find dylib target
         let meta = self.load_metadata()?;
-        let package = meta.root_package().unwrap();
+        let Some(package) = meta.root_package() else {
+            anyhow::bail!("No rust package found under current directory");
+        };
         let target = &package
             .targets
             .iter()
