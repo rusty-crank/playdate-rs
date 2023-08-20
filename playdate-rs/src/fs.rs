@@ -219,7 +219,7 @@ impl Write for File {
 
     fn flush(&mut self) -> io::Result<()> {
         if PLAYDATE.file.flush(self.handle).is_err() {
-            return Err(io::Error::new(io::ErrorKind::Other, "file flush error"));
+            Err(io::Error::new(io::ErrorKind::Other, "file flush error"))
         } else {
             Ok(())
         }
@@ -239,7 +239,7 @@ impl Seek for File {
             io::SeekFrom::Current(pos) => pos as usize,
         };
         if PLAYDATE.file.seek(self.handle, pos, whence as _).is_err() {
-            return Err(io::Error::new(io::ErrorKind::Other, "file seek error"));
+            Err(io::Error::new(io::ErrorKind::Other, "file seek error"))
         } else {
             Ok(pos as u64)
         }

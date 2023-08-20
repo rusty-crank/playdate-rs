@@ -99,13 +99,13 @@ impl _Sprite {
     /// Sets the bounds of the given sprite with bounds.
     pub(crate) fn set_bounds(&self, sprite: *mut sys::LCDSprite, bounds: Rect) {
         unsafe {
-            (*self.handle).setBounds.unwrap()(sprite, bounds.into());
+            (*self.handle).setBounds.unwrap()(sprite, bounds);
         }
     }
 
     /// Returns the bounds of the given sprite as an PDRect;
     pub(crate) fn get_bounds(&self, sprite: *mut sys::LCDSprite) -> Rect {
-        unsafe { (*self.handle).getBounds.unwrap()(sprite).into() }
+        unsafe { (*self.handle).getBounds.unwrap()(sprite) }
     }
 
     /// Moves the given sprite to x, y and resets its bounds based on the bitmap dimensions and center.
@@ -325,13 +325,13 @@ impl _Sprite {
     /// Marks the area of the given sprite, relative to its bounds, to be checked for collisions with other sprites' collide rects.
     pub(crate) fn set_collide_rect(&self, sprite: *mut sys::LCDSprite, collide_rect: Rect) {
         unsafe {
-            (*self.handle).setCollideRect.unwrap()(sprite, collide_rect.into());
+            (*self.handle).setCollideRect.unwrap()(sprite, collide_rect);
         }
     }
 
     /// Returns the given sprite’s collide rect.
     pub(crate) fn get_collide_rect(&self, sprite: *mut sys::LCDSprite) -> Rect {
-        unsafe { (*self.handle).getCollideRect.unwrap()(sprite).into() }
+        unsafe { (*self.handle).getCollideRect.unwrap()(sprite) }
     }
 
     /// Clears the given sprite’s collide rect.
@@ -355,7 +355,7 @@ impl _Sprite {
     /// Returns the same values as playdate->sprite->moveWithCollisions() but does not actually move the sprite.
     pub fn check_collisions(
         &self,
-        sprite: *mut sys::LCDSprite,
+        sprite: &Sprite,
         goal_x: f32,
         goal_y: f32,
     ) -> Vec<SpriteCollisionInfo> {
@@ -364,7 +364,7 @@ impl _Sprite {
         let mut len = 0;
         let info = unsafe {
             (*self.handle).checkCollisions.unwrap()(
-                sprite,
+                sprite.handle,
                 goal_x,
                 goal_y,
                 &mut actual_x,
@@ -383,7 +383,7 @@ impl _Sprite {
     /// Moves the given sprite towards goalX, goalY taking collisions into account and returns an array of SpriteCollisionInfo. len is set to the size of the array and actualX, actualY are set to the sprite’s position after collisions. If no collisions occurred, this will be the same as goalX, goalY.
     pub fn move_with_collisions(
         &self,
-        sprite: *mut sys::LCDSprite,
+        sprite: &Sprite,
         goal_x: f32,
         goal_y: f32,
     ) -> Vec<SpriteCollisionInfo> {
@@ -392,7 +392,7 @@ impl _Sprite {
         let mut len = 0;
         let info = unsafe {
             (*self.handle).moveWithCollisions.unwrap()(
-                sprite,
+                sprite.handle,
                 goal_x,
                 goal_y,
                 &mut actual_x,
@@ -545,6 +545,12 @@ impl Eq for Sprite {}
 
 unsafe impl Sync for Sprite {}
 unsafe impl Send for Sprite {}
+
+impl Default for Sprite {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Sprite {
     pub(crate) fn from(handle: *mut sys::LCDSprite) -> Self {
@@ -806,11 +812,11 @@ impl SpriteCollisionInfo {
             response_type: info.responseType,
             overlaps: info.overlaps,
             ti: info.ti,
-            move_: info.move_.into(),
-            normal: info.normal.into(),
-            touch: info.touch.into(),
-            sprite_rect: info.spriteRect.into(),
-            other_rect: info.otherRect.into(),
+            move_: info.move_,
+            normal: info.normal,
+            touch: info.touch,
+            sprite_rect: info.spriteRect,
+            other_rect: info.otherRect,
         }
     }
 }
@@ -830,8 +836,8 @@ impl SpriteQueryInfo {
             sprite: Sprite::from_ref(info.sprite),
             ti1: info.ti1,
             ti2: info.ti2,
-            entry_point: info.entryPoint.into(),
-            exit_point: info.exitPoint.into(),
+            entry_point: info.entryPoint,
+            exit_point: info.exitPoint,
         }
     }
 }
