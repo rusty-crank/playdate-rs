@@ -42,6 +42,18 @@ impl Build {
         Ok(meta)
     }
 
+    fn get_assets_dir(&self, meta: &Metadata) -> anyhow::Result<PathBuf> {
+        let project_dir = meta
+            .root_package()
+            .unwrap()
+            .manifest_path
+            .as_std_path()
+            .parent()
+            .unwrap()
+            .to_owned();
+        Ok(project_dir.join("assets"))
+    }
+
     fn get_target_dir(&self, meta: &Metadata) -> anyhow::Result<PathBuf> {
         let mut target_dir = meta.target_directory.clone().into_std_path_buf();
         if self.release {
@@ -92,29 +104,51 @@ impl Runnable<BuildInfo> for Build {
             anyhow::bail!("Current crate has no cdylib target");
         };
         let target_dir = self.get_target_dir(&meta)?;
-        let dylib = target_dir.join(format!("lib{}.so", target.name).replace('-', "_"));
+        let dylib = target_dir.join(format!("lib{}.so", target.name.replace('-', "_")));
         // Create pdx folder
-        let pdx = target_dir.join(format!("{}.pdx", target.name));
-        Command::new("mkdir").arg("-p").arg(&pdx).check()?;
+        let pdx_src = target_dir.join(format!("{}-source", target.name));
+        Command::new("mkdir").arg("-p").arg(&pdx_src).check()?;
         // Copy output files
         Command::new("rm")
             .arg("-f")
-            .arg(pdx.join("pdex.so"))
+            .arg(pdx_src.join("pdex.so"))
             .check()?;
         Command::new("cp")
             .arg(&dylib)
-            .arg(pdx.join("pdex.so"))
+            .arg(pdx_src.join("pdex.so"))
             .check()?;
         Command::new("rm")
             .arg("-f")
-            .arg(pdx.join("pdxinfo"))
+            .arg(pdx_src.join("pdxinfo"))
             .check()?;
         let pdxinfo = self.load_pdxinfo(package, target)?;
-        std::fs::write(pdx.join("pdxinfo"), pdxinfo)?;
+        std::fs::write(pdx_src.join("pdxinfo"), pdxinfo)?;
+        // Copy assets
+        let assets_dir = self.get_assets_dir(&meta)?;
+        if assets_dir.exists() && assets_dir.is_dir() {
+            for entry in std::fs::read_dir(&assets_dir)? {
+                let entry = entry?;
+                let path: PathBuf = entry.path();
+                Command::new("cp").arg(&path).arg(&pdx_src).check()?;
+            }
+        }
+        // call pdc
+        let pdx_out = target_dir.join(format!("{}.pdx", target.name));
+        let playdate_sdk_path = std::env::var("PLAYDATE_SDK_PATH")
+            .expect("Environment variable PLAYDATE_SDK_PATH is not set");
+        let pdx_bin = PathBuf::from(playdate_sdk_path).join("bin").join("pdc");
+        info!(
+            "➔  {} {} {}",
+            pdx_bin.to_string_lossy(),
+            pdx_src.to_string_lossy(),
+            pdx_out.to_string_lossy(),
+        );
+        Command::new(pdx_bin).arg(&pdx_src).arg(&pdx_out).check()?;
+
         Ok(BuildInfo {
             name: target.name.clone(),
             dylib,
-            pdx,
+            pdx: pdx_out,
         })
     }
 }
