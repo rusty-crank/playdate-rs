@@ -1,5 +1,7 @@
 # playdate-rs
 
+Bindings for the [Playdate](https://play.date) SDK C-API.
+
 # Getting Started
 
 1. Make sure the env variable `PLAYDATE_SDK_PATH` is correctly set.
