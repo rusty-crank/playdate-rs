@@ -11,6 +11,7 @@ pub mod print;
 pub mod display;
 pub mod error;
 pub mod fs;
+pub mod lua;
 pub mod scoreboards;
 pub mod sound;
 pub mod sprite;
@@ -27,8 +28,8 @@ pub struct Playdate {
     pub display: display::Display,
     pub sound: sound::Sound,
     pub scoreboards: scoreboards::Scoreboards,
-    // Not supported:
-    // pub lua: *const playdate_lua,
+    pub lua: lua::Lua,
+    // The playdate JSON lib is not supported. Please use serde instead:
     // pub json: *const playdate_json,
 }
 
@@ -46,6 +47,7 @@ impl Playdate {
             display: display::Display::new(playdate_ref.display),
             sound: sound::Sound::new(playdate_ref.sound),
             scoreboards: scoreboards::Scoreboards::new(playdate_ref.scoreboards),
+            lua: lua::Lua::new(playdate_ref.lua),
         }
     }
 }
