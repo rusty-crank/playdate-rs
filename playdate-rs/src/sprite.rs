@@ -8,7 +8,6 @@ use crate::{
 pub use sys::{CollisionPoint, CollisionVector, PDRect as Rect, SpriteCollisionResponseType};
 
 pub struct _Sprite {
-    #[allow(unused)]
     handle: *const sys::playdate_sprite,
 }
 
