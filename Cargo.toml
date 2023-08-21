@@ -1,5 +1,5 @@
 [workspace]
-
+resolver = "2"
 members = [
     "examples/hello_world",
     "playdate-rs",
