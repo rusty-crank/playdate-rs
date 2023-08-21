@@ -18,7 +18,7 @@ static PDEX_SO: &str = if cfg!(target_os = "macos") {
     "pdex.so"
 };
 
-/// Build the current playdate project
+/// Build a playdate project
 #[derive(clap::Args, Debug)]
 pub struct Build {
     /// Build the project in release mode, with optimizations
@@ -29,6 +29,12 @@ pub struct Build {
     #[arg(short, long)]
     /// Package to process (see `cargo help pkgid`)
     pub package: Option<String>,
+    /// Build for the real device
+    #[clap(long, default_value = "false")]
+    pub device: bool,
+    /// Build for the simulator
+    #[clap(long, alias = "sim", default_value = "true")]
+    pub simulator: bool,
 }
 
 impl Build {
@@ -61,7 +67,7 @@ impl Build {
         Ok(meta)
     }
 
-    fn get_packate(&self, meta: &Metadata) -> anyhow::Result<Package> {
+    fn get_package(&self, meta: &Metadata) -> anyhow::Result<Package> {
         if self.package.is_none() {
             meta.root_package()
                 .cloned()
@@ -83,7 +89,7 @@ impl Build {
 
     fn get_assets_dir(&self, meta: &Metadata) -> anyhow::Result<PathBuf> {
         let project_dir = self
-            .get_packate(meta)?
+            .get_package(meta)?
             .manifest_path
             .as_std_path()
             .parent()
@@ -123,15 +129,15 @@ pub struct BuildInfo {
 
 impl Runnable<BuildInfo> for Build {
     fn run(&self) -> anyhow::Result<BuildInfo> {
-        info!("Building the project {}", self.release);
-        // Build rust project
-        Command::new("cargo")
-            .arg("build")
-            .args(self.get_cargo_flags())
-            .check()?;
         // Find dylib target
         let meta = self.load_metadata()?;
-        let package = self.get_packate(&meta)?;
+        let package = self.get_package(&meta)?;
+        info!("Building {}", package.name);
+        if !self.device && !self.simulator {
+            anyhow::bail!("At least one of --device or --simulator must be specified");
+        } else if self.device && self.simulator {
+            anyhow::bail!("Only one of --device or --simulator can be specified");
+        }
         let target = &package
             .targets
             .iter()
@@ -145,8 +151,13 @@ impl Runnable<BuildInfo> for Build {
             target.name.replace('-', "_"),
             DYLIB_EXT
         ));
+        // Build rust project
+        Command::new("cargo")
+            .arg("build")
+            .args(self.get_cargo_flags())
+            .check()?;
         // Create pdx folder
-        let pdx_src = target_dir.join(format!("{}-source", target.name));
+        let pdx_src = target_dir.join(format!("{}.source", target.name));
         Command::new("mkdir").arg("-p").arg(&pdx_src).check()?;
         // Copy output files
         Command::new("rm")

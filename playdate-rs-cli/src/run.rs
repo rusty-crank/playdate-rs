@@ -2,7 +2,7 @@ use std::process::Command;
 
 use crate::{util::CommandExt, Runnable};
 
-/// Build the current playdate project
+/// Run a playdate project
 #[derive(clap::Args, Debug)]
 pub struct Run {
     #[command(flatten)]
