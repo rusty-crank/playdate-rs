@@ -9,9 +9,6 @@ pub struct HelloWorld {
     rotation: f32,
 }
 
-unsafe impl Send for HelloWorld {}
-unsafe impl Sync for HelloWorld {}
-
 impl App for HelloWorld {
     fn new() -> Self {
         println!("Hello, World!");
