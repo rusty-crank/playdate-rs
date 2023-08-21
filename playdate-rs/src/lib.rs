@@ -17,6 +17,7 @@ pub mod sprite;
 pub mod system;
 pub mod video;
 
+use alloc::boxed::Box;
 pub use no_std_io::io;
 pub use playdate_rs_macros::app;
 
@@ -61,50 +62,70 @@ static mut PLAYDATE_PTR: *mut sys::PlaydateAPI = core::ptr::null_mut();
 pub static PLAYDATE: spin::Lazy<Playdate> =
     spin::Lazy::new(|| Playdate::new(unsafe { PLAYDATE_PTR }));
 
-pub trait App {
-    fn init(&self) {}
-    fn update(&self) {}
-    fn handle_event(&self, _event: system::SystemEvent, _arg: u32) {}
+pub trait App: Sized + 'static {
+    /// Constructor for the app. This is called once when the app is loaded.
+    fn new() -> Self;
+
+    /// Returns a reference to the app singleton.
+    fn get() -> &'static mut Self {
+        unsafe { &mut *(APP.unwrap() as *mut Self) }
+    }
+
+    /// Called once when the app is loaded.
+    fn init(&mut self) {}
+
+    /// Called once per frame.
+    ///
+    /// `delta` is the time in seconds since the last frame.
+    fn update(&mut self, _delta: f32) {}
+
+    /// Called when a system event occurs.
+    fn handle_event(&mut self, _event: system::SystemEvent, _arg: u32) {}
 }
 
-pub fn init_playdate_once(pd: *mut sys::PlaydateAPI) {
+static mut APP: Option<*mut ()> = None;
+
+extern "C" fn update<T: App>(_: *mut core::ffi::c_void) -> i32 {
+    let app = T::get();
+    let delta = PLAYDATE.system.get_elapsed_time();
+    PLAYDATE.system.reset_elapsed_time();
+    app.update(delta);
+    1
+}
+
+pub fn start<T: App>(pd: *mut sys::PlaydateAPI) {
+    // Initialize playdate singleton
     INIT.call_once(|| unsafe {
         PLAYDATE_PTR = pd;
         spin::Lazy::force(&PLAYDATE);
     });
-}
-
-static mut APP: Option<&'static dyn App> = None;
-
-extern "C" fn update(_: *mut core::ffi::c_void) -> i32 {
+    // Create app instance
+    let app = Box::leak(Box::new(T::new()));
     unsafe {
-        APP.as_ref().unwrap().update();
+        APP = Some(app as *mut T as *mut ());
     }
-    1
-}
-
-pub fn start(app: &'static dyn App) {
-    unsafe {
-        APP = Some(app);
-    }
+    // Initialize app
     app.init();
-    PLAYDATE.system.set_update_callback(Some(update));
+    PLAYDATE.system.set_update_callback(Some(update::<T>));
 }
 
 #[macro_export]
 macro_rules! register_playdate_app {
     ($app: ident) => {
-        #[no_mangle]
-        unsafe extern "C" fn eventHandler(
-            pd: *mut $crate::sys::PlaydateAPI,
-            event: $crate::system::SystemEvent,
-            arg: u32,
-        ) {
-            if event == $crate::system::SystemEvent::kEventInit {
-                $crate::init_playdate_once(pd);
-                $crate::start(&$app);
+        mod __playdate_api {
+            use $crate::App;
+
+            #[no_mangle]
+            unsafe extern "C" fn eventHandler(
+                pd: *mut $crate::sys::PlaydateAPI,
+                event: $crate::system::SystemEvent,
+                arg: u32,
+            ) {
+                if event == $crate::system::SystemEvent::kEventInit {
+                    $crate::start::<super::$app>(pd);
+                }
+                super::$app::get().handle_event(event, arg);
             }
-            $app.handle_event(event, arg);
         }
     };
 }

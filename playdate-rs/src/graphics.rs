@@ -708,19 +708,14 @@ impl Bitmap {
     }
 
     /// Returns a new, rotated and scaled LCDBitmap based on the given bitmap.
-    pub fn rotated(
-        &self,
-        rotation: f32,
-        xscale: f32,
-        yscale: f32,
-        alloced_size: *mut i32,
-    ) -> Bitmap {
+    pub fn rotated(&self, rotation: f32, xscale: f32, yscale: f32) -> Bitmap {
+        let mut alloced_size = 0;
         Self::from(PLAYDATE.graphics.rotated_bitmap(
             self.handle,
             rotation,
             xscale,
             yscale,
-            alloced_size,
+            &mut alloced_size,
         ))
     }
 
