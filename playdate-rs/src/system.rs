@@ -299,12 +299,12 @@ impl System {
     }
 
     /// Returns the number of seconds since playdate.resetElapsedTime() was called. The value is a floating-point number with microsecond accuracy.
-    pub(crate) fn get_elapsed_time(&self) -> f32 {
+    pub fn get_elapsed_time(&self) -> f32 {
         unsafe { (*self.handle).getElapsedTime.unwrap()() }
     }
 
     /// Resets the high-resolution timer.
-    pub(crate) fn reset_elapsed_time(&self) {
+    pub fn reset_elapsed_time(&self) {
         unsafe { (*self.handle).resetElapsedTime.unwrap()() }
     }
 

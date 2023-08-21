@@ -85,11 +85,22 @@ pub trait App: Sized + 'static {
 
 static mut APP: Option<*mut ()> = None;
 
-extern "C" fn update<T: App>(_: *mut core::ffi::c_void) -> i32 {
+unsafe extern "C" fn update<T: App>(_: *mut core::ffi::c_void) -> i32 {
     let app = T::get();
-    let delta = PLAYDATE.system.get_elapsed_time();
-    PLAYDATE.system.reset_elapsed_time();
-    app.update(delta);
+    // calculate delta time since last frame
+    let delta_time = {
+        static mut LAST_FRAME_TIME: Option<usize> = None;
+        let current_time = PLAYDATE.system.get_current_time_milliseconds();
+        let delta = if let Some(last_frame_time) = LAST_FRAME_TIME {
+            (current_time - last_frame_time) as f32 / 1000.0
+        } else {
+            0.0
+        };
+        LAST_FRAME_TIME = Some(current_time);
+        delta
+    };
+    // update frame
+    app.update(delta_time);
     1
 }
 
