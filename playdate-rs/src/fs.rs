@@ -203,7 +203,7 @@ impl File {
 impl Read for File {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let Ok(size) = PLAYDATE.file.read(self.handle, buf) else {
-            return Err(io::Error::new(io::ErrorKind::Other,"file read error"))
+            return Err(io::Error::new(io::ErrorKind::Other, "file read error"));
         };
         Ok(size)
     }
@@ -212,7 +212,7 @@ impl Read for File {
 impl Write for File {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let Ok(size) = PLAYDATE.file.write(self.handle, buf) else {
-            return Err(io::Error::new(io::ErrorKind::Other,"file write error"))
+            return Err(io::Error::new(io::ErrorKind::Other, "file write error"));
         };
         Ok(size)
     }
