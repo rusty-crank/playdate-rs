@@ -11,6 +11,7 @@ pub mod display;
 pub mod error;
 pub mod fs;
 pub mod lua;
+pub mod math;
 pub mod scoreboards;
 pub mod sound;
 pub mod sprite;

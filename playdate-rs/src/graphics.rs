@@ -2,10 +2,21 @@ use core::ffi::{c_char, c_void};
 
 use alloc::ffi::CString;
 
+use crate::math::SideOffsets2D;
+
 pub use sys::{
     LCDBitmapDrawMode, LCDBitmapFlip, LCDColor, LCDFontData, LCDLineCapStyle, LCDPolygonFillRule,
-    LCDRect, LCDSolidColor, LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
+    LCDSolidColor, LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
 };
+
+pub(crate) fn so2d_to_lcdrect(r: SideOffsets2D<i32>) -> sys::LCDRect {
+    sys::LCDRect {
+        top: r.top,
+        right: r.right,
+        bottom: r.bottom,
+        left: r.left,
+    }
+}
 
 use crate::{error::Error, PLAYDATE};
 
@@ -491,11 +502,19 @@ impl Graphics {
         x2: i32,
         y2: i32,
         flip2: LCDBitmapFlip,
-        rect: LCDRect,
+        rect: SideOffsets2D<i32>,
     ) -> i32 {
         unsafe {
             ((*self.handle).checkMaskCollision.unwrap())(
-                bitmap1, x1, y1, flip1, bitmap2, x2, y2, flip2, rect,
+                bitmap1,
+                x1,
+                y1,
+                flip1,
+                bitmap2,
+                x2,
+                y2,
+                flip2,
+                so2d_to_lcdrect(rect),
             )
         }
     }
@@ -664,7 +683,7 @@ impl Bitmap {
         x2: i32,
         y2: i32,
         flip2: LCDBitmapFlip,
-        rect: LCDRect,
+        rect: SideOffsets2D<i32>,
     ) -> bool {
         PLAYDATE.graphics.check_mask_collision(
             self.handle,

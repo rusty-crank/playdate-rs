@@ -1,11 +1,36 @@
 use alloc::vec::Vec;
 
 use crate::{
-    graphics::{Bitmap, LCDRect},
+    graphics::{so2d_to_lcdrect, Bitmap},
+    math::{Point2D, Rect, SideOffsets2D, Vec2D},
     PLAYDATE,
 };
 
-pub use sys::{CollisionPoint, CollisionVector, PDRect as Rect, SpriteCollisionResponseType};
+pub use sys::SpriteCollisionResponseType;
+
+fn rect_to_pdrect(rect: Rect<f32>) -> sys::PDRect {
+    sys::PDRect {
+        x: rect.origin.x,
+        y: rect.origin.y,
+        width: rect.size.width,
+        height: rect.size.height,
+    }
+}
+
+fn pdrect_to_rect(rect: sys::PDRect) -> Rect<f32> {
+    Rect {
+        origin: (rect.x, rect.y).into(),
+        size: (rect.width, rect.height).into(),
+    }
+}
+
+fn collision_point_to_point(point: sys::CollisionPoint) -> Point2D<f32> {
+    Point2D::new(point.x, point.y)
+}
+
+fn collision_vec_to_vec(vec: sys::CollisionVector) -> Vec2D<i32> {
+    Vec2D::new(vec.x, vec.y)
+}
 
 pub struct _Sprite {
     handle: *const sys::playdate_sprite,
@@ -24,9 +49,9 @@ impl _Sprite {
     }
 
     /// Marks the given dirtyRect (in screen coordinates) as needing a redraw. Graphics drawing functions now call this automatically, adding their drawn areas to the sprite’s dirty list, so there’s usually no need to call this manually.
-    pub fn add_dirty_rect(&self, dirty_rect: LCDRect) {
+    pub fn add_dirty_rect(&self, dirty_rect: SideOffsets2D<i32>) {
         unsafe {
-            (*self.handle).addDirtyRect.unwrap()(dirty_rect);
+            (*self.handle).addDirtyRect.unwrap()(so2d_to_lcdrect(dirty_rect));
         }
     }
 
@@ -96,15 +121,15 @@ impl _Sprite {
     }
 
     /// Sets the bounds of the given sprite with bounds.
-    pub(crate) fn set_bounds(&self, sprite: *mut sys::LCDSprite, bounds: Rect) {
+    pub(crate) fn set_bounds(&self, sprite: *mut sys::LCDSprite, bounds: Rect<f32>) {
         unsafe {
-            (*self.handle).setBounds.unwrap()(sprite, bounds);
+            (*self.handle).setBounds.unwrap()(sprite, rect_to_pdrect(bounds));
         }
     }
 
     /// Returns the bounds of the given sprite as an PDRect;
-    pub(crate) fn get_bounds(&self, sprite: *mut sys::LCDSprite) -> Rect {
-        unsafe { (*self.handle).getBounds.unwrap()(sprite) }
+    pub(crate) fn get_bounds(&self, sprite: *mut sys::LCDSprite) -> Rect<f32> {
+        unsafe { pdrect_to_rect((*self.handle).getBounds.unwrap()(sprite)) }
     }
 
     /// Moves the given sprite to x, y and resets its bounds based on the bitmap dimensions and center.
@@ -184,9 +209,9 @@ impl _Sprite {
     }
 
     /// Sets the clipping rectangle for sprite drawing.
-    pub(crate) fn set_clip_rect(&self, sprite: *mut sys::LCDSprite, clip_rect: LCDRect) {
+    pub(crate) fn set_clip_rect(&self, sprite: *mut sys::LCDSprite, clip_rect: SideOffsets2D<i32>) {
         unsafe {
-            (*self.handle).setClipRect.unwrap()(sprite, clip_rect);
+            (*self.handle).setClipRect.unwrap()(sprite, so2d_to_lcdrect(clip_rect));
         }
     }
 
@@ -198,9 +223,9 @@ impl _Sprite {
     }
 
     /// Sets the clipping rectangle for all sprites with a Z index within startZ and endZ inclusive.
-    pub fn set_clip_rects_in_range(&self, clip_rect: LCDRect, start_z: i32, end_z: i32) {
+    pub fn set_clip_rects_in_range(&self, clip_rect: SideOffsets2D<i32>, start_z: i32, end_z: i32) {
         unsafe {
-            (*self.handle).setClipRectsInRange.unwrap()(clip_rect, start_z, end_z);
+            (*self.handle).setClipRectsInRange.unwrap()(so2d_to_lcdrect(clip_rect), start_z, end_z);
         }
     }
 
@@ -322,15 +347,15 @@ impl _Sprite {
     }
 
     /// Marks the area of the given sprite, relative to its bounds, to be checked for collisions with other sprites' collide rects.
-    pub(crate) fn set_collide_rect(&self, sprite: *mut sys::LCDSprite, collide_rect: Rect) {
+    pub(crate) fn set_collide_rect(&self, sprite: *mut sys::LCDSprite, collide_rect: Rect<f32>) {
         unsafe {
-            (*self.handle).setCollideRect.unwrap()(sprite, collide_rect);
+            (*self.handle).setCollideRect.unwrap()(sprite, rect_to_pdrect(collide_rect));
         }
     }
 
     /// Returns the given sprite’s collide rect.
-    pub(crate) fn get_collide_rect(&self, sprite: *mut sys::LCDSprite) -> Rect {
-        unsafe { (*self.handle).getCollideRect.unwrap()(sprite) }
+    pub(crate) fn get_collide_rect(&self, sprite: *mut sys::LCDSprite) -> Rect<f32> {
+        unsafe { pdrect_to_rect((*self.handle).getCollideRect.unwrap()(sprite)) }
     }
 
     /// Clears the given sprite’s collide rect.
@@ -577,12 +602,12 @@ impl Sprite {
     }
 
     /// Sets the bounds of the given sprite with bounds.
-    pub fn set_bounds(&self, bounds: Rect) {
+    pub fn set_bounds(&self, bounds: Rect<f32>) {
         PLAYDATE.sprite.set_bounds(self.handle, bounds);
     }
 
     /// Returns the bounds of the given sprite as an PDRect;
-    pub fn get_bounds(&self) -> Rect {
+    pub fn get_bounds(&self) -> Rect<f32> {
         PLAYDATE.sprite.get_bounds(self.handle)
     }
 
@@ -642,7 +667,7 @@ impl Sprite {
     }
 
     /// Sets the clipping rectangle for sprite drawing.
-    pub fn set_clip_rect(&self, clip_rect: LCDRect) {
+    pub fn set_clip_rect(&self, clip_rect: SideOffsets2D<i32>) {
         PLAYDATE.sprite.set_clip_rect(self.handle, clip_rect);
     }
 
@@ -721,12 +746,12 @@ impl Sprite {
     }
 
     /// Marks the area of the given sprite, relative to its bounds, to be checked for collisions with other sprites' collide rects.
-    pub fn set_collide_rect(&self, collide_rect: Rect) {
+    pub fn set_collide_rect(&self, collide_rect: Rect<f32>) {
         PLAYDATE.sprite.set_collide_rect(self.handle, collide_rect);
     }
 
     /// Returns the given sprite’s collide rect.
-    pub fn get_collide_rect(&self) -> Rect {
+    pub fn get_collide_rect(&self) -> Rect<f32> {
         PLAYDATE.sprite.get_collide_rect(self.handle)
     }
 
@@ -796,11 +821,11 @@ pub struct SpriteCollisionInfo {
     pub response_type: SpriteCollisionResponseType,
     pub overlaps: u8,
     pub ti: f32,
-    pub move_: CollisionPoint,
-    pub normal: CollisionVector,
-    pub touch: CollisionPoint,
-    pub sprite_rect: Rect,
-    pub other_rect: Rect,
+    pub move_: Point2D<f32>,
+    pub normal: Vec2D<i32>,
+    pub touch: Point2D<f32>,
+    pub sprite_rect: Rect<f32>,
+    pub other_rect: Rect<f32>,
 }
 
 impl SpriteCollisionInfo {
@@ -811,11 +836,11 @@ impl SpriteCollisionInfo {
             response_type: info.responseType,
             overlaps: info.overlaps,
             ti: info.ti,
-            move_: info.move_,
-            normal: info.normal,
-            touch: info.touch,
-            sprite_rect: info.spriteRect,
-            other_rect: info.otherRect,
+            move_: collision_point_to_point(info.move_),
+            normal: collision_vec_to_vec(info.normal),
+            touch: collision_point_to_point(info.touch),
+            sprite_rect: pdrect_to_rect(info.spriteRect),
+            other_rect: pdrect_to_rect(info.otherRect),
         }
     }
 }
@@ -825,8 +850,8 @@ pub struct SpriteQueryInfo {
     pub sprite: Sprite,
     pub ti1: f32,
     pub ti2: f32,
-    pub entry_point: CollisionPoint,
-    pub exit_point: CollisionPoint,
+    pub entry_point: Point2D<f32>,
+    pub exit_point: Point2D<f32>,
 }
 
 impl SpriteQueryInfo {
@@ -835,8 +860,8 @@ impl SpriteQueryInfo {
             sprite: Sprite::from_ref(info.sprite),
             ti1: info.ti1,
             ti2: info.ti2,
-            entry_point: info.entryPoint,
-            exit_point: info.exitPoint,
+            entry_point: collision_point_to_point(info.entryPoint),
+            exit_point: collision_point_to_point(info.exitPoint),
         }
     }
 }
