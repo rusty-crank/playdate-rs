@@ -1,4 +1,4 @@
-use std::{path::PathBuf, process::Command};
+use std::process::Command;
 
 use crate::{util::CommandExt, Runnable};
 
@@ -12,11 +12,8 @@ pub struct Run {
 impl Runnable for Run {
     fn run(&self) -> anyhow::Result<()> {
         let build_info = self.build.run()?;
-        let playdate_sdk_path = std::env::var("PLAYDATE_SDK_PATH")
-            .expect("Environment variable PLAYDATE_SDK_PATH is not set");
-        let simulator = PathBuf::from(playdate_sdk_path)
-            .join("bin")
-            .join("PlaydateSimulator");
+        let playdate_sdk_path = crate::util::get_playdate_sdk_path()?;
+        let simulator = playdate_sdk_path.join("bin").join("PlaydateSimulator");
 
         info!("Running {}", build_info.name);
         info!(

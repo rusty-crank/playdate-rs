@@ -158,9 +158,8 @@ impl Runnable<BuildInfo> for Build {
         }
         // call pdc
         let pdx_out = target_dir.join(format!("{}.pdx", target.name));
-        let playdate_sdk_path = std::env::var("PLAYDATE_SDK_PATH")
-            .expect("Environment variable PLAYDATE_SDK_PATH is not set");
-        let pdx_bin = PathBuf::from(playdate_sdk_path).join("bin").join("pdc");
+        let playdate_sdk_path = crate::util::get_playdate_sdk_path()?;
+        let pdx_bin = playdate_sdk_path.join("bin").join("pdc");
         info!(
             "➔  {} {} {}",
             pdx_bin.to_string_lossy(),

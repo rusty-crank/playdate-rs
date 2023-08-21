@@ -1,12 +1,31 @@
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+fn get_playdate_sdk_path() -> String {
+    let is_correct_sdk_path = |path: &Path| path.join("bin").join("pdc").is_file();
+    if cfg!(target_os = "macos") {
+        let playdate_sdk_path = home::home_dir()
+            .expect("Could not find home directory")
+            .join("Developer")
+            .join("PlaydateSDK");
+        if is_correct_sdk_path(&playdate_sdk_path) {
+            return playdate_sdk_path.to_str().unwrap().to_owned();
+        }
+    }
+    let playdate_sdk_path =
+        env::var("PLAYDATE_SDK_PATH").expect("Environment variable PLAYDATE_SDK_PATH is not set");
+    if !is_correct_sdk_path(&PathBuf::from(&playdate_sdk_path)) {
+        panic!("PLAYDATE_SDK_PATH is not set to the root of the Playdate SDK")
+    }
+    playdate_sdk_path
+}
 
 fn main() {
     // Tell cargo to invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=wrapper.h");
 
-    let playdate_sdk_path =
-        env::var("PLAYDATE_SDK_PATH").expect("Environment variable PLAYDATE_SDK_PATH is not set");
+    let playdate_sdk_path = get_playdate_sdk_path();
+
     let inc = |file: &str| format!("{}/C_API/{}", playdate_sdk_path, file);
 
     // The bindgen::Builder is the main entry point
