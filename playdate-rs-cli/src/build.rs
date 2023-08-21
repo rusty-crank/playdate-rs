@@ -6,6 +6,18 @@ use crate::{util::CommandExt, Runnable};
 
 static PDXINFO: &str = include_str!("../pdxinfo");
 
+static DYLIB_EXT: &str = if cfg!(target_os = "macos") {
+    "dylib"
+} else {
+    "so"
+};
+
+static PDEX_SO: &str = if cfg!(target_os = "macos") {
+    "pdex.dylib"
+} else {
+    "pdex.so"
+};
+
 /// Build the current playdate project
 #[derive(clap::Args, Debug)]
 pub struct Build {
@@ -128,18 +140,22 @@ impl Runnable<BuildInfo> for Build {
             anyhow::bail!("Current crate has no cdylib target");
         };
         let target_dir = self.get_target_dir(&meta)?;
-        let dylib = target_dir.join(format!("lib{}.so", target.name.replace('-', "_")));
+        let dylib = target_dir.join(format!(
+            "lib{}.{}",
+            target.name.replace('-', "_"),
+            DYLIB_EXT
+        ));
         // Create pdx folder
         let pdx_src = target_dir.join(format!("{}-source", target.name));
         Command::new("mkdir").arg("-p").arg(&pdx_src).check()?;
         // Copy output files
         Command::new("rm")
             .arg("-f")
-            .arg(pdx_src.join("pdex.so"))
+            .arg(pdx_src.join(PDEX_SO))
             .check()?;
         Command::new("cp")
             .arg(&dylib)
-            .arg(pdx_src.join("pdex.so"))
+            .arg(pdx_src.join(PDEX_SO))
             .check()?;
         Command::new("rm")
             .arg("-f")
