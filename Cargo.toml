@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "examples/hello_world",
+    "examples/hello-world",
     "playdate-rs",
     "playdate-rs/macros",
     "playdate-rs-cli",

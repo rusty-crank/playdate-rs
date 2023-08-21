@@ -14,6 +14,9 @@ pub struct Build {
     release: bool,
     #[command(flatten)]
     features: clap_cargo::Features,
+    #[arg(short, long)]
+    /// Package to process (see `cargo help pkgid`)
+    pub package: Option<String>,
 }
 
 impl Build {
@@ -32,6 +35,10 @@ impl Build {
         if self.features.all_features {
             flags.push("--all-features".to_owned());
         }
+        if let Some(pkg) = self.package.as_ref() {
+            flags.push("--package".to_owned());
+            flags.push(pkg.to_owned());
+        }
         flags
     }
 
@@ -42,10 +49,29 @@ impl Build {
         Ok(meta)
     }
 
+    fn get_packate(&self, meta: &Metadata) -> anyhow::Result<Package> {
+        if self.package.is_none() {
+            meta.root_package()
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("No rust package found under current directory"))
+        } else {
+            let pkg = meta
+                .packages
+                .iter()
+                .find(|p| &p.name == self.package.as_ref().unwrap())
+                .cloned();
+            pkg.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "No rust package found with name {}",
+                    self.package.as_ref().unwrap()
+                )
+            })
+        }
+    }
+
     fn get_assets_dir(&self, meta: &Metadata) -> anyhow::Result<PathBuf> {
-        let project_dir = meta
-            .root_package()
-            .unwrap()
+        let project_dir = self
+            .get_packate(meta)?
             .manifest_path
             .as_std_path()
             .parent()
@@ -93,9 +119,7 @@ impl Runnable<BuildInfo> for Build {
             .check()?;
         // Find dylib target
         let meta = self.load_metadata()?;
-        let Some(package) = meta.root_package() else {
-            anyhow::bail!("No rust package found under current directory");
-        };
+        let package = self.get_packate(&meta)?;
         let target = &package
             .targets
             .iter()
@@ -121,7 +145,7 @@ impl Runnable<BuildInfo> for Build {
             .arg("-f")
             .arg(pdx_src.join("pdxinfo"))
             .check()?;
-        let pdxinfo = self.load_pdxinfo(package, target)?;
+        let pdxinfo = self.load_pdxinfo(&package, target)?;
         std::fs::write(pdx_src.join("pdxinfo"), pdxinfo)?;
         // Copy assets
         let assets_dir = self.get_assets_dir(&meta)?;
