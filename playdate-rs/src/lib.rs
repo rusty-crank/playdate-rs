@@ -105,7 +105,7 @@ unsafe extern "C" fn update<T: App>(_: *mut core::ffi::c_void) -> i32 {
     1
 }
 
-pub fn start<T: App>(pd: *mut sys::PlaydateAPI) {
+fn start_playdate_app<T: App>(pd: *mut sys::PlaydateAPI) {
     // Initialize playdate singleton
     INIT.call_once(|| unsafe {
         PLAYDATE_PTR = pd;
@@ -121,22 +121,29 @@ pub fn start<T: App>(pd: *mut sys::PlaydateAPI) {
     PLAYDATE.system.set_update_callback(Some(update::<T>));
 }
 
+#[doc(hidden)]
+pub fn __playdate_handle_event<T: App>(
+    pd: *mut sys::PlaydateAPI,
+    event: system::SystemEvent,
+    arg: u32,
+) {
+    if event == system::SystemEvent::kEventInit {
+        start_playdate_app::<T>(pd);
+    }
+    T::get().handle_event(event, arg);
+}
+
 #[macro_export]
 macro_rules! register_playdate_app {
     ($app: ident) => {
         mod __playdate_api {
-            use $crate::App;
-
             #[no_mangle]
             unsafe extern "C" fn eventHandler(
                 pd: *mut $crate::sys::PlaydateAPI,
                 event: $crate::system::SystemEvent,
                 arg: u32,
             ) {
-                if event == $crate::system::SystemEvent::kEventInit {
-                    $crate::start::<super::$app>(pd);
-                }
-                super::$app::get().handle_event(event, arg);
+                $crate::__playdate_handle_event::<super::$app>(pd, event, arg);
             }
         }
     };
