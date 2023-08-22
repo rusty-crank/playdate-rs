@@ -18,7 +18,7 @@ pub mod sprite;
 pub mod system;
 pub mod video;
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, format};
 pub use no_std_io::io;
 pub use playdate_rs_macros::app;
 
@@ -133,6 +133,12 @@ pub fn __playdate_handle_event<T: App>(
     T::get().handle_event(event, arg);
 }
 
+#[doc(hidden)]
+pub fn __playdate_handle_panic(info: &core::panic::PanicInfo) -> ! {
+    PLAYDATE.system.error(format!("{}", info));
+    loop {}
+}
+
 #[macro_export]
 macro_rules! register_playdate_app {
     ($app: ident) => {
@@ -145,6 +151,12 @@ macro_rules! register_playdate_app {
             ) {
                 $crate::__playdate_handle_event::<super::$app>(pd, event, arg);
             }
+        }
+        #[cfg(all(target_arch = "arm", target_os = "none"))]
+        #[panic_handler]
+        #[doc(hidden)]
+        fn __panic_handler(info: &core::panic::PanicInfo) -> ! {
+            $crate::__playdate_handle_panic(info);
         }
     };
 }
