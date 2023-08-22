@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(all(target_arch = "arm", target_os = "none"), no_std)]
 
 extern crate alloc;
 pub extern crate playdate_rs_sys as sys;
