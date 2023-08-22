@@ -145,7 +145,7 @@ impl Mandelbrot {
             DISPLAY_HEIGHT - row_height * 3,
         );
         PLAYDATE.graphics.draw_text(
-            &format!("SCALE: {:.8}", self.scale),
+            &format!("SCALE: {:.8}", 1.0 / (self.scale * 100.0)),
             top_left_x + 2,
             DISPLAY_HEIGHT - row_height * 2,
         );
