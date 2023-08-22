@@ -49,3 +49,6 @@ impl Display {
         unsafe { (*self.handle).setOffset.unwrap()(x, y) }
     }
 }
+
+pub const DISPLAY_WIDTH: i32 = 400;
+pub const DISPLAY_HEIGHT: i32 = 240;

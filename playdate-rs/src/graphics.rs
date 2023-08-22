@@ -767,6 +767,28 @@ impl BitmapData {
             data: core::ptr::null_mut(),
         }
     }
+
+    /// Returns true if the pixel is black, false if it is white.
+    pub fn get_pixel(&self, x: i32, y: i32) -> bool {
+        let byte_index = y * self.rowbytes + x / 8;
+        let byte_ptr = unsafe { self.data.add(byte_index as _) };
+        let v = unsafe { *byte_ptr };
+        let bit_index = x % 8;
+        let mask = 1 << (7 - bit_index);
+        v & mask == 0
+    }
+
+    pub fn set_pixel(&self, x: i32, y: i32, black: bool) {
+        let byte_index = y * self.rowbytes + x / 8;
+        let byte_ptr = unsafe { self.data.add(byte_index as _) };
+        let v = unsafe { *byte_ptr };
+        let bit_index = x % 8;
+        let mask = 1 << (7 - bit_index);
+        let new_v = if !black { v | mask } else { v & !mask };
+        unsafe {
+            *byte_ptr = new_v;
+        }
+    }
 }
 
 impl Drop for Bitmap {

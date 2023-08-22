@@ -14,3 +14,4 @@ playdate-rs-macros = { version = "0.0.1", path = "./macros" }
 spin = "0.9.8"
 no_std_io = "0.6.0"
 euclid = "0.22.9"
+bitmask-enum = "2.2.2"

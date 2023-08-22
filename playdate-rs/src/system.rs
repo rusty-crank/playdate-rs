@@ -1,9 +1,10 @@
 use core::ffi::{c_char, c_void, CStr};
 
 use alloc::{ffi::CString, vec::Vec};
+use sys::PDButtons;
 pub use sys::{
-    PDButtons as Buttons, PDDateTime as DateTime, PDLanguage as Language,
-    PDPeripherals as Peripherals, PDSystemEvent as SystemEvent,
+    PDDateTime as DateTime, PDLanguage as Language, PDPeripherals as Peripherals,
+    PDSystemEvent as SystemEvent,
 };
 
 use crate::{graphics::Bitmap, PLAYDATE};
@@ -71,18 +72,16 @@ impl System {
 
     /// Returns bitmasks indicating which buttons are currently down. pushed and released reflect which buttons were pushed or released over the previous update cycle—at the nominal frame rate of 50 ms, fast button presses can be missed if you just poll the instantaneous state.
     pub fn get_button_state(&self) -> ButtonState {
-        let mut buttons = ButtonState {
-            current: Buttons(0),
-            pushed: Buttons(0),
-            released: Buttons(0),
-        };
+        let mut current = PDButtons(0);
+        let mut pushed = PDButtons(0);
+        let mut released = PDButtons(0);
         unsafe {
-            (*self.handle).getButtonState.unwrap()(
-                &mut buttons.current,
-                &mut buttons.pushed,
-                &mut buttons.released,
-            );
-            buttons
+            (*self.handle).getButtonState.unwrap()(&mut current, &mut pushed, &mut released);
+        }
+        ButtonState {
+            current: Buttons::from(current.0 as u8),
+            pushed: Buttons::from(pushed.0 as u8),
+            released: Buttons::from(released.0 as u8),
         }
     }
 
@@ -415,4 +414,14 @@ pub struct ButtonState {
     pub current: Buttons,
     pub pushed: Buttons,
     pub released: Buttons,
+}
+
+#[bitmask_enum::bitmask(u8)]
+pub enum Buttons {
+    Left = 1 << 0,
+    Right = 1 << 1,
+    Up = 1 << 2,
+    Down = 1 << 3,
+    B = 1 << 4,
+    A = 1 << 5,
 }
