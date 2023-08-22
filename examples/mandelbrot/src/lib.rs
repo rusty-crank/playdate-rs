@@ -9,7 +9,7 @@ use playdate_rs::display::{DISPLAY_HEIGHT, DISPLAY_WIDTH};
 use playdate_rs::graphics::{Bitmap, LCDSolidColor};
 use playdate_rs::math::Point2D;
 use playdate_rs::sys::LCDBitmapFlip;
-use playdate_rs::system::{Buttons, SystemEvent};
+use playdate_rs::system::Buttons;
 use playdate_rs::{app, println, App, PLAYDATE};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -190,6 +190,14 @@ impl App for Mandelbrot {
         } else if button_state.current.contains(Buttons::B) {
             self.scale *= 1.1
         }
+        if !PLAYDATE.system.is_crank_docked() {
+            let crank = PLAYDATE.system.get_crank_change();
+            if crank > 0.0 {
+                self.scale /= 1.05;
+            } else if crank < 0.0 {
+                self.scale *= 1.05;
+            }
+        }
         // Move
         if button_state.current.contains(Buttons::Up) {
             self.center.im += 10.0 * self.scale
@@ -208,11 +216,5 @@ impl App for Mandelbrot {
         self.draw_meta();
         // Draw FPS
         PLAYDATE.system.draw_fps(0, 0);
-    }
-
-    fn handle_event(&mut self, event: SystemEvent, arg: u32) {
-        if event == SystemEvent::kEventKeyPressed {
-            println!("Key pressed: {}", arg);
-        }
     }
 }
