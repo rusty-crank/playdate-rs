@@ -14,3 +14,9 @@ version = "0.0.1"
 edition = "2021"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 license = "MIT"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"

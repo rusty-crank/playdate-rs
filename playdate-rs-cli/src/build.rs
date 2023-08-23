@@ -29,12 +29,9 @@ pub struct Build {
     #[arg(short, long)]
     /// Package to process (see `cargo help pkgid`)
     pub package: Option<String>,
-    /// Build for the real device
+    /// Build for the real device (default is simulator)
     #[clap(long, default_value = "false")]
     pub device: bool,
-    /// Build for the simulator
-    #[clap(long, alias = "sim", default_value = "true")]
-    pub simulator: bool,
 }
 
 impl Build {
@@ -56,6 +53,10 @@ impl Build {
         if let Some(pkg) = self.package.as_ref() {
             flags.push("--package".to_owned());
             flags.push(pkg.to_owned());
+        }
+        if self.device {
+            flags.push("--target".to_owned());
+            flags.push(" thumbv7em-none-eabihf".to_owned());
         }
         flags
     }
@@ -100,6 +101,9 @@ impl Build {
 
     fn get_target_dir(&self, meta: &Metadata) -> anyhow::Result<PathBuf> {
         let mut target_dir = meta.target_directory.clone().into_std_path_buf();
+        if self.device {
+            target_dir.push("thumbv7em-none-eabihf");
+        }
         if self.release {
             target_dir.push("release");
         } else {
@@ -123,58 +127,70 @@ impl Build {
 
 pub struct BuildInfo {
     pub name: String,
-    pub dylib: PathBuf,
+    pub binary: PathBuf,
     pub pdx: PathBuf,
 }
 
-impl Runnable<BuildInfo> for Build {
-    fn run(&self) -> anyhow::Result<BuildInfo> {
-        // Find dylib target
-        let meta = self.load_metadata()?;
-        let package = self.get_package(&meta)?;
-        info!("Building {}", package.name);
-        if !self.device && !self.simulator {
-            anyhow::bail!("At least one of --device or --simulator must be specified");
-        } else if self.device && self.simulator {
-            anyhow::bail!("Only one of --device or --simulator can be specified");
-        }
-        let target = &package
-            .targets
-            .iter()
-            .find(|t| t.crate_types.contains(&"cdylib".to_lowercase()));
-        let Some(target) = target else {
-            anyhow::bail!("Current crate has no cdylib target");
-        };
-        let target_dir = self.get_target_dir(&meta)?;
-        let dylib = target_dir.join(format!(
-            "lib{}.{}",
-            target.name.replace('-', "_"),
-            DYLIB_EXT
-        ));
-        // Build rust project
-        Command::new("cargo")
-            .arg("build")
-            .args(self.get_cargo_flags())
-            .check()?;
+impl Build {
+    fn link_arm_binary(
+        &self,
+        name: &str,
+        target_dir: &PathBuf,
+        lib_path: &PathBuf,
+    ) -> anyhow::Result<()> {
+        let linker_script = crate::util::get_playdate_sdk_path()?
+            .join("C_API")
+            .join("buildsupport")
+            .join("link_map.ld");
+        const LINKER_ARGS: &str = "-nostartfiles -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-sp-d16 -D__FPU_USED=1 -Wl,--gc-sections,--no-warn-mismatch,--emit-relocs -fno-exceptions";
+        let mut args = vec![];
+        args.push(lib_path.to_str().unwrap().to_owned());
+        args.append(
+            &mut LINKER_ARGS
+                .split(" ")
+                .map(|s| s.to_owned())
+                .collect::<Vec<_>>(),
+        );
+        args.push("-T".to_owned());
+        args.push(linker_script.to_str().unwrap().to_owned());
+        args.push("-o".to_owned());
+        args.push(
+            target_dir
+                .join(format!("{}.elf", name))
+                .to_str()
+                .unwrap()
+                .to_owned(),
+        );
+        args.push("--entry".to_owned());
+        args.push("eventHandler".to_owned());
+        info!("➔  arm-none-eabi-gcc {}", args.join(" "));
+        Command::new("arm-none-eabi-gcc").args(&args).check()?;
+        Ok(())
+    }
+
+    fn copy_build_output(
+        &self,
+        target: &Target,
+        target_dir: &PathBuf,
+        binary: &PathBuf,
+        package: &Package,
+    ) -> anyhow::Result<PathBuf> {
         // Create pdx folder
         let pdx_src = target_dir.join(format!("{}.source", target.name));
+        Command::new("rm").arg("-rf").arg(&pdx_src).check()?;
         Command::new("mkdir").arg("-p").arg(&pdx_src).check()?;
         // Copy output files
-        Command::new("rm")
-            .arg("-f")
-            .arg(pdx_src.join(PDEX_SO))
-            .check()?;
+        let pdex_so = if self.device { "pdex.elf" } else { PDEX_SO };
         Command::new("cp")
-            .arg(&dylib)
-            .arg(pdx_src.join(PDEX_SO))
-            .check()?;
-        Command::new("rm")
-            .arg("-f")
-            .arg(pdx_src.join("pdxinfo"))
+            .arg(&binary)
+            .arg(pdx_src.join(pdex_so))
             .check()?;
         let pdxinfo = self.load_pdxinfo(&package, target)?;
         std::fs::write(pdx_src.join("pdxinfo"), pdxinfo)?;
-        // Copy assets
+        Ok(pdx_src)
+    }
+
+    fn copy_assets(&self, meta: &Metadata, pdx_src: &PathBuf) -> anyhow::Result<()> {
         let assets_dir = self.get_assets_dir(&meta)?;
         if assets_dir.exists() && assets_dir.is_dir() {
             for entry in std::fs::read_dir(&assets_dir)? {
@@ -183,7 +199,15 @@ impl Runnable<BuildInfo> for Build {
                 Command::new("cp").arg(&path).arg(&pdx_src).check()?;
             }
         }
-        // call pdc
+        Ok(())
+    }
+
+    fn invoke_pdc(
+        &self,
+        target: &Target,
+        target_dir: &PathBuf,
+        pdx_src: &PathBuf,
+    ) -> anyhow::Result<PathBuf> {
         let pdx_out = target_dir.join(format!("{}.pdx", target.name));
         let playdate_sdk_path = crate::util::get_playdate_sdk_path()?;
         let pdx_bin = playdate_sdk_path.join("bin").join("pdc");
@@ -194,11 +218,51 @@ impl Runnable<BuildInfo> for Build {
             pdx_out.to_string_lossy(),
         );
         Command::new(pdx_bin).arg(&pdx_src).arg(&pdx_out).check()?;
+        Ok(pdx_out)
+    }
+}
+
+impl Runnable<BuildInfo> for Build {
+    fn run(&self) -> anyhow::Result<BuildInfo> {
+        // Find dylib target
+        let meta = self.load_metadata()?;
+        let package = self.get_package(&meta)?;
+        info!("Building {}", package.name);
+        let target = &package
+            .targets
+            .iter()
+            .find(|t| t.crate_types.contains(&"cdylib".to_lowercase()));
+        let Some(target) = target else {
+            anyhow::bail!("Current crate has no cdylib target");
+        };
+        let target_dir = self.get_target_dir(&meta)?;
+        let mut binary = target_dir.join(format!(
+            "lib{}.{}",
+            target.name.replace('-', "_"),
+            DYLIB_EXT
+        ));
+        // Build rust project
+        Command::new("cargo")
+            .arg("build")
+            .args(self.get_cargo_flags())
+            .check()?;
+        if self.device {
+            // TODO: Link the staticlib using arm-none-eabi-gcc
+            let staticlib = target_dir.join(format!("lib{}.a", target.name.replace('-', "_"),));
+            self.link_arm_binary(&target.name.replace('-', "_"), &target_dir, &staticlib)?;
+            binary = target_dir.join(format!("{}.elf", target.name.replace('-', "_")));
+        }
+        // Create pdx folder and copy output files
+        let pdx_src = self.copy_build_output(target, &target_dir, &binary, &package)?;
+        // Copy assets
+        self.copy_assets(&meta, &pdx_src)?;
+        // call pdc
+        let pdx = self.invoke_pdc(target, &target_dir, &pdx_src)?;
 
         Ok(BuildInfo {
             name: target.name.clone(),
-            dylib,
-            pdx: pdx_out,
+            binary,
+            pdx,
         })
     }
 }

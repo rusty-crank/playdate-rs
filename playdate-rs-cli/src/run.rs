@@ -11,6 +11,9 @@ pub struct Run {
 
 impl Runnable for Run {
     fn run(&self) -> anyhow::Result<()> {
+        if self.build.device {
+            anyhow::bail!("Running on device is not supported yet");
+        }
         let build_info = self.build.run()?;
         let playdate_sdk_path = crate::util::get_playdate_sdk_path()?;
         let simulator = if cfg!(target_os = "macos") {

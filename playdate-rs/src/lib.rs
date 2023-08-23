@@ -158,5 +158,28 @@ macro_rules! register_playdate_app {
         fn __panic_handler(info: &core::panic::PanicInfo) -> ! {
             $crate::__playdate_handle_panic(info);
         }
+
+        #[cfg(all(target_arch = "arm", target_os = "none"))]
+        mod linker_fix {
+            #[cfg(not(target_os = "windows"))]
+            #[no_mangle]
+            extern "C" fn _exit() {}
+
+            #[no_mangle]
+            extern "C" fn _kill() {}
+
+            #[no_mangle]
+            extern "C" fn _getpid() {}
+
+            #[no_mangle]
+            extern "C" fn __exidx_start() {
+                unimplemented!();
+            }
+
+            #[no_mangle]
+            extern "C" fn __exidx_end() {
+                unimplemented!();
+            }
+        }
     };
 }
