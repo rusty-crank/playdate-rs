@@ -2,7 +2,7 @@
 
 Bindings for the [Playdate](https://play.date) SDK C-API.
 
-Only works on Linux with the playdate simulator for now.
+Only works on Linux/macOS with the playdate simulator for now.
 
 # Getting Started
 
@@ -10,3 +10,10 @@ Only works on Linux with the playdate simulator for now.
    * Skip this step on macOS. The crate will automatically find the SDK by checking the default install location.
 2. `cd examples/hello_world`
 3. `cargo playdate run`
+
+# TODO
+
+* [x] Linux / macOS simulator build
+* [x] Cortex-M7F build
+* [ ] Run on real playdate device
+* [ ] Async support
