@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process::Command};
 
-use cargo_metadata::{Metadata, MetadataCommand, Package, Target};
+use cargo_metadata::{Metadata, MetadataCommand, Package};
 
 use crate::{util::CommandExt, Runnable};
 
@@ -88,6 +88,17 @@ impl Build {
         }
     }
 
+    fn get_target_name(&self, package: &Package) -> anyhow::Result<String> {
+        let target = &package
+            .targets
+            .iter()
+            .find(|t| t.crate_types.contains(&"cdylib".to_lowercase()));
+        let Some(target) = target else {
+            anyhow::bail!("Current crate has no cdylib target");
+        };
+        Ok(target.name.replace('-', "_"))
+    }
+
     fn get_assets_dir(&self, meta: &Metadata) -> anyhow::Result<PathBuf> {
         let project_dir = self
             .get_package(meta)?
@@ -112,12 +123,12 @@ impl Build {
         Ok(target_dir)
     }
 
-    fn load_pdxinfo(&self, pkg: &Package, target: &Target) -> anyhow::Result<String> {
+    fn load_pdxinfo(&self, pkg: &Package, target_name: &str) -> anyhow::Result<String> {
         let mut env = minijinja::Environment::new();
         env.add_template("pdxinfo", PDXINFO)?;
         let template = env.get_template("pdxinfo").unwrap();
         let s = template.render(minijinja::context! {
-            name => target.name,
+            name => target_name,
             author => pkg.authors.join(", "),
             description => pkg.description.as_ref().unwrap_or(&"".to_owned()),
         })?;
@@ -134,10 +145,10 @@ pub struct BuildInfo {
 impl Build {
     fn link_arm_binary(
         &self,
-        name: &str,
+        target_name: &str,
         target_dir: &PathBuf,
         lib_path: &PathBuf,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<PathBuf> {
         let linker_script = crate::util::get_playdate_sdk_path()?
             .join("C_API")
             .join("buildsupport")
@@ -156,7 +167,7 @@ impl Build {
         args.push("-o".to_owned());
         args.push(
             target_dir
-                .join(format!("{}.elf", name))
+                .join(format!("{}.elf", target_name))
                 .to_str()
                 .unwrap()
                 .to_owned(),
@@ -165,18 +176,18 @@ impl Build {
         args.push("eventHandler".to_owned());
         info!("➔  arm-none-eabi-gcc {}", args.join(" "));
         Command::new("arm-none-eabi-gcc").args(&args).check()?;
-        Ok(())
+        Ok(target_dir.join(format!("{}.elf", target_name)))
     }
 
     fn copy_build_output(
         &self,
-        target: &Target,
+        target_name: &str,
         target_dir: &PathBuf,
         binary: &PathBuf,
         package: &Package,
     ) -> anyhow::Result<PathBuf> {
         // Create pdx folder
-        let pdx_src = target_dir.join(format!("{}.source", target.name));
+        let pdx_src = target_dir.join(format!("{}.source", target_name));
         Command::new("rm").arg("-rf").arg(&pdx_src).check()?;
         Command::new("mkdir").arg("-p").arg(&pdx_src).check()?;
         // Copy output files
@@ -185,7 +196,7 @@ impl Build {
             .arg(&binary)
             .arg(pdx_src.join(pdex_so))
             .check()?;
-        let pdxinfo = self.load_pdxinfo(&package, target)?;
+        let pdxinfo = self.load_pdxinfo(&package, target_name)?;
         std::fs::write(pdx_src.join("pdxinfo"), pdxinfo)?;
         Ok(pdx_src)
     }
@@ -204,11 +215,11 @@ impl Build {
 
     fn invoke_pdc(
         &self,
-        target: &Target,
+        target_name: &str,
         target_dir: &PathBuf,
         pdx_src: &PathBuf,
     ) -> anyhow::Result<PathBuf> {
-        let pdx_out = target_dir.join(format!("{}.pdx", target.name));
+        let pdx_out = target_dir.join(format!("{}.pdx", target_name));
         let playdate_sdk_path = crate::util::get_playdate_sdk_path()?;
         let pdx_bin = playdate_sdk_path.join("bin").join("pdc");
         info!(
@@ -228,39 +239,29 @@ impl Runnable<BuildInfo> for Build {
         let meta = self.load_metadata()?;
         let package = self.get_package(&meta)?;
         info!("Building {}", package.name);
-        let target = &package
-            .targets
-            .iter()
-            .find(|t| t.crate_types.contains(&"cdylib".to_lowercase()));
-        let Some(target) = target else {
-            anyhow::bail!("Current crate has no cdylib target");
-        };
+        // Find target name and target output dir
+        let target_name = self.get_target_name(&package)?;
         let target_dir = self.get_target_dir(&meta)?;
-        let mut binary = target_dir.join(format!(
-            "lib{}.{}",
-            target.name.replace('-', "_"),
-            DYLIB_EXT
-        ));
+        let mut binary = target_dir.join(format!("lib{}.{}", target_name, DYLIB_EXT));
         // Build rust project
         Command::new("cargo")
             .arg("build")
             .args(self.get_cargo_flags())
             .check()?;
         if self.device {
-            // TODO: Link the staticlib using arm-none-eabi-gcc
-            let staticlib = target_dir.join(format!("lib{}.a", target.name.replace('-', "_"),));
-            self.link_arm_binary(&target.name.replace('-', "_"), &target_dir, &staticlib)?;
-            binary = target_dir.join(format!("{}.elf", target.name.replace('-', "_")));
+            // Link the staticlib using arm-none-eabi-gcc
+            let staticlib = target_dir.join(format!("lib{}.a", target_name));
+            binary = self.link_arm_binary(&target_name, &target_dir, &staticlib)?;
         }
         // Create pdx folder and copy output files
-        let pdx_src = self.copy_build_output(target, &target_dir, &binary, &package)?;
+        let pdx_src = self.copy_build_output(&target_name, &target_dir, &binary, &package)?;
         // Copy assets
         self.copy_assets(&meta, &pdx_src)?;
         // call pdc
-        let pdx = self.invoke_pdc(target, &target_dir, &pdx_src)?;
+        let pdx = self.invoke_pdc(&target_name, &target_dir, &pdx_src)?;
 
         Ok(BuildInfo {
-            name: target.name.clone(),
+            name: target_name,
             binary,
             pdx,
         })
