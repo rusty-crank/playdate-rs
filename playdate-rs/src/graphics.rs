@@ -5,8 +5,8 @@ use alloc::ffi::CString;
 use crate::math::SideOffsets2D;
 
 pub use sys::{
-    LCDBitmapDrawMode, LCDBitmapFlip, LCDColor, LCDFontData, LCDLineCapStyle, LCDPolygonFillRule,
-    LCDSolidColor, LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
+    LCDBitmapDrawMode, LCDBitmapFlip, LCDColor, LCDFontData, LCDLineCapStyle, LCDPattern,
+    LCDPolygonFillRule, LCDSolidColor, LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
 };
 
 pub(crate) fn so2d_to_lcdrect(r: SideOffsets2D<i32>) -> sys::LCDRect {
@@ -36,9 +36,9 @@ impl Graphics {
     // pub video: *const playdate_video,
 
     /// Clears the entire display, filling it with color.
-    pub fn clear(&self, color: LCDColor) {
+    pub fn clear<'a>(&self, color: impl Into<LCDColor>) {
         unsafe {
-            ((*self.handle).clear.unwrap())(color);
+            ((*self.handle).clear.unwrap())(color.into());
         }
     }
 
@@ -143,9 +143,17 @@ impl Graphics {
     }
 
     /// Draws a line from x1, y1 to x2, y2 with a stroke width of width.
-    pub fn draw_line(&self, x1: i32, y1: i32, x2: i32, y2: i32, width: i32, color: LCDColor) {
+    pub fn draw_line(
+        &self,
+        x1: i32,
+        y1: i32,
+        x2: i32,
+        y2: i32,
+        width: i32,
+        color: impl Into<LCDColor>,
+    ) {
         unsafe {
-            ((*self.handle).drawLine.unwrap())(x1, y1, x2, y2, width, color);
+            ((*self.handle).drawLine.unwrap())(x1, y1, x2, y2, width, color.into());
         }
     }
 
@@ -159,10 +167,10 @@ impl Graphics {
         y2: i32,
         x3: i32,
         y3: i32,
-        color: LCDColor,
+        color: impl Into<LCDColor>,
     ) {
         unsafe {
-            ((*self.handle).fillTriangle.unwrap())(x1, y1, x2, y2, x3, y3, color);
+            ((*self.handle).fillTriangle.unwrap())(x1, y1, x2, y2, x3, y3, color.into());
         }
     }
 
@@ -178,16 +186,16 @@ impl Graphics {
     }
 
     /// Draws a width by height rect at x, y.
-    pub fn draw_rect(&self, x: i32, y: i32, width: i32, height: i32, color: LCDColor) {
+    pub fn draw_rect(&self, x: i32, y: i32, width: i32, height: i32, color: impl Into<LCDColor>) {
         unsafe {
-            ((*self.handle).drawRect.unwrap())(x, y, width, height, color);
+            ((*self.handle).drawRect.unwrap())(x, y, width, height, color.into());
         }
     }
 
     /// Draws a filled width by height rect at x, y.
-    pub fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32, color: LCDColor) {
+    pub fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32, color: impl Into<LCDColor>) {
         unsafe {
-            ((*self.handle).fillRect.unwrap())(x, y, width, height, color);
+            ((*self.handle).fillRect.unwrap())(x, y, width, height, color.into());
         }
     }
 
@@ -202,7 +210,7 @@ impl Graphics {
         line_width: i32,
         start_angle: f32,
         end_angle: f32,
-        color: LCDColor,
+        color: impl Into<LCDColor>,
     ) {
         unsafe {
             ((*self.handle).drawEllipse.unwrap())(
@@ -213,7 +221,7 @@ impl Graphics {
                 line_width,
                 start_angle,
                 end_angle,
-                color,
+                color.into(),
             );
         }
     }
@@ -228,7 +236,7 @@ impl Graphics {
         height: i32,
         start_angle: f32,
         end_angle: f32,
-        color: LCDColor,
+        color: impl Into<LCDColor>,
     ) {
         unsafe {
             ((*self.handle).fillEllipse.unwrap())(
@@ -238,7 +246,7 @@ impl Graphics {
                 height,
                 start_angle,
                 end_angle,
-                color,
+                color.into(),
             );
         }
     }
@@ -260,8 +268,8 @@ impl Graphics {
     }
 
     /// Allocates and returns a new width by height LCDBitmap filled with bgcolor.
-    pub fn new_bitmap(&self, width: i32, height: i32, bgcolor: LCDColor) -> Bitmap {
-        Bitmap::from(unsafe { ((*self.handle).newBitmap.unwrap())(width, height, bgcolor) })
+    pub fn new_bitmap(&self, width: i32, height: i32, bgcolor: impl Into<LCDColor>) -> Bitmap {
+        Bitmap::from(unsafe { ((*self.handle).newBitmap.unwrap())(width, height, bgcolor.into()) })
     }
 
     /// Frees the given bitmap.
@@ -320,9 +328,9 @@ impl Graphics {
     }
 
     /// Clears bitmap, filling with the given bgcolor.
-    pub(crate) fn clear_bitmap(&self, bitmap: *mut sys::LCDBitmap, bgcolor: LCDColor) {
+    pub(crate) fn clear_bitmap(&self, bitmap: *mut sys::LCDBitmap, bgcolor: impl Into<LCDColor>) {
         unsafe {
-            ((*self.handle).clearBitmap.unwrap())(bitmap, bgcolor);
+            ((*self.handle).clearBitmap.unwrap())(bitmap, bgcolor.into());
         }
     }
 
@@ -542,12 +550,17 @@ impl Graphics {
         &self,
         n_points: i32,
         coords: impl AsRef<[i32]>,
-        color: LCDColor,
+        color: impl Into<LCDColor>,
         fillrule: LCDPolygonFillRule,
     ) {
         unsafe {
             let mut coords = coords.as_ref().to_vec();
-            ((*self.handle).fillPolygon.unwrap())(n_points, coords.as_mut_ptr(), color, fillrule);
+            ((*self.handle).fillPolygon.unwrap())(
+                n_points,
+                coords.as_mut_ptr(),
+                color.into(),
+                fillrule,
+            );
         }
     }
 
@@ -657,7 +670,7 @@ impl Bitmap {
     }
 
     /// Allocates and returns a new width by height Bitmap filled with bgcolor.
-    pub fn new(width: i32, height: i32, bgcolor: LCDColor) -> Self {
+    pub fn new(width: i32, height: i32, bgcolor: impl Into<LCDColor>) -> Self {
         PLAYDATE.graphics.new_bitmap(width, height, bgcolor)
     }
 
@@ -665,7 +678,7 @@ impl Bitmap {
     pub fn clear(&self) {
         PLAYDATE
             .graphics
-            .clear_bitmap(self.handle, LCDSolidColor::kColorWhite as _);
+            .clear_bitmap(self.handle, LCDSolidColor::kColorWhite);
     }
 
     /// Sets a mask image for the given bitmap. The set mask must be the same size as the target bitmap.
@@ -750,13 +763,22 @@ impl Bitmap {
     }
 
     /// Get color as an 8 x 8 pattern using the given bitmap. x, y indicates the top left corner of the 8 x 8 pattern.
-    pub fn get_color_pattern(&self, x: i32, y: i32) -> LCDColor {
-        let mut color = 0;
+    pub fn get_color_pattern(&self, x: i32, y: i32) -> ColorPatternData {
+        let mut color = LCDColor::default();
         PLAYDATE
             .graphics
             .set_color_to_pattern(&mut color, self.handle, x, y);
-        color
+        if let Some(scolor) = color.as_solid_color() {
+            ColorPatternData::Solid(scolor)
+        } else {
+            ColorPatternData::Pattern(unsafe { color.as_pattern().unwrap() })
+        }
     }
+}
+
+pub enum ColorPatternData {
+    Solid(LCDSolidColor),
+    Pattern(LCDPattern),
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]

@@ -11,3 +11,38 @@ mod thumbv7em_bindings;
 
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use thumbv7em_bindings::*;
+
+#[repr(transparent)]
+#[derive(Debug, PartialEq, Eq, Hash, Default)]
+pub struct LCDColor(u64);
+
+impl LCDColor {
+    pub fn as_solid_color(&self) -> Option<LCDSolidColor> {
+        match self.0 {
+            0 => Some(LCDSolidColor::kColorBlack),
+            1 => Some(LCDSolidColor::kColorWhite),
+            2 => Some(LCDSolidColor::kColorClear),
+            3 => Some(LCDSolidColor::kColorXOR),
+            _ => None,
+        }
+    }
+
+    pub unsafe fn as_pattern(&self) -> Option<LCDPattern> {
+        match self.0 {
+            x if x <= 3 => None,
+            _ => Some(unsafe { *(self.0 as *const LCDPattern) }),
+        }
+    }
+}
+
+impl From<LCDSolidColor> for LCDColor {
+    fn from(value: LCDSolidColor) -> Self {
+        LCDColor(value as _)
+    }
+}
+
+impl From<&LCDPattern> for LCDColor {
+    fn from(value: &LCDPattern) -> Self {
+        LCDColor(value as *const LCDPattern as _)
+    }
+}

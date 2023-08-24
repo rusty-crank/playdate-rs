@@ -201,7 +201,6 @@ pub enum PDStringEncoding {
     k16BitLEEncoding = 2,
 }
 pub type LCDPattern = [u8; 16usize];
-pub type LCDColor = usize;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum LCDPolygonFillRule {

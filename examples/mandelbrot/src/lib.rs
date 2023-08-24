@@ -97,7 +97,7 @@ impl Mandelbrot {
     }
 
     fn draw_frame(&self) {
-        PLAYDATE.graphics.clear(LCDSolidColor::kColorWhite as _);
+        PLAYDATE.graphics.clear(LCDSolidColor::kColorWhite);
         let iter = self.get_iter();
         for y in 0..DISPLAY_HEIGHT {
             for x in 0..DISPLAY_WIDTH {
@@ -126,21 +126,21 @@ impl Mandelbrot {
             DISPLAY_HEIGHT - text_area_height - 3,
             text_area_width + 3,
             text_area_height + 3,
-            LCDSolidColor::kColorWhite as _,
+            LCDSolidColor::kColorWhite,
         );
         PLAYDATE.graphics.fill_rect(
             top_left_x - 2,
             DISPLAY_HEIGHT - text_area_height - 2,
             text_area_width + 2,
             text_area_height + 2,
-            LCDSolidColor::kColorBlack as _,
+            LCDSolidColor::kColorBlack,
         );
         PLAYDATE.graphics.fill_rect(
             top_left_x,
             DISPLAY_HEIGHT - text_area_height,
             text_area_width,
             text_area_height,
-            LCDSolidColor::kColorWhite as _,
+            LCDSolidColor::kColorWhite,
         );
         PLAYDATE.graphics.draw_text(
             &format!("<{:.4}, {:.4}i>", self.center.re, self.center.im,),

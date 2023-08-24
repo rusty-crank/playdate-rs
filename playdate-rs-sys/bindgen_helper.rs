@@ -58,6 +58,8 @@ pub fn generate(device: bool, out_dir: impl AsRef<Path>, arm_gcc_path: Option<&s
         .bitfield_enum("PDPeripherals")
         // no_std
         .use_core()
+        // Skip LCDColor
+        .blocklist_type("LCDColor")
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
