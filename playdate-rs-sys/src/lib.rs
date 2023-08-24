@@ -7,10 +7,7 @@
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 #[cfg(all(target_arch = "arm", target_os = "none"))]
-mod thumbv7em_bindings;
-
-#[cfg(all(target_arch = "arm", target_os = "none"))]
-pub use thumbv7em_bindings::*;
+include!("./thumbv7em_bindings.rs");
 
 #[repr(transparent)]
 #[derive(Debug, PartialEq, Eq, Hash, Default)]
