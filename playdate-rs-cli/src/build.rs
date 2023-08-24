@@ -213,9 +213,9 @@ impl Build {
         let pdx_bin = playdate_sdk_path.join("bin").join("pdc");
         info!(
             "➔  {} {} {}",
-            pdx_bin.to_string_lossy(),
-            pdx_src.to_string_lossy(),
-            pdx_out.to_string_lossy(),
+            pdx_bin.to_string_lossy().replace(" ", "\\ "),
+            pdx_src.to_string_lossy().replace(" ", "\\ "),
+            pdx_out.to_string_lossy().replace(" ", "\\ "),
         );
         Command::new(pdx_bin).arg(&pdx_src).arg(&pdx_out).check()?;
         Ok(pdx_out)
