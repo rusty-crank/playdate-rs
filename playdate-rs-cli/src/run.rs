@@ -2,7 +2,7 @@ use std::process::Command;
 
 use crate::{util::CommandExt, Runnable};
 
-/// Run a playdate project
+/// Run the local package on the playdate simulator or a device
 #[derive(clap::Args, Debug)]
 pub struct Run {
     #[command(flatten)]

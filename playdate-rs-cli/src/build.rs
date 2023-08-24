@@ -18,7 +18,7 @@ static PDEX_SO: &str = if cfg!(target_os = "macos") {
     "pdex.so"
 };
 
-/// Build a playdate project
+/// Compile the current package
 #[derive(clap::Args, Debug)]
 pub struct Build {
     /// Build the project in release mode, with optimizations
