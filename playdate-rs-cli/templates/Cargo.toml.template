@@ -1,0 +1,23 @@
+[package]
+name = "{{ name }}"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+# See all pdxinfo fields at https://github.com/wenyuzhao/playdate-rs#pdxinfo-generation-and-bundling
+
+[package.metadata.pdxinfo]
+bundle_id = "com.example.{{ name }}"
+description = "A hello world example for the Playdate"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
