@@ -198,6 +198,11 @@ impl File {
     pub fn tell(&self) -> io::Result<usize> {
         PLAYDATE.file.tell(self.handle)
     }
+
+    /// Open a new file
+    pub fn open(name: impl AsRef<str>, mode: FileOptions) -> io::Result<Self> {
+        PLAYDATE.file.open(name, mode)
+    }
 }
 
 impl Read for File {
