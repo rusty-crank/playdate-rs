@@ -42,6 +42,8 @@ content_warning2 = "Content warning 2" # Default value: empty string
 
 _Note that all the fields in `[package.metadata.pdxinfo]` are optional. The default value will be derived from other fields in `Cargo.toml`. Please refer to the `# Default value` comments above._
 
+Example: [examples/hello-world/Cargo.toml](examples/hello-world/Cargo.toml).
+
 # TODO
 
 * [x] Linux / macOS simulator build

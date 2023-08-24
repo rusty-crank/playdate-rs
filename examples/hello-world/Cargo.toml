@@ -1,9 +1,10 @@
 [package]
 name = "hello-world"
-version = { workspace = true }
-authors = { workspace = true }
-edition = { workspace = true }
-license = { workspace = true }
+description = "A hello world example for the Playdate"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 
 [lib]
 crate-type = ["cdylib", "staticlib"]
@@ -12,3 +13,6 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 playdate-rs = { path = "../../playdate-rs" }
+
+[package.metadata.pdxinfo]
+bundle_id = "com.example.hello-world"
