@@ -1,5 +1,8 @@
 name={{ name }}
 author={{ author }}
 description={{ description }}
-bundleID=com.panic.{{ name }}
-imagePath=
+bundleID={{ bundle_id }}
+imagePath={{ image_path }}
+launchSoundPath={{ launch_sound_path }}
+contentWarning={{ content_warning }}
+contentWarning2={{ content_warning2 }}

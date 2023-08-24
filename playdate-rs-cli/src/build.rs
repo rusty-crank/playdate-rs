@@ -124,13 +124,47 @@ impl Build {
     }
 
     fn load_pdxinfo(&self, pkg: &Package, target_name: &str) -> anyhow::Result<String> {
+        // If there is a pdxinfo file under package root, just use it
+        let pdxinfo_path = pkg
+            .manifest_path
+            .as_std_path()
+            .parent()
+            .unwrap()
+            .join("pdxinfo");
+        if pdxinfo_path.is_file() || pdxinfo_path.is_symlink() {
+            info!("Using pdxinfo from {}", pdxinfo_path.to_string_lossy());
+            return Ok(std::fs::read_to_string(pdxinfo_path)?);
+        }
+        // Generate from pdxinfo template
+        let pdxinfo_meta = pkg
+            .metadata
+            .get("pdxinfo")
+            .map(|v| v.as_object().unwrap().clone())
+            .unwrap_or_default();
+        let get_meta = |key: &str, default: &str, warn: Option<&str>| -> String {
+            pdxinfo_meta
+                .get(key)
+                .map(|v| v.as_str().unwrap().to_owned())
+                .unwrap_or_else(|| {
+                    if let Some(warn) = warn {
+                        warn!("{}", warn);
+                    }
+                    default.to_owned()
+                })
+        };
         let mut env = minijinja::Environment::new();
         env.add_template("pdxinfo", PDXINFO)?;
         let template = env.get_template("pdxinfo").unwrap();
+        let default_bundle_id = format!("com.example.{}", pkg.name);
         let s = template.render(minijinja::context! {
-            name => target_name,
-            author => pkg.authors.join(", "),
-            description => pkg.description.as_ref().unwrap_or(&"".to_owned()),
+            name => get_meta("name", target_name, None),
+            author => get_meta("author", &pkg.authors.join(", "), None),
+            description => get_meta("description", pkg.description.as_ref().unwrap_or(&"".to_owned()), None),
+            bundle_id => get_meta("bundle_id", &default_bundle_id, Some(&format!("Using default bundle id: {}", default_bundle_id))),
+            image_path => get_meta("image_path", "", None),
+            launch_sound_path => get_meta("launch_sound_path", "", None),
+            content_warning => get_meta("content_warning", "", None),
+            content_warning2 => get_meta("content_warning2", "", None),
         })?;
         Ok(s)
     }
