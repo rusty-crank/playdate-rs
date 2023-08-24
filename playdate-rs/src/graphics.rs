@@ -166,6 +166,17 @@ impl Graphics {
         }
     }
 
+    /// Draws a pixel at x, y.
+    pub fn draw_pixel(&self, x: i32, y: i32, color: LCDSolidColor) {
+        let fb = self.get_frame();
+        let byte_ptr = unsafe { fb.add((y * LCD_ROWSIZE as i32 + (x >> 3)) as usize) };
+        if color == LCDSolidColor::kColorBlack {
+            unsafe { *byte_ptr &= !(1 << (7 - (x & 7))) };
+        } else {
+            unsafe { *byte_ptr |= 1 << (7 - (x & 7)) };
+        }
+    }
+
     /// Draws a width by height rect at x, y.
     pub fn draw_rect(&self, x: i32, y: i32, width: i32, height: i32, color: LCDColor) {
         unsafe {
@@ -765,28 +776,6 @@ impl BitmapData {
             rowbytes: 0,
             mask: core::ptr::null_mut(),
             data: core::ptr::null_mut(),
-        }
-    }
-
-    /// Returns true if the pixel is black, false if it is white.
-    pub fn get_pixel(&self, x: i32, y: i32) -> bool {
-        let byte_index = y * self.rowbytes + x / 8;
-        let byte_ptr = unsafe { self.data.add(byte_index as _) };
-        let v = unsafe { *byte_ptr };
-        let bit_index = x % 8;
-        let mask = 1 << (7 - bit_index);
-        v & mask == 0
-    }
-
-    pub fn set_pixel(&self, x: i32, y: i32, black: bool) {
-        let byte_index = y * self.rowbytes + x / 8;
-        let byte_ptr = unsafe { self.data.add(byte_index as _) };
-        let v = unsafe { *byte_ptr };
-        let bit_index = x % 8;
-        let mask = 1 << (7 - bit_index);
-        let new_v = if !black { v | mask } else { v & !mask };
-        unsafe {
-            *byte_ptr = new_v;
         }
     }
 }

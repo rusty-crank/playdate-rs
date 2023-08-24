@@ -6,9 +6,8 @@ use core::ops::{Add, Mul};
 
 use alloc::format;
 use playdate_rs::display::{DISPLAY_HEIGHT, DISPLAY_WIDTH};
-use playdate_rs::graphics::{Bitmap, LCDSolidColor};
+use playdate_rs::graphics::LCDSolidColor;
 use playdate_rs::math::Point2D;
-use playdate_rs::sys::LCDBitmapFlip;
 use playdate_rs::system::Buttons;
 use playdate_rs::{app, println, App, PLAYDATE};
 
@@ -82,7 +81,6 @@ fn f(c: Complex, max_iter: i32) -> bool {
 
 #[app]
 pub struct Mandelbrot {
-    frame: Bitmap,
     center: Complex,
     scale: f32,
 }
@@ -99,18 +97,23 @@ impl Mandelbrot {
     }
 
     fn draw_frame(&self) {
+        PLAYDATE.graphics.clear(LCDSolidColor::kColorWhite as _);
         let iter = self.get_iter();
-        let data = self.frame.get_bitmap_data();
         for y in 0..DISPLAY_HEIGHT {
             for x in 0..DISPLAY_WIDTH {
                 let c = Point2D::new(x, y);
                 let v = f(Complex::from_point(c, self.center, self.scale), iter);
-                data.set_pixel(x, y, v);
+                PLAYDATE.graphics.draw_pixel(
+                    x,
+                    y,
+                    if v {
+                        LCDSolidColor::kColorBlack
+                    } else {
+                        LCDSolidColor::kColorWhite
+                    },
+                );
             }
         }
-        PLAYDATE
-            .graphics
-            .draw_bitmap(&self.frame, 0, 0, LCDBitmapFlip::kBitmapUnflipped);
     }
 
     fn draw_meta(&self) {
@@ -161,11 +164,6 @@ impl App for Mandelbrot {
     fn new() -> Self {
         println!("Hello, Mandelbrot!");
         Self {
-            frame: Bitmap::new(
-                DISPLAY_WIDTH,
-                DISPLAY_HEIGHT,
-                LCDSolidColor::kColorWhite as _,
-            ),
             center: Complex::new(-0.5, 0.0),
             scale: 0.01,
         }
