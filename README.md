@@ -4,6 +4,8 @@
 [![docs](https://img.shields.io/docsrs/playdate-rs/latest)](https://docs.rs/playdate-rs)
 [![workflow-status](https://github.com/rusty-crank/playdate-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/rusty-crank/playdate-rs/actions/workflows/ci.yml)
 
+***Note: Prior to reaching v0.1.0, this is a work in progress. The API is incomplete, and breaking changes can occur frequently across versions.***
+
 Bindings for the [Playdate](https://play.date) SDK C-API.
 
 Only works on Linux/macOS with the playdate simulator for now.
