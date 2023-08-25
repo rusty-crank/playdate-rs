@@ -39,7 +39,10 @@ pub fn get_playdate_sdk_path() -> anyhow::Result<PathBuf> {
     }
     let playdate_sdk_path = PathBuf::from(std::env::var("PLAYDATE_SDK_PATH")?);
     if !is_correct_sdk_path(&playdate_sdk_path) {
-        anyhow::bail!("PLAYDATE_SDK_PATH is not set to the root of the Playdate SDK")
+        anyhow::bail!(
+            "PLAYDATE_SDK_PATH ({}) is not set to the root of the Playdate SDK",
+            playdate_sdk_path.to_string_lossy()
+        )
     }
     Ok(playdate_sdk_path)
 }
