@@ -48,6 +48,7 @@ jobs:
       # Install playdate-cli
       - name: Install playdate-cli
         run: cargo install --path .
+        working-directory: playdate-cli
       # Create or init new project
       - name: Create cargo playdate project
         run: cargo playdate new new-project
