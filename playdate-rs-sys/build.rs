@@ -14,25 +14,18 @@ fn main() {
     }
 
     if std::env::var("DOCS_RS").is_ok() {
-        // Manually download the SDK and extract it to the OUT_DIR
+        // Manually extract the sdk header files to the OUT_DIR
         let old_cwd = env::current_dir().unwrap();
+        let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
         env::set_current_dir(&out_path).unwrap();
-        let status = Command::new("curl")
-            .args([
-                "-L",
-                "https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-2.0.3.tar.gz",
-                "-o",
-                "PlaydateSDK.tar.gz",
-            ])
-            .status()
-            .unwrap();
-        assert!(status.success());
         std::fs::create_dir_all("PlaydateSDK").unwrap();
         let status = Command::new("tar")
             .args([
                 "xzf",
-                "PlaydateSDK.tar.gz",
+                &manifest_dir
+                    .join("playdate-sdk-2.0.3.tar.gz")
+                    .to_string_lossy(),
                 "--strip",
                 "1",
                 "-C",

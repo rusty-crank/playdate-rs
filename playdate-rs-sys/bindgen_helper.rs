@@ -2,7 +2,8 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 pub fn get_playdate_sdk_path() -> String {
-    let is_correct_sdk_path = |path: &Path| path.join("bin").join("pdc").is_file();
+    let is_correct_sdk_path =
+        |path: &Path| std::env::var("DOCS_RS").is_ok() || path.join("bin").join("pdc").is_file();
     if cfg!(target_os = "macos") {
         let playdate_sdk_path = home::home_dir()
             .expect("Could not find home directory")
