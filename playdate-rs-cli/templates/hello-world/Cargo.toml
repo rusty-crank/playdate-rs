@@ -21,3 +21,6 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
+
+# Remove this if this project is a member of a workspace
+[workspace]

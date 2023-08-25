@@ -2,7 +2,10 @@ use std::{path::PathBuf, process::Command};
 
 use crate::{util::CommandExt, Runnable};
 
-static CARGO_TOML: &str = include_str!("../templates/Cargo.toml.template");
+static CARGO_TOML: &str = include_str!("../templates/hello-world/Cargo.toml");
+static LIB_RS: &str = include_str!("../templates/hello-world/src/lib.rs");
+static RUST_PNG: &[u8] = include_bytes!("../templates/hello-world/assets/rust.png");
+static GITIGNORE: &str = include_str!("../templates/hello-world/.gitignore");
 
 /// Create a new cargo playdate package in an existing directory
 #[derive(clap::Args, Debug)]
@@ -15,10 +18,12 @@ impl Init {
     /// Initialize playdate project
     fn init_playdate_impl(new: bool, path: &PathBuf) -> anyhow::Result<()> {
         info!("Configuring cargo playdate project ...");
-        // Overwrite src/lib.rs
-        info!("+  overwrite src/lib.rs");
-        // Overwrite Cargo.toml
-        info!("+  overwrite Cargo.toml");
+        // Adding game assets and overwrite files
+        info!("+  overwrite files");
+        std::fs::create_dir_all("assets")?;
+        std::fs::write(PathBuf::from("assets").join("rust.png"), RUST_PNG)?;
+        std::fs::write(PathBuf::from(".gitignore"), GITIGNORE)?;
+        std::fs::write(PathBuf::from("src").join("lib.rs"), LIB_RS)?;
         let original_cargo_toml =
             toml::from_str::<toml::Value>(&std::fs::read_to_string("Cargo.toml")?)?;
         let name = original_cargo_toml["package"]["name"].as_str().unwrap();
@@ -37,7 +42,7 @@ impl Init {
             .check()?;
         println!("🎉 Initialized playdate project: {}", name);
         let cmd = if new {
-            format!("cd {} && playdate run", path.to_string_lossy())
+            format!("cd {} && cargo playdate run", path.to_string_lossy())
         } else {
             "cargo playdate run".to_owned()
         };
