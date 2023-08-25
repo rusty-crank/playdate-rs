@@ -247,7 +247,15 @@ impl Build {
             for entry in std::fs::read_dir(&assets_dir)? {
                 let entry = entry?;
                 let path: PathBuf = entry.path();
-                Command::new("cp").arg(&path).arg(pdx_src).check()?;
+                if path.is_dir() {
+                    Command::new("cp")
+                        .arg("-r")
+                        .arg(&path)
+                        .arg(pdx_src)
+                        .check()?;
+                } else {
+                    Command::new("cp").arg(&path).arg(pdx_src).check()?;
+                }
             }
         }
         Ok(())
