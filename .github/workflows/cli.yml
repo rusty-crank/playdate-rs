@@ -45,12 +45,12 @@ jobs:
       # Setup up rust toolchain
       - name: Setup Rust Toolchain
         run: rustup update stable && rustup target add ${{ matrix.target }}
-      # # Install playdate-cli
-      # - name: Install playdate-cli
-      #   run: |
-      #     cargo install --path .
-      #     rm -r ../.cargo
-      #   working-directory: playdate-cli
+      # Install playdate-cli
+      - name: Install playdate-cli
+        run: |
+          cargo install --path .
+          rm -r ../.cargo
+        working-directory: playdate-cli
       # Create or init new project
       - name: Create cargo playdate project
         run: cargo playdate new new-project
