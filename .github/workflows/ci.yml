@@ -9,25 +9,38 @@ on:
 env:
   CARGO_TERM_COLOR: always
   PLAYDATE_SDK_VERSION: 2.0.3
-  PLAYDATE_SDK_PATH: ${{ github.workspace }}/PlaydateSDK-${PLAYDATE_SDK_VERSION}
+  PLAYDATE_SDK_PATH: ${{ github.workspace }}/PlaydateSDK-$PLAYDATE_SDK_VERSION
 
 jobs:
   checks:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        profile:
+          - debug
+          - release
+        target:
+          - x86_64-unknown-linux-gnu
+          - thumbv7em-none-eabihf
+    env:
+      PROFILE_FLAG: ${{ matrix.profile == 'release' && '--release' || '' }}
     steps:
       - name: Install Ubuntu Packages
         run: |
           sudo apt update
           sudo apt install -y libwebkit2gtk-4.0-dev gcc-arm-none-eabi
       - name: Install Playdate SDK
-        run: curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-${PLAYDATE_SDK_VERSION}.tar.gz | tar xz
-      - uses: actions/checkout@v3
-      - run: rustup update stable && rustup target add thumbv7em-none-eabihf
-      - run: cargo build --workspace
-      - run: cargo build --workspace --release
-      - run: cargo build --workspace --exclude playdate-cli --target thumbv7em-none-eabihf
-      - run: cargo build --workspace --exclude playdate-cli --target thumbv7em-none-eabihf --release
-      - run: cargo test -p playdate-rs-sys
-      - run: cargo test -p playdate-rs-sys --release
-      - run: cargo fmt -- --check
-      - run: cargo clippy -D warnings
+        run: curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-$PLAYDATE_SDK_VERSION.tar.gz | tar xz
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Rust Toolchain
+        run: rustup update stable && rustup target add ${{ matrix.target }}
+      - name: Cargo Build (${{ matrix.target }}, ${{ matrix.profile }})
+        run: cargo build --workspace --target ${{ matrix.target }} ${{ env.PROFILE_FLAG }} --exclude playdate-cli
+      - name: Cargo Test (${{ matrix.target }}, ${{ matrix.profile }})
+        run: cargo test -p playdate-rs-sys ${{ env.PROFILE_FLAG }}
+        if: ${{ matrix.target }} == 'x86_64-unknown-linux-gnu'
+      - name: Cargo fmt checks
+        run: cargo fmt -- --check
+      - name: Cargo clippy checks
+        run: cargo clippy -D warnings
