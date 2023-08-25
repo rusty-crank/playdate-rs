@@ -25,17 +25,12 @@ jobs:
     env:
       PROFILE_FLAG: ${{ matrix.profile == 'release' && '--release' || '' }}
     steps:
-      - run: echo $PLAYDATE_SDK_PATH
       - name: Install Ubuntu Packages
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.0-dev gcc-arm-none-eabi
       - name: Install Playdate SDK
-        run: |
-          curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-${{ env.PLAYDATE_SDK_VERSION }}.tar.gz | tar xz --one-top-level=PlaydateSDK
-          echo ${{ env.PLAYDATE_SDK_PATH }}
-          echo ${PLAYDATE_SDK_PATH}
-          ls ${{ env.PLAYDATE_SDK_PATH }}
+        run: curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-${{ env.PLAYDATE_SDK_VERSION }}.tar.gz | tar xz --one-top-level=PlaydateSDK
       - name: Checkout
         uses: actions/checkout@v3
       - name: Setup Rust Toolchain
@@ -43,9 +38,17 @@ jobs:
       - name: Cargo Build (${{ matrix.target }}, ${{ matrix.profile }})
         run: cargo build --workspace --target ${{ matrix.target }} ${{ env.PROFILE_FLAG }} --exclude playdate-cli
       - name: Cargo Test (${{ matrix.target }}, ${{ matrix.profile }})
-        run: env PLAYDATE_SDK_PATH=${{ env.PLAYDATE_SDK_PATH }} cargo test -p playdate-rs-sys ${{ env.PROFILE_FLAG }}
-        if: ${{ matrix.target }} == 'x86_64-unknown-linux-gnu'
-      - name: Cargo fmt checks
-        run: env PLAYDATE_SDK_PATH=${{ env.PLAYDATE_SDK_PATH }} cargo fmt -- --check
+        run: cargo test -p playdate-rs-sys --target ${{ matrix.target }} ${{ env.PROFILE_FLAG }}
+        if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' }}
       - name: Cargo clippy checks
-        run: env PLAYDATE_SDK_PATH=${{ env.PLAYDATE_SDK_PATH }} cargo clippy -D warnings
+        run: cargo clippy -D warnings --target ${{ matrix.target }} ${{ env.PROFILE_FLAG }}
+
+  format-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Rust Toolchain
+        run: rustup update stable
+      - name: Cargo fmt checks
+        run: cargo fmt -- --check
