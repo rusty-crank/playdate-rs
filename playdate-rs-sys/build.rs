@@ -8,7 +8,7 @@ fn main() {
     println!("cargo:rerun-if-changed=wrapper.h");
     println!("cargo:rerun-if-changed=bindgen_helper.rs");
 
-    if env::var("TARGET").unwrap() == "thumbv7em-none-eabihf" {
+    if env::var("TARGET").unwrap() == "thumbv7em-none-eabihf" || cfg!(doc) {
         return;
     }
 
