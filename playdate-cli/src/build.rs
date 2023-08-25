@@ -7,7 +7,10 @@ use cargo_metadata::{Metadata, MetadataCommand, Package};
 
 use crate::{util::CommandExt, Runnable};
 
-static PDXINFO: &str = include_str!("./templates/pdxinfo.template");
+static PDXINFO: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/templates/pdxinfo.template"
+));
 
 static DYLIB_EXT: &str = if cfg!(target_os = "macos") {
     "dylib"

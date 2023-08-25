@@ -5,10 +5,22 @@ use std::{
 
 use crate::{util::CommandExt, Runnable};
 
-static CARGO_TOML: &str = include_str!("./templates/hello-world/Cargo.toml");
-static LIB_RS: &str = include_str!("./templates/hello-world/src/lib.rs");
-static RUST_PNG: &[u8] = include_bytes!("./templates/hello-world/assets/rust.png");
-static GITIGNORE: &str = include_str!("./templates/hello-world/.gitignore");
+static CARGO_TOML: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/templates/hello-world/Cargo.toml.template"
+));
+static LIB_RS: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/templates/hello-world/src/lib.rs"
+));
+static RUST_PNG: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/templates/hello-world/assets/rust.png"
+));
+static GITIGNORE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/templates/hello-world/.gitignore"
+));
 
 /// Create a new cargo playdate package in an existing directory
 #[derive(clap::Args, Debug)]
