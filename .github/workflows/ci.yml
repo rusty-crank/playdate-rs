@@ -23,7 +23,7 @@ jobs:
           - release
     env:
       PROFILE_FLAG: ${{ matrix.profile == 'release' && '--release' || '' }}
-      PLAYDATE_SDK_PATH: ${{ github.workspace }}/PlaydateSDK-${{ env.PLAYDATE_SDK_VERSION }}
+      PLAYDATE_SDK_PATH: ${{ github.workspace }}/PlaydateSDK-$PLAYDATE_SDK_VERSION
     steps:
       - run: echo $PLAYDATE_SDK_PATH
       - name: Install Ubuntu Packages
