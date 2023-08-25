@@ -1,6 +1,6 @@
 use alloc::{borrow::ToOwned, ffi::CString, string::String};
 
-use crate::{graphics::Bitmap, PLAYDATE};
+use crate::{graphics::Bitmap, util::Ref, PLAYDATE};
 
 pub struct Video {
     handle: *const sys::playdate_video,
@@ -137,7 +137,7 @@ impl VideoPlayer {
     }
 
     /// Gets the rendering destination for the video player. If no rendering context has been setallocates a context bitmap with the same dimensions as the vieo will be allocated.
-    pub fn get_context(&self) -> Bitmap {
+    pub fn get_context(&self) -> Ref<Bitmap> {
         let ptr = PLAYDATE.graphics.video.get_context(self.handle);
         // FIXME: ptr maybe malloced
         Bitmap::from_ref(ptr)

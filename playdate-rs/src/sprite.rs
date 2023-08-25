@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use crate::{
     graphics::{so2d_to_lcdrect, Bitmap},
     math::{Point2D, Rect, SideOffsets2D, Vec2D},
+    util::Ref,
     PLAYDATE,
 };
 
@@ -432,7 +433,7 @@ impl _Sprite {
         result
     }
 
-    pub fn query_sprites_at_point(&self, x: f32, y: f32) -> Vec<Sprite> {
+    pub fn query_sprites_at_point(&self, x: f32, y: f32) -> Vec<Ref<Sprite>> {
         let mut len = 0;
         let sprites = unsafe { (*self.handle).querySpritesAtPoint.unwrap()(x, y, &mut len) };
         let mut result = Vec::new();
@@ -443,7 +444,13 @@ impl _Sprite {
         result
     }
 
-    pub fn query_sprites_in_rect(&self, x: f32, y: f32, width: f32, height: f32) -> Vec<Sprite> {
+    pub fn query_sprites_in_rect(
+        &self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    ) -> Vec<Ref<Sprite>> {
         let mut len = 0;
         let sprites =
             unsafe { (*self.handle).querySpritesInRect.unwrap()(x, y, width, height, &mut len) };
@@ -455,7 +462,7 @@ impl _Sprite {
         result
     }
 
-    pub fn query_sprites_along_line(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<Sprite> {
+    pub fn query_sprites_along_line(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<Ref<Sprite>> {
         let mut len = 0;
         let sprites =
             unsafe { (*self.handle).querySpritesAlongLine.unwrap()(x1, y1, x2, y2, &mut len) };
@@ -486,7 +493,7 @@ impl _Sprite {
     }
 
     /// Returns an array of sprites that have collide rects that are currently overlapping the given sprite’s collide rect.
-    pub fn overlapping_sprites(&self, sprite: &Sprite) -> Vec<Sprite> {
+    pub fn overlapping_sprites(&self, sprite: &Sprite) -> Vec<Ref<Sprite>> {
         let mut len = 0;
         let sprites =
             unsafe { (*self.handle).overlappingSprites.unwrap()(sprite.handle, &mut len) };
@@ -499,7 +506,7 @@ impl _Sprite {
     }
 
     /// Returns an array of all sprites that have collide rects that are currently overlapping. Each consecutive pair of sprites is overlapping (eg. 0 & 1 overlap, 2 & 3 overlap, etc).
-    pub fn all_overlapping_sprites(&self) -> Vec<Sprite> {
+    pub fn all_overlapping_sprites(&self) -> Vec<Ref<Sprite>> {
         let mut len = 0;
         let sprites = unsafe { (*self.handle).allOverlappingSprites.unwrap()(&mut len) };
         let mut result = Vec::new();
@@ -556,7 +563,6 @@ impl _Sprite {
 #[derive(Debug)]
 pub struct Sprite {
     handle: *mut sys::LCDSprite,
-    forget: bool,
 }
 
 impl PartialEq for Sprite {
@@ -578,17 +584,11 @@ impl Default for Sprite {
 
 impl Sprite {
     pub(crate) fn from(handle: *mut sys::LCDSprite) -> Self {
-        Self {
-            handle,
-            forget: false,
-        }
+        Self { handle }
     }
 
-    pub(crate) fn from_ref(handle: *mut sys::LCDSprite) -> Self {
-        Self {
-            handle,
-            forget: true,
-        }
+    pub(crate) fn from_ref<'a>(handle: *mut sys::LCDSprite) -> Ref<'a, Self> {
+        Ref::from(Self { handle })
     }
 
     /// Allocates and returns a new Sprite.
@@ -627,7 +627,7 @@ impl Sprite {
     }
 
     /// Returns the LCDBitmap currently assigned to the given sprite.
-    pub fn get_image(&self) -> Bitmap {
+    pub fn get_image(&self) -> Ref<Bitmap> {
         Bitmap::from_ref(PLAYDATE.sprite.get_image(self.handle))
     }
 
@@ -797,9 +797,6 @@ impl Sprite {
 
 impl Drop for Sprite {
     fn drop(&mut self) {
-        if self.forget {
-            return;
-        }
         PLAYDATE.sprite.free_sprite(self.handle as *mut _);
     }
 }
@@ -807,17 +804,14 @@ impl Drop for Sprite {
 impl Clone for Sprite {
     fn clone(&self) -> Self {
         let handle = PLAYDATE.sprite.copy(self.handle as *mut _);
-        Self {
-            handle,
-            forget: false,
-        }
+        Self { handle }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct SpriteCollisionInfo {
-    pub sprite: Sprite,
-    pub other: Sprite,
+pub struct SpriteCollisionInfo<'a> {
+    pub sprite: Ref<'a, Sprite>,
+    pub other: Ref<'a, Sprite>,
     pub response_type: SpriteCollisionResponseType,
     pub overlaps: u8,
     pub ti: f32,
@@ -828,7 +822,7 @@ pub struct SpriteCollisionInfo {
     pub other_rect: Rect<f32>,
 }
 
-impl SpriteCollisionInfo {
+impl<'a> SpriteCollisionInfo<'a> {
     fn new(info: &sys::SpriteCollisionInfo) -> Self {
         Self {
             sprite: Sprite::from_ref(info.sprite),
@@ -846,15 +840,15 @@ impl SpriteCollisionInfo {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct SpriteQueryInfo {
-    pub sprite: Sprite,
+pub struct SpriteQueryInfo<'a> {
+    pub sprite: Ref<'a, Sprite>,
     pub ti1: f32,
     pub ti2: f32,
     pub entry_point: Point2D<f32>,
     pub exit_point: Point2D<f32>,
 }
 
-impl SpriteQueryInfo {
+impl<'a> SpriteQueryInfo<'a> {
     fn new(info: &sys::SpriteQueryInfo) -> Self {
         Self {
             sprite: Sprite::from_ref(info.sprite),

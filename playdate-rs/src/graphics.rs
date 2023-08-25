@@ -1,8 +1,11 @@
-use core::ffi::{c_char, c_void};
+use core::{
+    ffi::{c_char, c_void},
+    marker::PhantomData,
+};
 
 use alloc::ffi::CString;
 
-use crate::math::SideOffsets2D;
+use crate::{math::SideOffsets2D, util::Ref};
 
 pub use sys::{
     LCDBitmapDrawMode, LCDBitmapFlip, LCDColor, LCDFontData, LCDLineCapStyle, LCDPattern,
@@ -350,7 +353,7 @@ impl Graphics {
 
     /// Allocates and returns a new LCDBitmapTable that can hold count width by height LCDBitmaps.
     pub fn new_bitmap_table(&self, count: i32, width: i32, height: i32) -> BitmapTable {
-        BitmapTable::new(unsafe { ((*self.handle).newBitmapTable.unwrap())(count, width, height) })
+        BitmapTable::from(unsafe { ((*self.handle).newBitmapTable.unwrap())(count, width, height) })
     }
 
     pub(crate) fn free_bitmap_table(&self, table: *mut sys::LCDBitmapTable) {
@@ -370,7 +373,7 @@ impl Graphics {
                 let err = err.into_string().unwrap();
                 return Err(Error::FailedToLoadBitMapTableFromFile(err));
             }
-            Ok(BitmapTable::new(ptr))
+            Ok(BitmapTable::from(ptr))
         }
     }
 
@@ -468,7 +471,7 @@ impl Graphics {
     }
 
     /// Only valid in the Simulator, returns the debug framebuffer as a bitmap. Function is NULL on device.
-    pub fn get_debug_bitmap(&self) -> Option<Bitmap> {
+    pub fn get_debug_bitmap(&self) -> Option<Ref<Bitmap>> {
         let ptr = unsafe { ((*self.handle).getDebugBitmap.unwrap())() };
         if ptr.is_null() {
             None
@@ -570,7 +573,7 @@ impl Graphics {
     }
 
     /// Returns a bitmap containing the contents of the display buffer. The system owns this bitmap—​do not free it!
-    pub fn get_display_buffer_bitmap(&self) -> Bitmap {
+    pub fn get_display_buffer_bitmap(&self) -> Ref<Bitmap> {
         Bitmap::from_ref(unsafe { ((*self.handle).getDisplayBufferBitmap.unwrap())() })
     }
 
@@ -618,7 +621,7 @@ impl Graphics {
     }
 
     /// Gets a mask image for the given bitmap. If the image doesn’t have a mask, getBitmapMask returns NULL.
-    pub(crate) fn get_bitmap_mask(&self, bitmap: *mut sys::LCDBitmap) -> Bitmap {
+    pub(crate) fn get_bitmap_mask(&self, bitmap: *mut sys::LCDBitmap) -> Ref<Bitmap> {
         Bitmap::from_ref(unsafe { ((*self.handle).getBitmapMask.unwrap())(bitmap) })
     }
 
@@ -637,36 +640,19 @@ impl Graphics {
     }
 }
 
+/// A bitmap instance with ownership to the underlying data.
 #[derive(Debug)]
 pub struct Bitmap {
     pub(crate) handle: *mut sys::LCDBitmap,
-    forget: bool,
 }
-
-unsafe impl Send for Bitmap {}
-unsafe impl Sync for Bitmap {}
-
-impl PartialEq for Bitmap {
-    fn eq(&self, other: &Self) -> bool {
-        self.handle == other.handle
-    }
-}
-
-impl Eq for Bitmap {}
 
 impl Bitmap {
     pub(crate) fn from(handle: *mut sys::LCDBitmap) -> Self {
-        Self {
-            handle,
-            forget: false,
-        }
+        Self { handle }
     }
 
-    pub(crate) fn from_ref(handle: *mut sys::LCDBitmap) -> Self {
-        Self {
-            handle,
-            forget: true,
-        }
+    pub(crate) fn from_ref<'a>(handle: *mut sys::LCDBitmap) -> Ref<'a, Self> {
+        Ref::from(Self { handle })
     }
 
     /// Allocates and returns a new width by height Bitmap filled with bgcolor.
@@ -692,7 +678,7 @@ impl Bitmap {
     }
 
     /// Gets a mask image for the given bitmap. If the image doesn’t have a mask, getBitmapMask returns NULL.
-    pub fn get_mask(&self) -> Bitmap {
+    pub fn get_mask(&self) -> Ref<Bitmap> {
         PLAYDATE.graphics.get_bitmap_mask(self.handle)
     }
 
@@ -753,7 +739,7 @@ impl Bitmap {
     /// Returns a new, rotated and scaled LCDBitmap based on the given bitmap.
     pub fn rotated(&self, rotation: f32, xscale: f32, yscale: f32) -> Bitmap {
         let mut alloced_size = 0;
-        Self::from(PLAYDATE.graphics.rotated_bitmap(
+        Bitmap::from(PLAYDATE.graphics.rotated_bitmap(
             self.handle,
             rotation,
             xscale,
@@ -776,37 +762,19 @@ impl Bitmap {
     }
 }
 
-pub enum ColorPatternData {
-    Solid(LCDSolidColor),
-    Pattern(LCDPattern),
-}
+unsafe impl Send for Bitmap {}
+unsafe impl Sync for Bitmap {}
 
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BitmapData {
-    pub width: i32,
-    pub height: i32,
-    pub rowbytes: i32,
-    pub mask: *mut u8,
-    pub data: *mut u8,
-}
-
-impl BitmapData {
-    fn new() -> Self {
-        BitmapData {
-            width: 0,
-            height: 0,
-            rowbytes: 0,
-            mask: core::ptr::null_mut(),
-            data: core::ptr::null_mut(),
-        }
+impl PartialEq for Bitmap {
+    fn eq(&self, other: &Self) -> bool {
+        self.handle == other.handle
     }
 }
 
+impl Eq for Bitmap {}
+
 impl Drop for Bitmap {
     fn drop(&mut self) {
-        if self.forget {
-            return;
-        }
         PLAYDATE.graphics.free_bitmap(self.handle);
     }
 }
@@ -815,11 +783,43 @@ impl Clone for Bitmap {
     fn clone(&self) -> Self {
         Bitmap {
             handle: PLAYDATE.graphics.copy_bitmap(self.handle),
-            forget: false,
         }
     }
 }
 
+pub enum ColorPatternData {
+    Solid(LCDSolidColor),
+    Pattern(LCDPattern),
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct BitmapData<'a> {
+    pub width: i32,
+    pub height: i32,
+    pub rowbytes: i32,
+    pub mask: *mut u8,
+    pub data: *mut u8,
+    _p: PhantomData<&'a ()>,
+}
+
+impl<'a> BitmapData<'a> {
+    fn new() -> Self {
+        BitmapData {
+            width: 0,
+            height: 0,
+            rowbytes: 0,
+            mask: core::ptr::null_mut(),
+            data: core::ptr::null_mut(),
+            _p: PhantomData,
+        }
+    }
+}
+
+/// There are two kinds of image tables: matrix and sequential.
+///
+/// Matrix image tables are great as sources of imagery for tilemap. They are loaded from a single file in your game’s source folder with the suffix -table-<w>-<h> before the file extension. The compiler splits the image into separate bitmaps of dimension w by h pixels that are accessible via imagetable:getImage(x,y).
+///
+/// Sequential image tables are useful as a way to load up sequential frames of animation. They are loaded from a sequence of files in your game’s source folder at compile time from filenames with the suffix -table-<sequenceNumber> before the file extension. Individual images in the sequence are accessible via imagetable:getImage(n). The images employed by a sequential image table are not required to be the same size, unlike the images used in a matrix image table.
 #[derive(PartialEq, Eq, Debug)]
 pub struct BitmapTable {
     handle: *mut sys::LCDBitmapTable,
@@ -829,12 +829,18 @@ unsafe impl Send for BitmapTable {}
 unsafe impl Sync for BitmapTable {}
 
 impl BitmapTable {
-    fn new(handle: *mut sys::LCDBitmapTable) -> Self {
+    fn from(handle: *mut sys::LCDBitmapTable) -> Self {
         Self { handle }
     }
 
+    pub fn new(count: usize, width: i32, height: i32) -> Self {
+        PLAYDATE
+            .graphics
+            .new_bitmap_table(count as _, width, height)
+    }
+
     /// Returns the idx bitmap in table, If idx is out of bounds, the function returns NULL.
-    pub fn get(&self, idx: usize) -> Option<Bitmap> {
+    pub fn get(&self, idx: usize) -> Option<Ref<Bitmap>> {
         let ptr = PLAYDATE.graphics.get_table_bitmap(self.handle, idx as _);
         if ptr.is_null() {
             return None;
@@ -908,7 +914,7 @@ impl FontPage {
     }
 
     /// Returns an LCDFontGlyph object for character c in LCDFontPage page, and optionally returns the glyph’s bitmap and advance value.
-    pub fn get_glyph(&self, c: u32) -> (FontGlyph, Option<Bitmap>, Option<i32>) {
+    pub fn get_glyph(&self, c: u32) -> (FontGlyph, Option<Ref<Bitmap>>, Option<i32>) {
         let mut bitmap = core::ptr::null_mut();
         let mut advance = 0;
         let glyph = FontGlyph::new(PLAYDATE.graphics.get_page_glyph(
