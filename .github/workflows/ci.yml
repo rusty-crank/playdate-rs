@@ -33,6 +33,9 @@ jobs:
         run: |
           mkdir PlaydateSDK
           curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-${{ env.PLAYDATE_SDK_VERSION }}.tar.gz | tar xz --strip 1 -C PlaydateSDK
+          ls PlaydateSDK
+          echo ${PLAYDATE_SDK_PATH}
+          ls ${PLAYDATE_SDK_PATH}
       - name: Checkout
         uses: actions/checkout@v3
       - name: Setup Rust Toolchain
