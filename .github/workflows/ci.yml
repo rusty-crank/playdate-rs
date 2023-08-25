@@ -43,7 +43,7 @@ jobs:
         run: cargo test -p playdate-rs-sys --target ${{ matrix.target }} ${{ env.PROFILE_FLAG }}
         if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' }}
       - name: Cargo clippy checks
-        run: cargo clippy -D warnings --target ${{ matrix.target }} ${{ env.PROFILE_FLAG }}
+        run: cargo clippy --target ${{ matrix.target }} ${{ env.PROFILE_FLAG }} -- -D warnings
 
   format-checks:
     runs-on: ubuntu-latest
