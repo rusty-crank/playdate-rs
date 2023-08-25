@@ -62,7 +62,7 @@ impl Build {
         }
         if self.device {
             flags.push("--target".to_owned());
-            flags.push(" thumbv7em-none-eabihf".to_owned());
+            flags.push("thumbv7em-none-eabihf".to_owned());
         }
         flags
     }
