@@ -126,6 +126,8 @@ jobs:
   # Cargo format checks
   build-docs:
     runs-on: ubuntu-latest
+    env:
+      DOCS_RS: "1"
     steps:
       # Checkout repo
       - name: Checkout
