@@ -27,7 +27,7 @@ fn main() {
                     .join("playdate-sdk-2.0.3.tar.gz")
                     .to_string_lossy(),
                 "--strip",
-                "1",
+                "2",
                 "-C",
                 "PlaydateSDK",
             ])
