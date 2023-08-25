@@ -3,19 +3,22 @@
 extern crate alloc;
 pub extern crate playdate_rs_sys as sys;
 
-pub mod graphics;
-mod memory;
 #[macro_use]
+#[doc(hidden)]
 pub mod print;
+
 pub mod display;
 pub mod error;
 pub mod fs;
+pub mod graphics;
 pub mod lua;
 pub mod math;
+mod memory;
 pub mod scoreboards;
 pub mod sound;
 pub mod sprite;
 pub mod system;
+pub mod util;
 pub mod video;
 
 use alloc::{boxed::Box, format};
