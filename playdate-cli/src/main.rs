@@ -28,7 +28,6 @@ trait Runnable<T = ()> {
 }
 
 fn main() -> anyhow::Result<()> {
-    println!("playdate-rs-cli");
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info")
     }
@@ -40,7 +39,6 @@ fn main() -> anyhow::Result<()> {
 
     let args = std::env::args();
     let mut args = args.collect::<Vec<_>>();
-    println!("{:?}", args);
     if args[1] == "playdate" {
         args = args[1..].to_vec();
     }
