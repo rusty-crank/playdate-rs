@@ -8,8 +8,9 @@ Only works on Linux/macOS with the playdate simulator for now.
 
 1. Make sure the env variable `PLAYDATE_SDK_PATH` is correctly set.
    * Skip this step on macOS. The crate will automatically find the SDK by checking the default install location.
-2. `cd examples/hello_world`
-3. `cargo playdate run`
+2. `cargo install playdate-cli`
+3. `cargo playdate new hello-world`
+4. `cd hello-world && cargo playdate run`
 
 # Application Bundling
 
