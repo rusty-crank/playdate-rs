@@ -25,10 +25,13 @@ jobs:
     env:
       PROFILE_FLAG: ${{ matrix.profile == 'release' && '--release' || '' }}
     steps:
-      - name: Install Ubuntu Packages
+      - name: Install gcc-arm-none-eabi
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev gcc-arm-none-eabi
+          sudo apt-get install -y gcc-arm-none-eabi
+        if: ${{ matrix.target == 'thumbv7em-none-eabihf' }}
+      - name: Checkout
+        uses: actions/checkout@v3
       - name: Install Playdate SDK
         run: |
           mkdir PlaydateSDK
@@ -40,8 +43,6 @@ jobs:
           ls ${PLAYDATE_SDK_PATH}/bin
           echo ---
           file ${PLAYDATE_SDK_PATH}/bin/pdc
-      - name: Checkout
-        uses: actions/checkout@v3
       - name: Setup Rust Toolchain
         run: rustup update stable && rustup target add ${{ matrix.target }}
       - name: Cargo Build (${{ matrix.target }}, ${{ matrix.profile }})
