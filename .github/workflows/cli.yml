@@ -45,16 +45,18 @@ jobs:
       # Setup up rust toolchain
       - name: Setup Rust Toolchain
         run: rustup update stable && rustup target add ${{ matrix.target }}
-      # Install playdate-cli
-      - name: Install playdate-cli
-        run: cargo install --path .
-        working-directory: playdate-cli
+      # # Install playdate-cli
+      # - name: Install playdate-cli
+      #   run: |
+      #     cargo install --path .
+      #     rm -r ../.cargo
+      #   working-directory: playdate-cli
       # Create or init new project
       - name: Create cargo playdate project
         run: cargo playdate new new-project
         if: ${{ matrix.cli-command == 'new' }}
       - name: Init cargo playdate project
-        run: mkdir new-project && cd new-project && cargo playdate init new-project
+        run: mkdir new-project && cd new-project && cargo playdate init
         if: ${{ matrix.cli-command == 'init' }}
       # Build project
       - name: Build cargo playdate project
