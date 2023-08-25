@@ -1,7 +1,7 @@
 # playdate-rs
 
 [![crates.io](https://img.shields.io/crates/v/playdate-rs.svg)](https://crates.io/crates/playdate-rs)
-[![docs](https://docs.rs/playdate-rs/badge.svg)](https://docs.rs/playdate-rs)
+[![docs](https://img.shields.io/docsrs/playdate-rs/latest)](https://docs.rs/playdate-rs)
 [![workflow-status](https://github.com/wenyuzhao/playdate-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/wenyuzhao/playdate-rs/actions/workflows/ci.yml)
 
 Bindings for the [Playdate](https://play.date) SDK C-API.
