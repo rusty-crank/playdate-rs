@@ -402,6 +402,8 @@ impl _Sprite {
             let info = unsafe { info.offset(i as isize).as_ref().unwrap() };
             result.push(SpriteCollisionInfo::new(info));
         }
+        // caller is responsible for freeing memory of array returned by moveWithCollisions()
+        PLAYDATE.system.realloc(info as _, 0);
         result
     }
 
@@ -430,6 +432,8 @@ impl _Sprite {
             let info = unsafe { info.offset(i as isize).as_ref().unwrap() };
             result.push(SpriteCollisionInfo::new(info));
         }
+        // caller is responsible for freeing memory of array returned by moveWithCollisions()
+        PLAYDATE.system.realloc(info as _, 0);
         result
     }
 
@@ -441,6 +445,7 @@ impl _Sprite {
             let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
             result.push(Sprite::from_ref(*sprite));
         }
+        PLAYDATE.system.realloc(sprites as _, 0);
         result
     }
 
@@ -459,6 +464,7 @@ impl _Sprite {
             let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
             result.push(Sprite::from_ref(*sprite));
         }
+        PLAYDATE.system.realloc(sprites as _, 0);
         result
     }
 
@@ -471,6 +477,7 @@ impl _Sprite {
             let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
             result.push(Sprite::from_ref(*sprite));
         }
+        PLAYDATE.system.realloc(sprites as _, 0);
         result
     }
 
@@ -489,6 +496,7 @@ impl _Sprite {
             let info = unsafe { info.offset(i as isize).as_ref().unwrap() };
             result.push(SpriteQueryInfo::new(info));
         }
+        PLAYDATE.system.realloc(info as _, 0);
         result
     }
 
@@ -502,6 +510,7 @@ impl _Sprite {
             let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
             result.push(Sprite::from_ref(*sprite));
         }
+        PLAYDATE.system.realloc(sprites as _, 0);
         result
     }
 
@@ -514,6 +523,7 @@ impl _Sprite {
             let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
             result.push(Sprite::from_ref(*sprite));
         }
+        PLAYDATE.system.realloc(sprites as _, 0);
         result
     }
 
