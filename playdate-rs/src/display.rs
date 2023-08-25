@@ -29,7 +29,7 @@ impl Display {
 
     /// Sets the display scale factor. Valid values for scale are 1, 2, 4, and 8.
     ///
-    /// The top-left corner of the frame buffer is scaled up to fill the display; e.g., if the scale is set to 4, the pixels in rectangle [0,100] x [0,60] are drawn on the screen as 4 x 4 squares.
+    /// The top-left corner of the frame buffer is scaled up to fill the display; e.g., if the scale is set to 4, the pixels in rectangle \[0,100\] x \[0,60\] are drawn on the screen as 4 x 4 squares.
     pub fn set_scale(&self, s: u32) {
         unsafe { (*self.handle).setScale.unwrap()(s) }
     }

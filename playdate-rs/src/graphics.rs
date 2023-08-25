@@ -545,7 +545,7 @@ impl Graphics {
         }
     }
 
-    /// Fills the polygon with vertices at the given coordinates (an array of 2*nPoints ints containing alternating x and y values) using the given color and fill, or winding, rule. See https://en.wikipedia.org/wiki/Nonzero-rule for an explanation of the winding rule.
+    /// Fills the polygon with vertices at the given coordinates (an array of 2*nPoints ints containing alternating x and y values) using the given color and fill, or winding, rule. See [Nonzero-rule](https://en.wikipedia.org/wiki/Nonzero-rule) for an explanation of the winding rule.
     pub fn fill_polygon(
         &self,
         n_points: i32,

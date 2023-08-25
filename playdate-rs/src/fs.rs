@@ -70,7 +70,7 @@ impl FileSystem {
         }
     }
 
-    /// Creates the given path in the Data/<gameid> folder. It does not create intermediate folders. Returns 0 on success, or -1 in case of error.
+    /// Creates the given path in the Data/&lt;gameid&gt; folder. It does not create intermediate folders. Returns 0 on success, or -1 in case of error.
     pub fn mkdir(&self, path: impl AsRef<str>) -> io::Result<()> {
         let c_string = CString::new(path.as_ref()).unwrap();
         let result = unsafe { (*self.handle).mkdir.unwrap()(c_string.as_ptr()) };

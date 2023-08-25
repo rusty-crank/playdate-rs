@@ -122,3 +122,19 @@ jobs:
         run: cargo clippy -- -D warnings
         working-directory: new-project
         if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' }}
+
+  # Cargo format checks
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout repo
+      - name: Checkout
+        uses: actions/checkout@v3
+      # Setup up rust toolchain
+      - name: Setup Rust Toolchain
+        run: rustup update stable
+      # Build docs
+      - name: Build cargo docs (debug)
+        run: cargo doc --workspace --no-deps
+      - name: Build cargo docs (release)
+        run: cargo doc --workspace --no-deps --release
