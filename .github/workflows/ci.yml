@@ -30,7 +30,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.0-dev gcc-arm-none-eabi
       - name: Install Playdate SDK
-        run: curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-${{ env.PLAYDATE_SDK_VERSION }}.tar.gz | tar xz --one-top-level=PlaydateSDK
+        run: |
+          curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-${{ env.PLAYDATE_SDK_VERSION }}.tar.gz | tar xz -C PlaydateSDK
+          echo ${PLAYDATE_SDK_PATH}
+          ls ${PLAYDATE_SDK_PATH}
       - name: Checkout
         uses: actions/checkout@v3
       - name: Setup Rust Toolchain
