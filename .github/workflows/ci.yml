@@ -9,6 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   PLAYDATE_SDK_VERSION: 2.0.3
+  PLAYDATE_SDK_PATH: ${{ github.workspace }}/PlaydateSDK
 
 jobs:
   checks:
@@ -23,7 +24,6 @@ jobs:
           - release
     env:
       PROFILE_FLAG: ${{ matrix.profile == 'release' && '--release' || '' }}
-      PLAYDATE_SDK_PATH: ${{ github.workspace }}/PlaydateSDK-$PLAYDATE_SDK_VERSION
     steps:
       - run: echo $PLAYDATE_SDK_PATH
       - name: Install Ubuntu Packages
@@ -32,15 +32,16 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.0-dev gcc-arm-none-eabi
       - name: Install Playdate SDK
         run: |
-          curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-${{ env.PLAYDATE_SDK_VERSION }}.tar.gz | tar xz
+          curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-${{ env.PLAYDATE_SDK_VERSION }}.tar.gz | tar xz --one-top-level=PlaydateSDK
           echo ${{ env.PLAYDATE_SDK_PATH }}
+          echo ${PLAYDATE_SDK_PATH}
           ls ${{ env.PLAYDATE_SDK_PATH }}
       - name: Checkout
         uses: actions/checkout@v3
       - name: Setup Rust Toolchain
         run: rustup update stable && rustup target add ${{ matrix.target }}
       - name: Cargo Build (${{ matrix.target }}, ${{ matrix.profile }})
-        run: env PLAYDATE_SDK_PATH=${{ env.PLAYDATE_SDK_PATH }} cargo build --workspace --target ${{ matrix.target }} ${{ env.PROFILE_FLAG }} --exclude playdate-cli
+        run: cargo build --workspace --target ${{ matrix.target }} ${{ env.PROFILE_FLAG }} --exclude playdate-cli
       - name: Cargo Test (${{ matrix.target }}, ${{ matrix.profile }})
         run: env PLAYDATE_SDK_PATH=${{ env.PLAYDATE_SDK_PATH }} cargo test -p playdate-rs-sys ${{ env.PROFILE_FLAG }}
         if: ${{ matrix.target }} == 'x86_64-unknown-linux-gnu'
