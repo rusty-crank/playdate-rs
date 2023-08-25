@@ -147,8 +147,8 @@ impl System {
     /// Optionally, a non-zero xoffset, can be provided. This must be a number between 0 and 200 and will cause the menu image to animate to a position offset left by xoffset pixels as the menu is animated in.
     ///
     /// This function could be called in response to the kEventPause event in your implementation of eventHandler().
-    pub fn set_menu_image(&self, bitmap: &Bitmap, x_offset: i32) {
-        unsafe { (*self.handle).setMenuImage.unwrap()(bitmap.handle, x_offset) }
+    pub fn set_menu_image(&self, bitmap: impl AsRef<Bitmap>, x_offset: i32) {
+        unsafe { (*self.handle).setMenuImage.unwrap()(bitmap.as_ref().handle, x_offset) }
     }
 
     /// title will be the title displayed by the menu item.

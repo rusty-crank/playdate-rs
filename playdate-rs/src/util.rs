@@ -23,3 +23,9 @@ impl<'a, T: Sized> core::ops::Deref for Ref<'a, T> {
         &self.wrapper
     }
 }
+
+impl<'a, T: Sized> AsRef<T> for Ref<'a, T> {
+    fn as_ref(&self) -> &T {
+        &self.wrapper
+    }
+}

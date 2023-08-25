@@ -88,16 +88,16 @@ impl _Sprite {
     }
 
     /// Adds the given sprite to the display list, so that it is drawn in the current scene.
-    pub fn add_sprite(&self, sprite: &Sprite) {
+    pub fn add_sprite(&self, sprite: impl AsRef<Sprite>) {
         unsafe {
-            (*self.handle).addSprite.unwrap()(sprite.handle);
+            (*self.handle).addSprite.unwrap()(sprite.as_ref().handle);
         }
     }
 
     /// Removes the given sprite from the display list.
-    pub fn remove_sprite(&self, sprite: &Sprite) {
+    pub fn remove_sprite(&self, sprite: impl AsRef<Sprite>) {
         unsafe {
-            (*self.handle).removeSprite.unwrap()(sprite.handle);
+            (*self.handle).removeSprite.unwrap()(sprite.as_ref().handle);
         }
     }
 
@@ -380,7 +380,7 @@ impl _Sprite {
     /// Returns the same values as playdate->sprite->moveWithCollisions() but does not actually move the sprite.
     pub fn check_collisions(
         &self,
-        sprite: &Sprite,
+        sprite: impl AsRef<Sprite>,
         goal_x: f32,
         goal_y: f32,
     ) -> Vec<SpriteCollisionInfo> {
@@ -389,7 +389,7 @@ impl _Sprite {
         let mut len = 0;
         let info = unsafe {
             (*self.handle).checkCollisions.unwrap()(
-                sprite.handle,
+                sprite.as_ref().handle,
                 goal_x,
                 goal_y,
                 &mut actual_x,
@@ -408,7 +408,7 @@ impl _Sprite {
     /// Moves the given sprite towards goalX, goalY taking collisions into account and returns an array of SpriteCollisionInfo. len is set to the size of the array and actualX, actualY are set to the sprite’s position after collisions. If no collisions occurred, this will be the same as goalX, goalY.
     pub fn move_with_collisions(
         &self,
-        sprite: &Sprite,
+        sprite: impl AsRef<Sprite>,
         goal_x: f32,
         goal_y: f32,
     ) -> Vec<SpriteCollisionInfo> {
@@ -417,7 +417,7 @@ impl _Sprite {
         let mut len = 0;
         let info = unsafe {
             (*self.handle).moveWithCollisions.unwrap()(
-                sprite.handle,
+                sprite.as_ref().handle,
                 goal_x,
                 goal_y,
                 &mut actual_x,
@@ -493,10 +493,10 @@ impl _Sprite {
     }
 
     /// Returns an array of sprites that have collide rects that are currently overlapping the given sprite’s collide rect.
-    pub fn overlapping_sprites(&self, sprite: &Sprite) -> Vec<Ref<Sprite>> {
+    pub fn overlapping_sprites(&self, sprite: impl AsRef<Sprite>) -> Vec<Ref<Sprite>> {
         let mut len = 0;
         let sprites =
-            unsafe { (*self.handle).overlappingSprites.unwrap()(sprite.handle, &mut len) };
+            unsafe { (*self.handle).overlappingSprites.unwrap()(sprite.as_ref().handle, &mut len) };
         let mut result = Vec::new();
         for i in 0..len {
             let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
@@ -622,8 +622,10 @@ impl Sprite {
     }
 
     /// Sets the given sprite's image to the given bitmap.
-    pub fn set_image(&self, image: &Bitmap, flip: sys::LCDBitmapFlip) {
-        PLAYDATE.sprite.set_image(self.handle, image.handle, flip);
+    pub fn set_image(&self, image: impl AsRef<Bitmap>, flip: sys::LCDBitmapFlip) {
+        PLAYDATE
+            .sprite
+            .set_image(self.handle, image.as_ref().handle, flip);
     }
 
     /// Returns the LCDBitmap currently assigned to the given sprite.
@@ -662,8 +664,10 @@ impl Sprite {
     }
 
     /// Specifies a stencil image to be set on the frame buffer before the sprite is drawn.
-    pub fn set_stencil(&self, stencil: &Bitmap) {
-        PLAYDATE.sprite.set_stencil(self.handle, stencil.handle);
+    pub fn set_stencil(&self, stencil: impl AsRef<Bitmap>) {
+        PLAYDATE
+            .sprite
+            .set_stencil(self.handle, stencil.as_ref().handle);
     }
 
     /// Sets the clipping rectangle for sprite drawing.
@@ -788,10 +792,16 @@ impl Sprite {
     }
 
     /// Specifies a stencil image to be set on the frame buffer before the sprite is drawn. If tile is set, the stencil will be tiled. Tiled stencils must have width evenly divisible by 32.
-    pub fn set_stencil_image(&self, stencil: &Bitmap, tile: i32) {
+    pub fn set_stencil_image(&self, stencil: impl AsRef<Bitmap>, tile: i32) {
         PLAYDATE
             .sprite
-            .set_stencil_image(self.handle, stencil.handle, tile);
+            .set_stencil_image(self.handle, stencil.as_ref().handle, tile);
+    }
+}
+
+impl AsRef<Self> for Sprite {
+    fn as_ref(&self) -> &Self {
+        self
     }
 }
 

@@ -53,9 +53,9 @@ impl Graphics {
     }
 
     /// Sets the stencil used for drawing. For a tiled stencil, use setStencilImage() instead.
-    pub fn set_stencil(&self, stencil: &Bitmap) {
+    pub fn set_stencil(&self, stencil: impl AsRef<Bitmap>) {
         unsafe {
-            ((*self.handle).setStencil.unwrap())(stencil.handle);
+            ((*self.handle).setStencil.unwrap())(stencil.as_ref().handle);
         }
     }
 
@@ -110,9 +110,9 @@ impl Graphics {
     }
 
     /// Push a new drawing context for drawing into the given bitmap. If target is nil, the drawing functions will use the display framebuffer.
-    pub fn push_context(&self, target: &Bitmap) {
+    pub fn push_context(&self, target: impl AsRef<Bitmap>) {
         unsafe {
-            ((*self.handle).pushContext.unwrap())(target.handle);
+            ((*self.handle).pushContext.unwrap())(target.as_ref().handle);
         }
     }
 
@@ -124,16 +124,16 @@ impl Graphics {
     }
 
     /// Draws the bitmap with its upper-left corner at location x, y, using the given flip orientation.
-    pub fn draw_bitmap(&self, bitmap: &Bitmap, x: i32, y: i32, flip: LCDBitmapFlip) {
+    pub fn draw_bitmap(&self, bitmap: impl AsRef<Bitmap>, x: i32, y: i32, flip: LCDBitmapFlip) {
         unsafe {
-            ((*self.handle).drawBitmap.unwrap())(bitmap.handle, x, y, flip);
+            ((*self.handle).drawBitmap.unwrap())(bitmap.as_ref().handle, x, y, flip);
         }
     }
 
     /// Draws the bitmap with its upper-left corner at location x, y tiled inside a width by height rectangle.
     pub fn tile_bitmap(
         &self,
-        bitmap: &Bitmap,
+        bitmap: impl AsRef<Bitmap>,
         x: i32,
         y: i32,
         width: i32,
@@ -141,7 +141,7 @@ impl Graphics {
         flip: LCDBitmapFlip,
     ) {
         unsafe {
-            ((*self.handle).tileBitmap.unwrap())(bitmap.handle, x, y, width, height, flip);
+            ((*self.handle).tileBitmap.unwrap())(bitmap.as_ref().handle, x, y, width, height, flip);
         }
     }
 
@@ -255,9 +255,22 @@ impl Graphics {
     }
 
     /// Draws the bitmap scaled to xscale and yscale with its upper-left corner at location x, y. Note that flip is not available when drawing scaled bitmaps but negative scale values will achieve the same effect.
-    pub fn draw_scaled_bitmap(&self, bitmap: &Bitmap, x: i32, y: i32, xscale: f32, yscale: f32) {
+    pub fn draw_scaled_bitmap(
+        &self,
+        bitmap: impl AsRef<Bitmap>,
+        x: i32,
+        y: i32,
+        xscale: f32,
+        yscale: f32,
+    ) {
         unsafe {
-            ((*self.handle).drawScaledBitmap.unwrap())(bitmap.handle, x, y, xscale, yscale);
+            ((*self.handle).drawScaledBitmap.unwrap())(
+                bitmap.as_ref().handle,
+                x,
+                y,
+                xscale,
+                yscale,
+            );
         }
     }
 
@@ -581,7 +594,7 @@ impl Graphics {
     #[allow(clippy::too_many_arguments)]
     pub fn draw_rotated_bitmap(
         &self,
-        bitmap: &Bitmap,
+        bitmap: impl AsRef<Bitmap>,
         x: i32,
         y: i32,
         rotation: f32,
@@ -592,7 +605,7 @@ impl Graphics {
     ) {
         unsafe {
             ((*self.handle).drawRotatedBitmap.unwrap())(
-                bitmap.handle,
+                bitmap.as_ref().handle,
                 x,
                 y,
                 rotation,
@@ -626,9 +639,9 @@ impl Graphics {
     }
 
     /// Sets the stencil used for drawing. If the tile flag is set the stencil image will be tiled. Tiled stencils must have width equal to a multiple of 32 pixels.
-    pub fn set_stencil_image(&self, stencil: &Bitmap, tile: i32) {
+    pub fn set_stencil_image(&self, stencil: impl AsRef<Bitmap>, tile: i32) {
         unsafe {
-            ((*self.handle).setStencilImage.unwrap())(stencil.handle, tile);
+            ((*self.handle).setStencilImage.unwrap())(stencil.as_ref().handle, tile);
         }
     }
 
@@ -668,8 +681,10 @@ impl Bitmap {
     }
 
     /// Sets a mask image for the given bitmap. The set mask must be the same size as the target bitmap.
-    pub fn set_mask(&self, mask: &Bitmap) -> Result<(), Error> {
-        let result = -PLAYDATE.graphics.set_bitmap_mask(self.handle, mask.handle);
+    pub fn set_mask(&self, mask: impl AsRef<Bitmap>) -> Result<(), Error> {
+        let result = -PLAYDATE
+            .graphics
+            .set_bitmap_mask(self.handle, mask.as_ref().handle);
         if result != 1 {
             Err(Error::FailedToSetBitmapMask)
         } else {
@@ -689,7 +704,7 @@ impl Bitmap {
         x1: i32,
         y1: i32,
         flip1: LCDBitmapFlip,
-        other: &Bitmap,
+        other: impl AsRef<Bitmap>,
         x2: i32,
         y2: i32,
         flip2: LCDBitmapFlip,
@@ -700,7 +715,7 @@ impl Bitmap {
             x1,
             y1,
             flip1,
-            other.handle,
+            other.as_ref().handle,
             x2,
             y2,
             flip2,
@@ -759,6 +774,12 @@ impl Bitmap {
         } else {
             ColorPatternData::Pattern(unsafe { color.as_pattern().unwrap() })
         }
+    }
+}
+
+impl AsRef<Self> for Bitmap {
+    fn as_ref(&self) -> &Self {
+        self
     }
 }
 
