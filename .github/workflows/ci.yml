@@ -23,36 +23,40 @@ jobs:
           - debug
           - release
     env:
-      PROFILE_FLAG: ${{ matrix.profile == 'release' && '--release' || '' }}
+      CARGO_BUILD_FLAGS: --target ${{ matrix.target }} ${{ matrix.profile == 'release' && '--release' || '' }}
     steps:
-      - name: Install gcc-arm-none-eabi
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi
-        if: ${{ matrix.target == 'thumbv7em-none-eabihf' }}
+      # Checkout repo
       - name: Checkout
         uses: actions/checkout@v3
+      # Install Playdate SDK
       - name: Install Playdate SDK
         run: |
           mkdir PlaydateSDK
           curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-${{ env.PLAYDATE_SDK_VERSION }}.tar.gz | tar xz --strip 1 -C PlaydateSDK
+      # Setup up rust toolchain
       - name: Setup Rust Toolchain
         run: rustup update stable && rustup target add ${{ matrix.target }}
+      # Build all projects except playdate-cli
       - name: Cargo Build (${{ matrix.target }}, ${{ matrix.profile }})
-        run: cargo build --workspace --target ${{ matrix.target }} ${{ env.PROFILE_FLAG }} --exclude playdate-cli
+        run: cargo build --workspace ${{ matrix.CARGO_BUILD_FLAGS }} --exclude playdate-cli
+      # Test sys package
       - name: Cargo Test (${{ matrix.target }}, ${{ matrix.profile }})
-        run: cargo test -p playdate-rs-sys --target ${{ matrix.target }} ${{ env.PROFILE_FLAG }}
+        run: cargo test -p playdate-rs-sys ${{ matrix.CARGO_BUILD_FLAGS }}
         if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' }}
+      # Format checks
       - name: Cargo clippy checks
-        run: cargo clippy --target ${{ matrix.target }} ${{ env.PROFILE_FLAG }} -- -D warnings
+        run: cargo clippy ${{ matrix.CARGO_BUILD_FLAGS }} -- -D warnings
         if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' }}
 
   format-checks:
     runs-on: ubuntu-latest
     steps:
+      # Checkout repo
       - name: Checkout
         uses: actions/checkout@v3
+      # Setup up rust toolchain
       - name: Setup Rust Toolchain
         run: rustup update stable
+      # Format checks
       - name: Cargo fmt checks
         run: cargo fmt -- --check
