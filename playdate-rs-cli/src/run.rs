@@ -30,8 +30,8 @@ impl Runnable for Run {
         info!("Running {}", build_info.name);
         info!(
             "➔  {} {}",
-            simulator.to_string_lossy().replace(" ", "\\ "),
-            build_info.pdx.to_string_lossy().replace(" ", "\\ ")
+            simulator.to_string_lossy().replace(' ', "\\ "),
+            build_info.pdx.to_string_lossy().replace(' ', "\\ ")
         );
         Command::new(simulator).arg(build_info.pdx).check()?;
         Ok(())

@@ -36,7 +36,7 @@ impl Graphics {
     // pub video: *const playdate_video,
 
     /// Clears the entire display, filling it with color.
-    pub fn clear<'a>(&self, color: impl Into<LCDColor>) {
+    pub fn clear(&self, color: impl Into<LCDColor>) {
         unsafe {
             ((*self.handle).clear.unwrap())(color.into());
         }

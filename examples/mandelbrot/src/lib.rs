@@ -41,8 +41,8 @@ impl Complex {
             upper_left.im - lower_right.im,
         );
         Complex {
-            re: upper_left.re + point.x as f32 * width / bounds.0 as f32,
-            im: upper_left.im - point.y as f32 * height / bounds.1 as f32,
+            re: upper_left.re + point.x as f32 * width / bounds.0,
+            im: upper_left.im - point.y as f32 * height / bounds.1,
         }
     }
 
@@ -143,19 +143,19 @@ impl Mandelbrot {
             LCDSolidColor::kColorWhite,
         );
         PLAYDATE.graphics.draw_text(
-            &format!("<{:.4}, {:.4}i>", self.center.re, self.center.im,),
+            format!("<{:.4}, {:.4}i>", self.center.re, self.center.im,),
             top_left_x + 2,
             DISPLAY_HEIGHT - row_height * 3,
         );
         PLAYDATE.graphics.draw_text(
-            &format!("SCALE: {:.8}", 1.0 / (self.scale * 100.0)),
+            format!("SCALE: {:.8}", 1.0 / (self.scale * 100.0)),
             top_left_x + 2,
             DISPLAY_HEIGHT - row_height * 2,
         );
         PLAYDATE.graphics.draw_text(
-            &format!("ITER: {:}", self.get_iter()),
+            format!("ITER: {:}", self.get_iter()),
             top_left_x + 2,
-            DISPLAY_HEIGHT - row_height * 1,
+            DISPLAY_HEIGHT - row_height,
         );
     }
 }

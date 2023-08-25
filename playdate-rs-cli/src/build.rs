@@ -1,4 +1,7 @@
-use std::{path::PathBuf, process::Command};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 
@@ -180,8 +183,8 @@ impl Build {
     fn link_arm_binary(
         &self,
         target_name: &str,
-        target_dir: &PathBuf,
-        lib_path: &PathBuf,
+        target_dir: &Path,
+        lib_path: &Path,
     ) -> anyhow::Result<PathBuf> {
         let linker_script = crate::util::get_playdate_sdk_path()?
             .join("C_API")
@@ -192,7 +195,7 @@ impl Build {
         args.push(lib_path.to_str().unwrap().to_owned());
         args.append(
             &mut LINKER_ARGS
-                .split(" ")
+                .split(' ')
                 .map(|s| s.to_owned())
                 .collect::<Vec<_>>(),
         );
@@ -216,8 +219,8 @@ impl Build {
     fn copy_build_output(
         &self,
         target_name: &str,
-        target_dir: &PathBuf,
-        binary: &PathBuf,
+        target_dir: &Path,
+        binary: &Path,
         package: &Package,
     ) -> anyhow::Result<PathBuf> {
         // Create pdx folder
@@ -227,21 +230,21 @@ impl Build {
         // Copy output files
         let pdex_so = if self.device { "pdex.elf" } else { PDEX_SO };
         Command::new("cp")
-            .arg(&binary)
+            .arg(binary)
             .arg(pdx_src.join(pdex_so))
             .check()?;
-        let pdxinfo = self.load_pdxinfo(&package, target_name)?;
+        let pdxinfo = self.load_pdxinfo(package, target_name)?;
         std::fs::write(pdx_src.join("pdxinfo"), pdxinfo)?;
         Ok(pdx_src)
     }
 
     fn copy_assets(&self, meta: &Metadata, pdx_src: &PathBuf) -> anyhow::Result<()> {
-        let assets_dir = self.get_assets_dir(&meta)?;
+        let assets_dir = self.get_assets_dir(meta)?;
         if assets_dir.exists() && assets_dir.is_dir() {
             for entry in std::fs::read_dir(&assets_dir)? {
                 let entry = entry?;
                 let path: PathBuf = entry.path();
-                Command::new("cp").arg(&path).arg(&pdx_src).check()?;
+                Command::new("cp").arg(&path).arg(pdx_src).check()?;
             }
         }
         Ok(())
@@ -250,19 +253,19 @@ impl Build {
     fn invoke_pdc(
         &self,
         target_name: &str,
-        target_dir: &PathBuf,
-        pdx_src: &PathBuf,
+        target_dir: &Path,
+        pdx_src: &Path,
     ) -> anyhow::Result<PathBuf> {
         let pdx_out = target_dir.join(format!("{}.pdx", target_name));
         let playdate_sdk_path = crate::util::get_playdate_sdk_path()?;
         let pdx_bin = playdate_sdk_path.join("bin").join("pdc");
         info!(
             "➔  {} {} {}",
-            pdx_bin.to_string_lossy().replace(" ", "\\ "),
-            pdx_src.to_string_lossy().replace(" ", "\\ "),
-            pdx_out.to_string_lossy().replace(" ", "\\ "),
+            pdx_bin.to_string_lossy().replace(' ', "\\ "),
+            pdx_src.to_string_lossy().replace(' ', "\\ "),
+            pdx_out.to_string_lossy().replace(' ', "\\ "),
         );
-        Command::new(pdx_bin).arg(&pdx_src).arg(&pdx_out).check()?;
+        Command::new(pdx_bin).arg(pdx_src).arg(&pdx_out).check()?;
         Ok(pdx_out)
     }
 }

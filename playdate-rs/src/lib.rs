@@ -136,7 +136,9 @@ pub fn __playdate_handle_event<T: App>(
 #[doc(hidden)]
 pub fn __playdate_handle_panic(info: &core::panic::PanicInfo) -> ! {
     PLAYDATE.system.error(format!("{}", info));
-    loop {}
+    loop {
+        unreachable!()
+    }
 }
 
 #[macro_export]

@@ -14,6 +14,7 @@ include!("./thumbv7em_bindings.rs");
 pub struct LCDColor(u64);
 
 impl LCDColor {
+    /// Convert the LCDColor to a LCDSolidColor
     pub fn as_solid_color(&self) -> Option<LCDSolidColor> {
         match self.0 {
             0 => Some(LCDSolidColor::kColorBlack),
@@ -24,6 +25,12 @@ impl LCDColor {
         }
     }
 
+    /// Convert the LCDColor to a LCDPattern
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it casts the LCDColor into a raw pointer and dereferences it.
+    /// The caller must ensure that the pointer is valid before calling this method.
     pub unsafe fn as_pattern(&self) -> Option<LCDPattern> {
         match self.0 {
             x if x <= 3 => None,

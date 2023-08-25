@@ -1,4 +1,7 @@
-use std::{path::PathBuf, process::Command};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use crate::{util::CommandExt, Runnable};
 
@@ -16,7 +19,7 @@ pub struct Init {
 
 impl Init {
     /// Initialize playdate project
-    fn init_playdate_impl(new: bool, path: &PathBuf) -> anyhow::Result<()> {
+    fn init_playdate_impl(new: bool, path: &Path) -> anyhow::Result<()> {
         info!("Configuring cargo playdate project ...");
         // Adding game assets and overwrite files
         info!("+  overwrite files");
@@ -54,9 +57,9 @@ impl Init {
     /// Initialize playdate project
     pub fn init_playdate(new: bool, path: &PathBuf) -> anyhow::Result<()> {
         let cwd = std::env::current_dir()?;
-        std::env::set_current_dir(&path)?;
+        std::env::set_current_dir(path)?;
         let result = Self::init_playdate_impl(new, path);
-        std::env::set_current_dir(&cwd)?;
+        std::env::set_current_dir(cwd)?;
         result
     }
 }
