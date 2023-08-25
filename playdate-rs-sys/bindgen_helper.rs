@@ -15,7 +15,10 @@ pub fn get_playdate_sdk_path() -> String {
     let playdate_sdk_path =
         env::var("PLAYDATE_SDK_PATH").expect("Environment variable PLAYDATE_SDK_PATH is not set");
     if !is_correct_sdk_path(&PathBuf::from(&playdate_sdk_path)) {
-        panic!("PLAYDATE_SDK_PATH is not set to the root of the Playdate SDK")
+        panic!(
+            "PLAYDATE_SDK_PATH ({}) is not set to the root of the Playdate SDK",
+            playdate_sdk_path
+        )
     }
     playdate_sdk_path
 }
