@@ -16,12 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        profile:
-          - debug
-          - release
         target:
           - x86_64-unknown-linux-gnu
           - thumbv7em-none-eabihf
+        profile:
+          - debug
+          - release
     env:
       PROFILE_FLAG: ${{ matrix.profile == 'release' && '--release' || '' }}
     steps:
@@ -30,7 +30,10 @@ jobs:
           sudo apt update
           sudo apt install -y libwebkit2gtk-4.0-dev gcc-arm-none-eabi
       - name: Install Playdate SDK
-        run: curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-$PLAYDATE_SDK_VERSION.tar.gz | tar xz
+        run: |
+          curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-$PLAYDATE_SDK_VERSION.tar.gz | tar xz
+          echo $PLAYDATE_SDK_PATH
+          ls $PLAYDATE_SDK_PATH
       - name: Checkout
         uses: actions/checkout@v3
       - name: Setup Rust Toolchain
