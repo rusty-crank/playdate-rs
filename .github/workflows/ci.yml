@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+
 jobs:
   checks:
     runs-on: ubuntu-latest
@@ -21,7 +22,7 @@ jobs:
           curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-2.0.3.tar.gz | tar xz
           export PLAYDATE_SDK_PATH=$(pwd)/PlaydateSDK-2.0.3
       - uses: actions/checkout@v3
-      - run: rustup update stable && cargo target add thumbv7em-none-eabihf
+      - run: rustup update stable && rustup target add thumbv7em-none-eabihf
       - run: cargo build --workspace
       - run: cargo build --workspace --release
       - run: cargo build --workspace --exclude playdate-cli --target thumbv7em-none-eabihf
