@@ -42,7 +42,7 @@ fn main() {
             .unwrap();
         assert!(status.success());
         env::set_var("PLAYDATE_SDK_PATH", out_path.join("PlaydateSDK"));
-        env::set_current_dir(&old_cwd).unwrap();
+        env::set_current_dir(old_cwd).unwrap();
     }
 
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());

@@ -134,7 +134,7 @@ jobs:
         uses: actions/checkout@v3
       # Setup up rust toolchain
       - name: Setup Rust Toolchain
-        run: rustup update stable
+        run: rustup default nightly
       # Build docs
       - name: Build cargo docs (debug)
         run: cargo doc --workspace --no-deps
