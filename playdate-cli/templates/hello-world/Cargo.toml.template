@@ -10,7 +10,7 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 
-# See all pdxinfo fields at https://github.com/wenyuzhao/playdate-rs#pdxinfo-generation-and-bundling
+# See all pdxinfo fields at https://github.com/rusty-crank/playdate-rs#pdxinfo-generation-and-bundling
 
 [package.metadata.pdxinfo]
 bundle_id = "com.example.{{ name }}"
