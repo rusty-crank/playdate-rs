@@ -595,12 +595,16 @@ impl Default for Sprite {
     }
 }
 
+type DataCell<F> = RefCell<Option<F>>;
+type UpdateFn = Box<dyn Fn(&Sprite)>;
+type DrawFn = Box<dyn Fn(&Sprite, Rect<f32>, Rect<f32>)>;
+type CollisionResponseFn = Box<dyn Fn(&Sprite, &Sprite) -> SpriteCollisionResponseType>;
+
 #[derive(Default)]
 struct SpriteData {
-    update_fn: RefCell<Option<Box<dyn Fn(&Sprite)>>>,
-    draw_fn: RefCell<Option<Box<dyn Fn(&Sprite, Rect<f32>, Rect<f32>)>>>,
-    collision_response_fn:
-        RefCell<Option<Box<dyn Fn(&Sprite, &Sprite) -> SpriteCollisionResponseType>>>,
+    update_fn: DataCell<UpdateFn>,
+    draw_fn: DataCell<DrawFn>,
+    collision_response_fn: DataCell<CollisionResponseFn>,
 }
 
 impl Sprite {
@@ -773,9 +777,9 @@ impl Sprite {
     }
 
     /// Sets the update function for the given sprite.
-    pub fn set_update_function<F: Fn(&Sprite) + 'static>(&self, func: F) {
+    pub fn set_update_function(&self, func: impl Fn(&Sprite) + 'static) {
         *self.get_userdata().update_fn.borrow_mut() = Some(Box::new(func));
-        extern "C" fn callback<F: Fn(&Sprite)>(sprite: *mut sys::LCDSprite) {
+        extern "C" fn callback(sprite: *mut sys::LCDSprite) {
             let sprite = Sprite::from_ref(sprite);
             let func = sprite.get_userdata().update_fn.borrow();
             let func = &func.as_ref().unwrap();
@@ -783,13 +787,13 @@ impl Sprite {
         }
         PLAYDATE
             .sprite
-            .set_update_function(self.handle, Some(callback::<F>));
+            .set_update_function(self.handle, Some(callback));
     }
 
     /// Sets the draw function for the given sprite.
-    pub fn set_draw_function<F: Fn(&Sprite, Rect<f32>, Rect<f32>) + 'static>(&self, func: F) {
+    pub fn set_draw_function(&self, func: impl Fn(&Sprite, Rect<f32>, Rect<f32>) + 'static) {
         *self.get_userdata().draw_fn.borrow_mut() = Some(Box::new(func));
-        extern "C" fn callback<F: Fn(&Sprite, Rect<f32>, Rect<f32>)>(
+        extern "C" fn callback(
             sprite: *mut sys::LCDSprite,
             bounds: sys::PDRect,
             drawrect: sys::PDRect,
@@ -801,7 +805,7 @@ impl Sprite {
         }
         PLAYDATE
             .sprite
-            .set_draw_function(self.handle, Some(callback::<F>));
+            .set_draw_function(self.handle, Some(callback));
     }
 
     /// Marks the area of the given sprite, relative to its bounds, to be checked for collisions with other sprites' collide rects.
@@ -820,14 +824,12 @@ impl Sprite {
     }
 
     /// Set a callback that returns a SpriteCollisionResponseType for a collision between sprite and other.
-    pub fn set_collision_response_function<
-        F: Fn(&Sprite, &Sprite) -> SpriteCollisionResponseType + 'static,
-    >(
+    pub fn set_collision_response_function(
         &self,
-        func: F,
+        func: impl Fn(&Sprite, &Sprite) -> SpriteCollisionResponseType + 'static,
     ) {
         *self.get_userdata().collision_response_fn.borrow_mut() = Some(Box::new(func));
-        unsafe extern "C" fn callback<F: Fn(&Sprite, &Sprite) -> SpriteCollisionResponseType>(
+        extern "C" fn callback(
             sprite: *mut sys::LCDSprite,
             other: *mut sys::LCDSprite,
         ) -> SpriteCollisionResponseType {
@@ -839,7 +841,7 @@ impl Sprite {
         }
         PLAYDATE
             .sprite
-            .set_collision_response_function(self.handle, Some(callback::<F>));
+            .set_collision_response_function(self.handle, Some(callback));
     }
 
     /// Sets the sprite’s stencil to the given pattern.
@@ -855,10 +857,10 @@ impl Sprite {
     }
 
     /// Gets the sprite’s userdata, an arbitrary pointer used for associating the sprite with other data.
-    fn get_userdata<'a>(&'a self) -> &'a SpriteData {
+    fn get_userdata(&self) -> &SpriteData {
         let ptr = PLAYDATE.sprite.get_userdata(self.handle);
         if ptr.is_null() {
-            let ptr = Box::into_raw(Box::new(SpriteData::default()));
+            let ptr = Box::into_raw(Box::<SpriteData>::default());
             PLAYDATE.sprite.set_userdata(self.handle, ptr as _);
         }
         let ptr = PLAYDATE.sprite.get_userdata(self.handle);

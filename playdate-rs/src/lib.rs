@@ -1,7 +1,7 @@
 #![cfg_attr(all(target_arch = "arm", target_os = "none"), no_std)]
 
 extern crate alloc;
-pub extern crate playdate_rs_sys as sys;
+extern crate playdate_rs_sys as sys;
 
 #[macro_use]
 #[doc(hidden)]
@@ -26,14 +26,22 @@ pub use no_std_io::io;
 pub use playdate_rs_macros::app;
 
 pub struct Playdate {
-    pub raw_api: *mut sys::PlaydateAPI,
+    raw_api: *mut sys::PlaydateAPI,
+    /// System interaction
     pub system: system::System,
+    /// Filesystem operations
     pub file: fs::FileSystem,
+    /// Graphics operations and drawing functions
     pub graphics: graphics::Graphics,
+    /// Sprite and global sprite display list operations
     pub sprite: sprite::_Sprite,
+    /// Display operations and management
     pub display: display::Display,
+    /// Sound controls
     pub sound: sound::Sound,
+    /// Scoreboard operations (unimplemented)
     pub scoreboards: scoreboards::Scoreboards,
+    /// Lua VM interactions (unimplemented)
     pub lua: lua::Lua,
     // The playdate JSON lib is not supported. Please use serde instead:
     // pub json: *const playdate_json,
@@ -56,6 +64,11 @@ impl Playdate {
             scoreboards: scoreboards::Scoreboards::new(playdate_ref.scoreboards),
             lua: lua::Lua::new(playdate_ref.lua),
         }
+    }
+
+    /// Returns a raw pointer to the raw playdate-rs-sys API.
+    pub fn get_raw_api(&self) -> *mut sys::PlaydateAPI {
+        self.raw_api
     }
 }
 
@@ -126,10 +139,11 @@ fn start_playdate_app<T: App>(pd: *mut sys::PlaydateAPI) {
 
 #[doc(hidden)]
 pub fn __playdate_handle_event<T: App>(
-    pd: *mut sys::PlaydateAPI,
+    pd: *mut ::core::ffi::c_void,
     event: system::SystemEvent,
     arg: u32,
 ) {
+    let pd = pd as *mut sys::PlaydateAPI;
     if event == system::SystemEvent::kEventInit {
         start_playdate_app::<T>(pd);
     }
@@ -150,7 +164,7 @@ macro_rules! register_playdate_app {
         mod __playdate_api {
             #[no_mangle]
             unsafe extern "C" fn eventHandler(
-                pd: *mut $crate::sys::PlaydateAPI,
+                pd: *mut ::core::ffi::c_void,
                 event: $crate::system::SystemEvent,
                 arg: u32,
             ) {

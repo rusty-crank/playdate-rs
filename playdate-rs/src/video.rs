@@ -109,7 +109,7 @@ impl VideoPlayer {
         let result = PLAYDATE
             .graphics
             .video
-            .set_context(self.handle, context.as_ref().handle);
+            .set_context(self.handle, context.handle);
         if result != 0 {
             Ok(())
         } else {
