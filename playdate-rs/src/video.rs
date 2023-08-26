@@ -105,7 +105,7 @@ impl VideoPlayer {
     }
 
     /// Sets the rendering destination for the video player to the given bitmap.
-    pub fn set_context(&self, context: impl AsRef<Bitmap>) -> Result<(), String> {
+    pub fn set_context<'a, 'b: 'a>(&'a self, context: &'b Bitmap) -> Result<(), String> {
         let result = PLAYDATE
             .graphics
             .video
