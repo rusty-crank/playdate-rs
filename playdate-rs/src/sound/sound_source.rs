@@ -1,3 +1,6 @@
+use alloc::collections::BTreeMap;
+use spin::Mutex;
+
 use crate::{util::Ref, PLAYDATE};
 
 pub(crate) struct PlaydateSoundSource {
@@ -24,9 +27,10 @@ pub(crate) struct SoundSourcePtr(pub(crate) *const sys::SoundSource);
 unsafe impl Send for SoundSourcePtr {}
 unsafe impl Sync for SoundSourcePtr {}
 
-static SOUND_SOURCE_FINISH_CALLBACKS: spin::Mutex<
-    alloc::collections::BTreeMap<SoundSourcePtr, Box<dyn FnOnce(&SoundSource) + Send>>,
-> = spin::Mutex::new(alloc::collections::BTreeMap::new());
+type SoundSourcFinishCallbacks = BTreeMap<SoundSourcePtr, Box<dyn FnOnce(&SoundSource) + Send>>;
+
+static SOUND_SOURCE_FINISH_CALLBACKS: Mutex<SoundSourcFinishCallbacks> =
+    Mutex::new(BTreeMap::new());
 
 impl SoundSource {
     // pub(crate) fn new(handle: *mut sys::SoundSource) -> Self {

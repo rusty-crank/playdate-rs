@@ -19,6 +19,12 @@ pub struct SamplePlayer {
 unsafe impl Send for SamplePlayer {}
 unsafe impl Sync for SamplePlayer {}
 
+impl Default for SamplePlayer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SamplePlayer {
     /// Allocates a new SamplePlayer.
     pub fn new() -> Self {

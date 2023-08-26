@@ -22,6 +22,12 @@ pub struct FilePlayer {
 unsafe impl Send for FilePlayer {}
 unsafe impl Sync for FilePlayer {}
 
+impl Default for FilePlayer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FilePlayer {
     /// Allocates a new FilePlayer.
     pub fn new() -> Self {
@@ -204,9 +210,9 @@ impl FilePlayer {
     }
 }
 
-static FADE_VOLUME_FINISH_CALLBACKS: Mutex<
-    BTreeMap<SoundSourcePtr, Box<dyn FnOnce(&FilePlayer) + Send>>,
-> = Mutex::new(BTreeMap::new());
+type FadeVolumeFinishCallbacks = BTreeMap<SoundSourcePtr, Box<dyn FnOnce(&FilePlayer) + Send>>;
+
+static FADE_VOLUME_FINISH_CALLBACKS: Mutex<FadeVolumeFinishCallbacks> = Mutex::new(BTreeMap::new());
 
 impl Drop for FilePlayer {
     fn drop(&mut self) {
