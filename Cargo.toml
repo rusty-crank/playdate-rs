@@ -13,7 +13,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.0.5"
+version = "0.0.6"
 edition = "2021"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 license = "MIT"
@@ -26,5 +26,5 @@ panic = "abort"
 
 # Put internal dependencies here, to make verison bumping easier when making a new release.
 [workspace.dependencies]
-playdate-rs-sys = { version = "0.0.5", path = "./playdate-rs-sys" }
-playdate-rs-macros = { version = "0.0.5", path = "./playdate-rs/macros" }
+playdate-rs-sys = { version = "0.0.6", path = "./playdate-rs-sys" }
+playdate-rs-macros = { version = "0.0.6", path = "./playdate-rs/macros" }
