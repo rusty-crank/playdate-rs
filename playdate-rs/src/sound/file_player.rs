@@ -1,99 +1,16 @@
-use core::cell::RefCell;
-
 use alloc::{collections::BTreeMap, ffi::CString};
+use spin::Mutex;
 
-use crate::{error::Error, PLAYDATE};
+use crate::{error::Error, util::Ref, PLAYDATE};
 
-pub struct PlaydateSound {
-    #[allow(unused)]
-    handle: *const sys::playdate_sound,
-    // pub channel: *const playdate_sound_channel,
-    file_player: PlaydateFilePlayer,
-    // pub sample: *const playdate_sound_sample,
-    sample_player: PlaydateSamplePlayer,
-    // sampleplayer: *const sys::playdate_sound_sampleplayer,
-    // pub synth: *const playdate_sound_synth,
-    // pub sequence: *const playdate_sound_sequence,
-    // pub effect: *const playdate_sound_effect,
-    // pub lfo: *const playdate_sound_lfo,
-    // pub envelope: *const playdate_sound_envelope,
-    // pub source: *const playdate_sound_source,
-    // pub controlsignal: *const playdate_control_signal,
-    // pub track: *const playdate_sound_track,
-    // pub instrument: *const playdate_sound_instrument,
-    // pub signal: *const playdate_sound_signal,
-}
+use super::{sound_source::SoundSourcePtr, SoundSource};
 
-impl PlaydateSound {
-    pub(crate) fn new(handle: *const sys::playdate_sound) -> Self {
-        Self {
-            handle,
-            file_player: PlaydateFilePlayer::new(unsafe { (*handle).fileplayer }),
-            sample_player: PlaydateSamplePlayer::new(unsafe { (*handle).sampleplayer }),
-        }
-    }
-
-    /// Returns the sound engine’s current time value, in units of sample frames, 44,100 per second.
-    pub fn get_current_time(&self) -> u32 {
-        unsafe { (*self.handle).getCurrentTime.unwrap()() }
-    }
-
-    // pub getCurrentTime: ::core::option::Option<unsafe extern "C" fn() -> u32>,
-    // pub addSource: ::core::option::Option<
-    //     unsafe extern "C" fn(
-    //         callback: AudioSourceFunction,
-    //         context: *mut ::core::ffi::c_void,
-    //         stereo: ::core::ffi::c_int,
-    //     ) -> *mut SoundSource,
-    // >,
-
-    // Returns the default channel, where sound sources play if they haven’t been explicity assigned to a different channel.
-    // pub(crate) fn get_default_channel(&self) -> Option<sys::SoundChannel> {
-    //     let channel = unsafe { (*self.handle).getDefaultChannel.unwrap()() };
-    //     if channel.is_null() {
-    //         None
-    //     } else {
-    //         Some(SoundChannel::new(channel))
-    //     }
-    // }
-
-    // pub getDefaultChannel: ::core::option::Option<unsafe extern "C" fn() -> *mut SoundChannel>,
-    // pub addChannel: ::core::option::Option<
-    //     unsafe extern "C" fn(channel: *mut SoundChannel) -> ::core::ffi::c_int,
-    // >,
-    // pub removeChannel: ::core::option::Option<
-    //     unsafe extern "C" fn(channel: *mut SoundChannel) -> ::core::ffi::c_int,
-    // >,
-    // pub setMicCallback: ::core::option::Option<
-    //     unsafe extern "C" fn(
-    //         callback: RecordCallback,
-    //         context: *mut ::core::ffi::c_void,
-    //         forceInternal: ::core::ffi::c_int,
-    //     ),
-    // >,
-    // pub getHeadphoneState: ::core::option::Option<
-    //     unsafe extern "C" fn(
-    //         headphone: *mut ::core::ffi::c_int,
-    //         headsetmic: *mut ::core::ffi::c_int,
-    //         changeCallback: ::core::option::Option<
-    //             unsafe extern "C" fn(headphone: ::core::ffi::c_int, mic: ::core::ffi::c_int),
-    //         >,
-    //     ),
-    // >,
-    // pub setOutputsActive: ::core::option::Option<
-    //     unsafe extern "C" fn(headphone: ::core::ffi::c_int, speaker: ::core::ffi::c_int),
-    // >,
-    // pub removeSource: ::core::option::Option<
-    //     unsafe extern "C" fn(source: *mut SoundSource) -> ::core::ffi::c_int,
-    // >,
-}
-
-pub struct PlaydateFilePlayer {
+pub(crate) struct PlaydateFilePlayer {
     handle: *const sys::playdate_sound_fileplayer,
 }
 
 impl PlaydateFilePlayer {
-    fn new(handle: *const sys::playdate_sound_fileplayer) -> Self {
+    pub(crate) fn new(handle: *const sys::playdate_sound_fileplayer) -> Self {
         Self { handle }
     }
 }
@@ -111,6 +28,14 @@ impl FilePlayer {
         Self {
             handle: unsafe { (*PLAYDATE.sound.file_player.handle).newPlayer.unwrap()() },
         }
+    }
+
+    fn new_ref<'a>(handle: *mut sys::FilePlayer) -> Ref<'a, Self> {
+        Ref::from(Self { handle })
+    }
+
+    pub(crate) fn as_sound_source(&self) -> Ref<SoundSource> {
+        SoundSource::new_ref(self.handle as *mut sys::SoundSource)
     }
 
     /// Prepares player to stream the file at path.
@@ -158,7 +83,12 @@ impl FilePlayer {
         unsafe { (*PLAYDATE.sound.file_player.handle).getLength.unwrap()(self.handle) }
     }
 
-    // void playdate->sound->fileplayer->setFinishCallback(FilePlayer* player, sndCallbackProc callback);
+    /// Sets a function to be called when playback has completed. This is an alias for `SoundSource::set_finish_callback`.
+    pub fn set_finish_callback(&self, callback: impl Send + FnOnce(&Self) + 'static) {
+        self.as_sound_source().set_finish_callback(move |x| {
+            callback(&Self::new_ref(x.handle as *mut sys::FilePlayer));
+        });
+    }
 
     /// Returns true if player has underrun, false if not.
     pub fn did_underrun(&self) -> bool {
@@ -229,43 +159,61 @@ impl FilePlayer {
         unsafe { (*PLAYDATE.sound.file_player.handle).stop.unwrap()(self.handle) }
     }
 
-    // void playdate->sound->fileplayer->fadeVolume(FilePlayer* player, float left, float right, int32_t len, sndCallbackProc finishCallback);
+    /// Changes the volume of the fileplayer to left and right over a length of len sample frames, then calls the provided callback (if set).
+    pub fn fade_volume(
+        &self,
+        left: f32,
+        right: f32,
+        len: i32,
+        finish_callback: Option<impl Send + FnOnce(&Self) + 'static>,
+    ) {
+        unsafe extern "C" fn callback_fn(source: *mut sys::SoundSource) {
+            let player = FilePlayer::new_ref(source as *mut sys::FilePlayer);
+            let callback = FADE_VOLUME_FINISH_CALLBACKS
+                .lock()
+                .remove(&SoundSourcePtr(source))
+                .unwrap();
+            callback(&player);
+        }
+        if let Some(cb) = finish_callback {
+            let callback = Box::new(cb) as Box<dyn Send + FnOnce(&Self)>;
+            FADE_VOLUME_FINISH_CALLBACKS
+                .lock()
+                .insert(SoundSourcePtr(self.as_sound_source().handle), callback);
+
+            unsafe {
+                (*PLAYDATE.sound.file_player.handle).fadeVolume.unwrap()(
+                    self.handle,
+                    left,
+                    right,
+                    len,
+                    Some(callback_fn),
+                )
+            }
+        } else {
+            unsafe {
+                (*PLAYDATE.sound.file_player.handle).fadeVolume.unwrap()(
+                    self.handle,
+                    left,
+                    right,
+                    len,
+                    None,
+                )
+            }
+        };
+    }
 }
+
+static FADE_VOLUME_FINISH_CALLBACKS: Mutex<
+    BTreeMap<SoundSourcePtr, Box<dyn FnOnce(&FilePlayer) + Send>>,
+> = Mutex::new(BTreeMap::new());
 
 impl Drop for FilePlayer {
     fn drop(&mut self) {
+        self.as_sound_source().drop_callbacks();
+        FADE_VOLUME_FINISH_CALLBACKS
+            .lock()
+            .remove(&SoundSourcePtr(self.as_sound_source().handle));
         unsafe { (*PLAYDATE.sound.file_player.handle).freePlayer.unwrap()(self.handle) }
-    }
-}
-
-pub struct PlaydateSamplePlayer {
-    handle: *const sys::playdate_sound_sampleplayer,
-}
-
-impl PlaydateSamplePlayer {
-    fn new(handle: *const sys::playdate_sound_sampleplayer) -> Self {
-        Self { handle }
-    }
-}
-
-pub struct SamplePlayer {
-    handle: *mut sys::SamplePlayer,
-}
-
-unsafe impl Send for SamplePlayer {}
-unsafe impl Sync for SamplePlayer {}
-
-impl SamplePlayer {
-    /// Allocates a new SamplePlayer.
-    pub fn new() -> Self {
-        Self {
-            handle: unsafe { (*(*PLAYDATE.sound.handle).sampleplayer).newPlayer.unwrap()() },
-        }
-    }
-}
-
-impl Drop for SamplePlayer {
-    fn drop(&mut self) {
-        unsafe { (*(*PLAYDATE.sound.handle).sampleplayer).freePlayer.unwrap()(self.handle) }
     }
 }
