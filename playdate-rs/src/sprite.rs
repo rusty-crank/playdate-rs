@@ -1,4 +1,7 @@
+use core::cell::RefCell;
+
 use alloc::vec::Vec;
+use playdate_rs_sys::LCDPattern;
 
 use crate::{
     graphics::{so2d_to_lcdrect, Bitmap},
@@ -117,8 +120,8 @@ impl _Sprite {
     }
 
     /// Returns the total number of sprites in the display list.
-    pub fn get_sprite_count(&self) -> i32 {
-        unsafe { (*self.handle).getSpriteCount.unwrap()() }
+    pub fn get_sprite_count(&self) -> usize {
+        unsafe { (*self.handle).getSpriteCount.unwrap()() as _ }
     }
 
     /// Sets the bounds of the given sprite with bounds.
@@ -592,6 +595,14 @@ impl Default for Sprite {
     }
 }
 
+#[derive(Default)]
+struct SpriteData {
+    update_fn: RefCell<Option<Box<dyn Fn(&Sprite)>>>,
+    draw_fn: RefCell<Option<Box<dyn Fn(&Sprite, Rect<f32>, Rect<f32>)>>>,
+    collision_response_fn:
+        RefCell<Option<Box<dyn Fn(&Sprite, &Sprite) -> SpriteCollisionResponseType>>>,
+}
+
 impl Sprite {
     pub(crate) fn from(handle: *mut sys::LCDSprite) -> Self {
         Self { handle }
@@ -632,15 +643,27 @@ impl Sprite {
     }
 
     /// Sets the given sprite's image to the given bitmap.
-    pub fn set_image(&self, image: impl AsRef<Bitmap>, flip: sys::LCDBitmapFlip) {
+    pub fn set_image(&self, image: Bitmap, flip: sys::LCDBitmapFlip) {
+        // drop old image
+        if let Some(old_image) = self.get_image() {
+            let _boxed = Bitmap::from(old_image.handle);
+        }
+        // set new image. pass the ownership to the system
         PLAYDATE
             .sprite
             .set_image(self.handle, image.as_ref().handle, flip);
+        // forget image so it doesn't get dropped
+        core::mem::forget(image);
     }
 
     /// Returns the LCDBitmap currently assigned to the given sprite.
-    pub fn get_image(&self) -> Ref<Bitmap> {
-        Bitmap::from_ref(PLAYDATE.sprite.get_image(self.handle))
+    pub fn get_image(&self) -> Option<Ref<Bitmap>> {
+        let ptr = PLAYDATE.sprite.get_image(self.handle);
+        if ptr.is_null() {
+            None
+        } else {
+            Some(Bitmap::from_ref(ptr))
+        }
     }
 
     /// Sets the size. The size is used to set the sprite’s bounds when calling moveTo().
@@ -750,13 +773,35 @@ impl Sprite {
     }
 
     /// Sets the update function for the given sprite.
-    pub fn set_update_function(&self, func: sys::LCDSpriteUpdateFunction) {
-        PLAYDATE.sprite.set_update_function(self.handle, func);
+    pub fn set_update_function<F: Fn(&Sprite) + 'static>(&self, func: F) {
+        *self.get_userdata().update_fn.borrow_mut() = Some(Box::new(func));
+        extern "C" fn callback<F: Fn(&Sprite)>(sprite: *mut sys::LCDSprite) {
+            let sprite = Sprite::from_ref(sprite);
+            let func = sprite.get_userdata().update_fn.borrow();
+            let func = &func.as_ref().unwrap();
+            func(&sprite)
+        }
+        PLAYDATE
+            .sprite
+            .set_update_function(self.handle, Some(callback::<F>));
     }
 
     /// Sets the draw function for the given sprite.
-    pub fn set_draw_function(&self, func: sys::LCDSpriteDrawFunction) {
-        PLAYDATE.sprite.set_draw_function(self.handle, func);
+    pub fn set_draw_function<F: Fn(&Sprite, Rect<f32>, Rect<f32>) + 'static>(&self, func: F) {
+        *self.get_userdata().draw_fn.borrow_mut() = Some(Box::new(func));
+        extern "C" fn callback<F: Fn(&Sprite, Rect<f32>, Rect<f32>)>(
+            sprite: *mut sys::LCDSprite,
+            bounds: sys::PDRect,
+            drawrect: sys::PDRect,
+        ) {
+            let sprite = Sprite::from_ref(sprite);
+            let func = sprite.get_userdata().draw_fn.borrow();
+            let func = &func.as_ref().unwrap();
+            func(&sprite, pdrect_to_rect(bounds), pdrect_to_rect(drawrect))
+        }
+        PLAYDATE
+            .sprite
+            .set_draw_function(self.handle, Some(callback::<F>));
     }
 
     /// Marks the area of the given sprite, relative to its bounds, to be checked for collisions with other sprites' collide rects.
@@ -775,15 +820,33 @@ impl Sprite {
     }
 
     /// Set a callback that returns a SpriteCollisionResponseType for a collision between sprite and other.
-    pub fn set_collision_response_function(&self, func: sys::LCDSpriteCollisionFilterProc) {
+    pub fn set_collision_response_function<
+        F: Fn(&Sprite, &Sprite) -> SpriteCollisionResponseType + 'static,
+    >(
+        &self,
+        func: F,
+    ) {
+        *self.get_userdata().collision_response_fn.borrow_mut() = Some(Box::new(func));
+        unsafe extern "C" fn callback<F: Fn(&Sprite, &Sprite) -> SpriteCollisionResponseType>(
+            sprite: *mut sys::LCDSprite,
+            other: *mut sys::LCDSprite,
+        ) -> SpriteCollisionResponseType {
+            let sprite = Sprite::from_ref(sprite);
+            let other = Sprite::from_ref(other);
+            let func = sprite.get_userdata().collision_response_fn.borrow();
+            let func = &func.as_ref().unwrap();
+            func(&sprite, &other)
+        }
         PLAYDATE
             .sprite
-            .set_collision_response_function(self.handle, func);
+            .set_collision_response_function(self.handle, Some(callback::<F>));
     }
 
     /// Sets the sprite’s stencil to the given pattern.
-    pub fn set_stencil_pattern(&self, pattern: *mut u8) {
-        PLAYDATE.sprite.set_stencil_pattern(self.handle, pattern);
+    pub fn set_stencil_pattern(&self, mut pattern: LCDPattern) {
+        PLAYDATE
+            .sprite
+            .set_stencil_pattern(self.handle, pattern.as_mut_ptr());
     }
 
     /// Clears the sprite’s stencil.
@@ -791,14 +854,24 @@ impl Sprite {
         PLAYDATE.sprite.clear_stencil(self.handle);
     }
 
-    /// Sets the sprite’s userdata, an arbitrary pointer used for associating the sprite with other data.
-    pub fn set_userdata(&self, userdata: *mut core::ffi::c_void) {
-        PLAYDATE.sprite.set_userdata(self.handle, userdata);
+    /// Gets the sprite’s userdata, an arbitrary pointer used for associating the sprite with other data.
+    fn get_userdata<'a>(&'a self) -> &'a SpriteData {
+        let ptr = PLAYDATE.sprite.get_userdata(self.handle);
+        if ptr.is_null() {
+            let ptr = Box::into_raw(Box::new(SpriteData::default()));
+            PLAYDATE.sprite.set_userdata(self.handle, ptr as _);
+        }
+        let ptr = PLAYDATE.sprite.get_userdata(self.handle);
+        unsafe { &*(ptr as *mut SpriteData) }
     }
 
-    /// Gets the sprite’s userdata, an arbitrary pointer used for associating the sprite with other data.
-    pub fn get_userdata(&self) -> *mut core::ffi::c_void {
-        PLAYDATE.sprite.get_userdata(self.handle)
+    fn drop_userdata(&self) {
+        let ptr = PLAYDATE.sprite.get_userdata(self.handle);
+        if !ptr.is_null() {
+            unsafe {
+                let _boxed = Box::from_raw(ptr as *mut SpriteData);
+            }
+        }
     }
 
     /// Specifies a stencil image to be set on the frame buffer before the sprite is drawn. If tile is set, the stencil will be tiled. Tiled stencils must have width evenly divisible by 32.
@@ -817,6 +890,8 @@ impl AsRef<Self> for Sprite {
 
 impl Drop for Sprite {
     fn drop(&mut self) {
+        // FIXME: Remove from display list?
+        self.drop_userdata();
         PLAYDATE.sprite.free_sprite(self.handle as *mut _);
     }
 }
