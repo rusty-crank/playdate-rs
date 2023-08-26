@@ -159,17 +159,17 @@ impl System {
     /// 3. Unpause your game and call eventHandler() with the kEventResume event.
     ///
     /// Your game can then present an options interface to the player, or take other action, in whatever manner you choose.
-    pub fn add_menu_item(
-        &self,
-        title: impl AsRef<str>,
-        callback: sys::PDMenuItemCallbackFunction,
-    ) -> MenuItem {
+    pub fn add_menu_item(&self, title: impl AsRef<str>, callback: fn()) -> MenuItem {
+        extern "C" fn callback_impl(payload: *mut c_void) {
+            let f: fn() = unsafe { core::mem::transmute(payload) };
+            f();
+        }
         MenuItem::new(unsafe {
             let c_string = CString::new(title.as_ref()).unwrap();
             (*self.handle).addMenuItem.unwrap()(
                 c_string.as_ptr() as *mut c_char,
-                callback,
-                core::ptr::null_mut(),
+                Some(callback_impl),
+                callback as _,
             )
         })
     }
@@ -185,15 +185,19 @@ impl System {
         &self,
         title: impl AsRef<str>,
         value: i32,
-        callback: sys::PDMenuItemCallbackFunction,
+        callback: fn(),
     ) -> MenuItem {
+        extern "C" fn callback_impl(payload: *mut c_void) {
+            let f: fn() = unsafe { core::mem::transmute(payload) };
+            f();
+        }
         MenuItem::new(unsafe {
             let c_string = CString::new(title.as_ref()).unwrap();
             (*self.handle).addCheckmarkMenuItem.unwrap()(
                 c_string.as_ptr() as *mut c_char,
                 value,
-                callback,
-                core::ptr::null_mut(),
+                Some(callback_impl),
+                callback as _,
             )
         })
     }
@@ -212,8 +216,12 @@ impl System {
         title: impl AsRef<str>,
         option_titles: &[&str],
         options_count: i32,
-        callback: sys::PDMenuItemCallbackFunction,
+        callback: fn(),
     ) -> MenuItem {
+        extern "C" fn callback_impl(payload: *mut c_void) {
+            let f: fn() = unsafe { core::mem::transmute(payload) };
+            f();
+        }
         MenuItem::new(unsafe {
             let c_string = CString::new(title.as_ref()).unwrap();
             let title_cstrings = option_titles
@@ -228,14 +236,15 @@ impl System {
                 c_string.as_ptr() as *mut c_char,
                 title_ptrs.as_mut_ptr(),
                 options_count,
-                callback,
-                core::ptr::null_mut(),
+                Some(callback_impl),
+                callback as _,
             )
         })
     }
 
     /// Removes all custom menu items from the system menu.
-    pub fn remove_all_menu_items(&self) {
+    #[allow(unused)]
+    pub(crate) fn remove_all_menu_items(&self) {
         unsafe { (*self.handle).removeAllMenuItems.unwrap()() }
     }
 
@@ -391,12 +400,14 @@ impl MenuItem {
     }
 
     /// Gets the userdata value associated with this menu item.
-    pub fn get_userdata(&self) -> *mut c_void {
+    #[allow(unused)]
+    pub(crate) fn get_userdata(&self) -> *mut c_void {
         PLAYDATE.system.get_menu_item_userdata(self.handle)
     }
 
     /// Sets the userdata value associated with this menu item.
-    pub fn set_userdata(&self, userdata: *mut c_void) {
+    #[allow(unused)]
+    pub(crate) fn set_userdata(&self, userdata: *mut c_void) {
         PLAYDATE
             .system
             .set_menu_item_userdata(self.handle, userdata)

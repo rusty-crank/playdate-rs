@@ -1,11 +1,6 @@
 use core::{marker::PhantomData, mem::ManuallyDrop};
 
 /// A handle to hold playdate internal allocated objects.
-///
-/// TODO:
-/// There is a case that the user passes a `&T` to the system, and get a `Ref<T>` back using a different getter.
-/// e.g. `PLAYDATE.graphics.set_stencil`
-/// Need to carefully review each of the case and make sure `T` instead of `&T` is passed to the system, and the old `T` is correctly destroyed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Ref<'a, T: Sized> {
     wrapper: ManuallyDrop<T>,
