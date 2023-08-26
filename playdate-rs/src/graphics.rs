@@ -288,13 +288,6 @@ impl PlaydateGraphics {
         Bitmap::from(unsafe { ((*self.handle).newBitmap.unwrap())(width, height, bgcolor.into()) })
     }
 
-    /// Frees the given bitmap.
-    pub(crate) fn free_bitmap(&self, bitmap: *mut sys::LCDBitmap) {
-        unsafe {
-            ((*self.handle).freeBitmap.unwrap())(bitmap);
-        }
-    }
-
     /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
     pub fn load_bitmap(&self, path: impl AsRef<str>) -> Result<Bitmap, Error> {
         unsafe {
@@ -310,69 +303,9 @@ impl PlaydateGraphics {
         }
     }
 
-    /// Returns a new LCDBitmap that is an exact copy of bitmap.
-    pub(crate) fn copy_bitmap(&self, bitmap: *mut sys::LCDBitmap) -> *mut sys::LCDBitmap {
-        unsafe { ((*self.handle).copyBitmap.unwrap())(bitmap) }
-    }
-
-    /// Loads the image at path into the previously allocated bitmap.
-    pub(crate) fn load_into_bitmap(
-        &self,
-        path: impl AsRef<str>,
-        bitmap: *mut sys::LCDBitmap,
-        outerr: *mut *const c_char,
-    ) {
-        unsafe {
-            let c_string = CString::new(path.as_ref()).unwrap();
-            ((*self.handle).loadIntoBitmap.unwrap())(c_string.as_ptr() as _, bitmap, outerr)
-        }
-    }
-
-    /// Gets various info about bitmap including its width and height and raw pixel data. The data is 1 bit per pixel packed format, in MSB order; in other words, the high bit of the first byte in data is the top left pixel of the image. If the bitmap has a mask, a pointer to its data is returned in mask, else NULL is returned.
-    pub(crate) fn get_bitmap_data(
-        &self,
-        bitmap: *mut sys::LCDBitmap,
-        width: *mut i32,
-        height: *mut i32,
-        rowbytes: *mut i32,
-        mask: *mut *mut u8,
-        data: *mut *mut u8,
-    ) {
-        unsafe {
-            ((*self.handle).getBitmapData.unwrap())(bitmap, width, height, rowbytes, mask, data)
-        }
-    }
-
-    /// Clears bitmap, filling with the given bgcolor.
-    pub(crate) fn clear_bitmap(&self, bitmap: *mut sys::LCDBitmap, bgcolor: impl Into<LCDColor>) {
-        unsafe {
-            ((*self.handle).clearBitmap.unwrap())(bitmap, bgcolor.into());
-        }
-    }
-
-    /// Returns a new, rotated and scaled LCDBitmap based on the given bitmap.
-    pub(crate) fn rotated_bitmap(
-        &self,
-        bitmap: *mut sys::LCDBitmap,
-        rotation: f32,
-        xscale: f32,
-        yscale: f32,
-        alloced_size: *mut i32,
-    ) -> *mut sys::LCDBitmap {
-        unsafe {
-            ((*self.handle).rotatedBitmap.unwrap())(bitmap, rotation, xscale, yscale, alloced_size)
-        }
-    }
-
     /// Allocates and returns a new LCDBitmapTable that can hold count width by height LCDBitmaps.
     pub fn new_bitmap_table(&self, count: i32, width: i32, height: i32) -> BitmapTable {
         BitmapTable::from(unsafe { ((*self.handle).newBitmapTable.unwrap())(count, width, height) })
-    }
-
-    pub(crate) fn free_bitmap_table(&self, table: *mut sys::LCDBitmapTable) {
-        unsafe {
-            ((*self.handle).freeBitmapTable.unwrap())(table);
-        }
     }
 
     /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
@@ -390,28 +323,6 @@ impl PlaydateGraphics {
         }
     }
 
-    /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
-    pub(crate) fn load_into_bitmap_table(
-        &self,
-        path: impl AsRef<str>,
-        table: *mut sys::LCDBitmapTable,
-        outerr: *mut *const c_char,
-    ) {
-        unsafe {
-            let c_string = CString::new(path.as_ref()).unwrap();
-            ((*self.handle).loadIntoBitmapTable.unwrap())(c_string.as_ptr() as _, table, outerr)
-        }
-    }
-
-    /// Returns the idx bitmap in table, If idx is out of bounds, the function returns NULL.
-    pub(crate) fn get_table_bitmap(
-        &self,
-        table: *mut sys::LCDBitmapTable,
-        idx: i32,
-    ) -> *mut sys::LCDBitmap {
-        unsafe { ((*self.handle).getTableBitmap.unwrap())(table, idx) }
-    }
-
     /// Returns the LCDFont object for the font file at path. In case of error, outErr points to a string describing the error.
     pub fn load_font(&self, path: impl AsRef<str>) -> Result<Font, Error> {
         unsafe {
@@ -424,52 +335,6 @@ impl PlaydateGraphics {
                 return Err(Error::FailedToLoadFont(err));
             }
             Ok(Font::new(font))
-        }
-    }
-
-    /// Returns an LCDFontPage object for the given character code. Each LCDFontPage contains information for 256 characters; specifically, if (c1 & ~0xff) == (c2 & ~0xff), then c1 and c2 belong to the same page and the same LCDFontPage can be used to fetch the character data for both instead of searching for the page twice.
-    pub(crate) fn get_font_page(&self, font: *mut sys::LCDFont, c: u32) -> *mut sys::LCDFontPage {
-        unsafe { ((*self.handle).getFontPage.unwrap())(font, c) }
-    }
-
-    /// Returns an LCDFontGlyph object for character c in LCDFontPage page, and optionally returns the glyph’s bitmap and advance value.
-    pub(crate) fn get_page_glyph(
-        &self,
-        page: *mut sys::LCDFontPage,
-        c: u32,
-        bitmap: *mut *mut sys::LCDBitmap,
-        advance: *mut i32,
-    ) -> *mut sys::LCDFontGlyph {
-        unsafe { ((*self.handle).getPageGlyph.unwrap())(page, c, bitmap, advance) }
-    }
-
-    /// Returns the kerning adjustment between characters c1 and c2 as specified by the font.
-    pub(crate) fn get_glyph_kerning(
-        &self,
-        glyph: *mut sys::LCDFontGlyph,
-        glyphcode: u32,
-        nextcode: u32,
-    ) -> i32 {
-        unsafe { ((*self.handle).getGlyphKerning.unwrap())(glyph, glyphcode, nextcode) }
-    }
-
-    /// Returns the width of the given text in the given font.
-    pub(crate) fn get_text_width(
-        &self,
-        font: *mut sys::LCDFont,
-        text: impl AsRef<str>,
-        tracking: i32,
-    ) -> i32 {
-        let ptr = text.as_ref().as_ptr() as *const c_void;
-        let len = text.as_ref().len();
-        unsafe {
-            ((*self.handle).getTextWidth.unwrap())(
-                font,
-                ptr,
-                len,
-                sys::PDStringEncoding::kUTF8Encoding,
-                tracking,
-            )
         }
     }
 
@@ -512,48 +377,6 @@ impl PlaydateGraphics {
         }
     }
 
-    /// Sets color to an 8 x 8 pattern using the given bitmap. x, y indicates the top left corner of the 8 x 8 pattern.
-    pub(crate) fn set_color_to_pattern(
-        &self,
-        color: *mut LCDColor,
-        bitmap: *mut sys::LCDBitmap,
-        x: i32,
-        y: i32,
-    ) {
-        unsafe {
-            ((*self.handle).setColorToPattern.unwrap())(color, bitmap, x, y);
-        }
-    }
-
-    /// Returns 1 if any of the opaque pixels in bitmap1 when positioned at x1, y1 with flip1 overlap any of the opaque pixels in bitmap2 at x2, y2 with flip2 within the non-empty rect, or 0 if no pixels overlap or if one or both fall completely outside of rect.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn check_mask_collision(
-        &self,
-        bitmap1: *mut sys::LCDBitmap,
-        x1: i32,
-        y1: i32,
-        flip1: LCDBitmapFlip,
-        bitmap2: *mut sys::LCDBitmap,
-        x2: i32,
-        y2: i32,
-        flip2: LCDBitmapFlip,
-        rect: SideOffsets2D<i32>,
-    ) -> i32 {
-        unsafe {
-            ((*self.handle).checkMaskCollision.unwrap())(
-                bitmap1,
-                x1,
-                y1,
-                flip1,
-                bitmap2,
-                x2,
-                y2,
-                flip2,
-                so2d_to_lcdrect(rect),
-            )
-        }
-    }
-
     /// Sets the current clip rect in screen coordinates.
     pub fn set_screen_clip_rect(&self, x: i32, y: i32, width: i32, height: i32) {
         unsafe {
@@ -578,11 +401,6 @@ impl PlaydateGraphics {
                 fillrule,
             );
         }
-    }
-
-    /// Returns the height of the given font.
-    pub(crate) fn get_font_height(&self, font: *mut sys::LCDFont) -> u8 {
-        unsafe { ((*self.handle).getFontHeight.unwrap())(font) }
     }
 
     /// Returns a bitmap containing the contents of the display buffer. The system owns this bitmap—​do not free it!
@@ -624,20 +442,6 @@ impl PlaydateGraphics {
         }
     }
 
-    /// Sets a mask image for the given bitmap. The set mask must be the same size as the target bitmap.
-    pub(crate) fn set_bitmap_mask(
-        &self,
-        bitmap: *mut sys::LCDBitmap,
-        mask: *mut sys::LCDBitmap,
-    ) -> i32 {
-        unsafe { ((*self.handle).setBitmapMask.unwrap())(bitmap, mask) }
-    }
-
-    /// Gets a mask image for the given bitmap. If the image doesn’t have a mask, getBitmapMask returns NULL.
-    pub(crate) fn get_bitmap_mask(&self, bitmap: *mut sys::LCDBitmap) -> Ref<Bitmap> {
-        Bitmap::from_ref(unsafe { ((*self.handle).getBitmapMask.unwrap())(bitmap) })
-    }
-
     /// Sets the stencil used for drawing. If the tile flag is set the stencil image will be tiled. Tiled stencils must have width equal to a multiple of 32 pixels.
     pub fn set_stencil_image(&self, stencil: impl AsRef<Bitmap>, tile: i32) {
         unsafe {
@@ -670,21 +474,21 @@ impl Bitmap {
 
     /// Allocates and returns a new width by height Bitmap filled with bgcolor.
     pub fn new(width: i32, height: i32, bgcolor: impl Into<LCDColor>) -> Self {
-        PLAYDATE.graphics.new_bitmap(width, height, bgcolor)
+        Self::from(unsafe {
+            ((*PLAYDATE.graphics.handle).newBitmap.unwrap())(width, height, bgcolor.into())
+        })
     }
 
     /// Clears bitmap, filling with the given bgcolor.
-    pub fn clear(&self) {
-        PLAYDATE
-            .graphics
-            .clear_bitmap(self.handle, LCDSolidColor::kColorWhite);
+    pub fn clear(&self, bgcolor: impl Into<LCDColor>) {
+        unsafe { ((*PLAYDATE.graphics.handle).clearBitmap.unwrap())(self.handle, bgcolor.into()) }
     }
 
     /// Sets a mask image for the given bitmap. The set mask must be the same size as the target bitmap.
     pub fn set_mask(&self, mask: impl AsRef<Bitmap>) -> Result<(), Error> {
-        let result = -PLAYDATE
-            .graphics
-            .set_bitmap_mask(self.handle, mask.as_ref().handle);
+        let result = unsafe {
+            ((*PLAYDATE.graphics.handle).setBitmapMask.unwrap())(self.handle, mask.as_ref().handle)
+        };
         if result != 1 {
             Err(Error::FailedToSetBitmapMask)
         } else {
@@ -694,7 +498,7 @@ impl Bitmap {
 
     /// Gets a mask image for the given bitmap. If the image doesn’t have a mask, getBitmapMask returns NULL.
     pub fn get_mask(&self) -> Ref<Bitmap> {
-        PLAYDATE.graphics.get_bitmap_mask(self.handle)
+        Self::from_ref(unsafe { ((*PLAYDATE.graphics.handle).getBitmapMask.unwrap())(self.handle) })
     }
 
     /// Returns `true` if any of the opaque pixels in `self` when positioned at `x1`, `y1` with `flip1` overlap any of the opaque pixels in `other` at `x2`, `y2` with `flip2` within the non-empty rect, or `false` if no pixels overlap or if one or both fall completely outside of rect.
@@ -710,39 +514,48 @@ impl Bitmap {
         flip2: LCDBitmapFlip,
         rect: SideOffsets2D<i32>,
     ) -> bool {
-        PLAYDATE.graphics.check_mask_collision(
-            self.handle,
-            x1,
-            y1,
-            flip1,
-            other.as_ref().handle,
-            x2,
-            y2,
-            flip2,
-            rect,
-        ) == 1
+        unsafe {
+            ((*PLAYDATE.graphics.handle).checkMaskCollision.unwrap())(
+                self.handle,
+                x1,
+                y1,
+                flip1,
+                other.as_ref().handle,
+                x2,
+                y2,
+                flip2,
+                so2d_to_lcdrect(rect),
+            ) == 1
+        }
     }
 
     /// Gets various info about bitmap including its width and height and raw pixel data. The data is 1 bit per pixel packed format, in MSB order; in other words, the high bit of the first byte in data is the top left pixel of the image. If the bitmap has a mask, a pointer to its data is returned in mask, else NULL is returned.
     pub fn get_bitmap_data(&self) -> BitmapData {
         let mut data = BitmapData::new();
-        PLAYDATE.graphics.get_bitmap_data(
-            self.handle,
-            &mut data.width,
-            &mut data.height,
-            &mut data.rowbytes,
-            &mut data.mask,
-            &mut data.data,
-        );
+        unsafe {
+            ((*PLAYDATE.graphics.handle).getBitmapData.unwrap())(
+                self.handle,
+                &mut data.width,
+                &mut data.height,
+                &mut data.rowbytes,
+                &mut data.mask,
+                &mut data.data,
+            )
+        }
         data
     }
 
     /// Loads the image at path into the previously allocated bitmap.
     pub fn load(&self, path: impl AsRef<str>) -> Result<(), Error> {
+        let c_string = CString::new(path.as_ref()).unwrap();
         let mut err: *const c_char = core::ptr::null();
-        PLAYDATE
-            .graphics
-            .load_into_bitmap(path, self.handle, &mut err);
+        unsafe {
+            ((*PLAYDATE.graphics.handle).loadIntoBitmap.unwrap())(
+                c_string.as_ptr() as _,
+                self.handle,
+                &mut err,
+            )
+        }
         if !err.is_null() {
             let err = unsafe { CString::from_raw(err as *mut c_char) };
             let err = err.into_string().unwrap();
@@ -754,21 +567,23 @@ impl Bitmap {
     /// Returns a new, rotated and scaled LCDBitmap based on the given bitmap.
     pub fn rotated(&self, rotation: f32, xscale: f32, yscale: f32) -> Bitmap {
         let mut alloced_size = 0;
-        Bitmap::from(PLAYDATE.graphics.rotated_bitmap(
-            self.handle,
-            rotation,
-            xscale,
-            yscale,
-            &mut alloced_size,
-        ))
+        Self::from(unsafe {
+            ((*PLAYDATE.graphics.handle).rotatedBitmap.unwrap())(
+                self.handle,
+                rotation,
+                xscale,
+                yscale,
+                &mut alloced_size,
+            )
+        })
     }
 
     /// Get color as an 8 x 8 pattern using the given bitmap. x, y indicates the top left corner of the 8 x 8 pattern.
     pub fn get_color_pattern(&self, x: i32, y: i32) -> ColorPatternData {
         let mut color = LCDColor::default();
-        PLAYDATE
-            .graphics
-            .set_color_to_pattern(&mut color, self.handle, x, y);
+        unsafe {
+            ((*PLAYDATE.graphics.handle).setColorToPattern.unwrap())(&mut color, self.handle, x, y);
+        }
         if let Some(scolor) = color.as_solid_color() {
             ColorPatternData::Solid(scolor)
         } else {
@@ -796,14 +611,14 @@ impl Eq for Bitmap {}
 
 impl Drop for Bitmap {
     fn drop(&mut self) {
-        PLAYDATE.graphics.free_bitmap(self.handle);
+        unsafe { ((*PLAYDATE.graphics.handle).freeBitmap.unwrap())(self.handle) }
     }
 }
 
 impl Clone for Bitmap {
     fn clone(&self) -> Self {
         Bitmap {
-            handle: PLAYDATE.graphics.copy_bitmap(self.handle),
+            handle: unsafe { ((*PLAYDATE.graphics.handle).copyBitmap.unwrap())(self.handle) },
         }
     }
 }
@@ -854,15 +669,20 @@ impl BitmapTable {
         Self { handle }
     }
 
-    pub fn new(count: usize, width: i32, height: i32) -> Self {
-        PLAYDATE
-            .graphics
-            .new_bitmap_table(count as _, width, height)
+    pub fn new(count: usize, width: usize, height: usize) -> Self {
+        BitmapTable::from(unsafe {
+            ((*PLAYDATE.graphics.handle).newBitmapTable.unwrap())(
+                count as _,
+                width as _,
+                height as _,
+            )
+        })
     }
 
     /// Returns the idx bitmap in table, If idx is out of bounds, the function returns NULL.
     pub fn get(&self, idx: usize) -> Option<Ref<Bitmap>> {
-        let ptr = PLAYDATE.graphics.get_table_bitmap(self.handle, idx as _);
+        let ptr =
+            unsafe { ((*PLAYDATE.graphics.handle).getTableBitmap.unwrap())(self.handle, idx as _) };
         if ptr.is_null() {
             return None;
         }
@@ -871,10 +691,15 @@ impl BitmapTable {
 
     /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
     pub fn load(&self, path: impl AsRef<str>) -> Result<(), Error> {
+        let c_string = CString::new(path.as_ref()).unwrap();
         let mut err: *const c_char = core::ptr::null();
-        PLAYDATE
-            .graphics
-            .load_into_bitmap_table(path, self.handle, &mut err);
+        unsafe {
+            ((*PLAYDATE.graphics.handle).loadIntoBitmapTable.unwrap())(
+                c_string.as_ptr() as _,
+                self.handle,
+                &mut err,
+            )
+        }
         if !err.is_null() {
             let err = unsafe { CString::from_raw(err as *mut c_char) };
             let err = err.into_string().unwrap();
@@ -886,7 +711,7 @@ impl BitmapTable {
 
 impl Drop for BitmapTable {
     fn drop(&mut self) {
-        PLAYDATE.graphics.free_bitmap_table(self.handle);
+        unsafe { ((*PLAYDATE.graphics.handle).freeBitmapTable.unwrap())(self.handle) }
     }
 }
 
@@ -905,19 +730,27 @@ impl Font {
 
     /// Returns the height of the given font.
     pub fn get_height(&self) -> u8 {
-        PLAYDATE.graphics.get_font_height(self.handle)
+        unsafe { ((*PLAYDATE.graphics.handle).getFontHeight.unwrap())(self.handle) }
     }
 
     /// Returns the width of the given text in the given font.
     pub fn get_text_width(&self, text: impl AsRef<str>, tracking: i32) -> i32 {
-        PLAYDATE
-            .graphics
-            .get_text_width(self.handle, text, tracking)
+        let ptr = text.as_ref().as_ptr() as *const c_void;
+        let len = text.as_ref().len();
+        unsafe {
+            ((*PLAYDATE.graphics.handle).getTextWidth.unwrap())(
+                self.handle,
+                ptr,
+                len,
+                sys::PDStringEncoding::kUTF8Encoding,
+                tracking,
+            )
+        }
     }
 
     /// Returns an LCDFontPage object for the given character code. Each LCDFontPage contains information for 256 characters; specifically, if (c1 & ~0xff) == (c2 & ~0xff), then c1 and c2 belong to the same page and the same LCDFontPage can be used to fetch the character data for both instead of searching for the page twice.
     pub fn get_page(&self, c: u32) -> FontPage {
-        FontPage::new(PLAYDATE.graphics.get_font_page(self.handle, c))
+        FontPage::new(unsafe { ((*PLAYDATE.graphics.handle).getFontPage.unwrap())(self.handle, c) })
     }
 }
 
@@ -938,12 +771,14 @@ impl FontPage {
     pub fn get_glyph(&self, c: u32) -> (FontGlyph, Option<Ref<Bitmap>>, Option<i32>) {
         let mut bitmap = core::ptr::null_mut();
         let mut advance = 0;
-        let glyph = FontGlyph::new(PLAYDATE.graphics.get_page_glyph(
-            self.handle,
-            c,
-            &mut bitmap,
-            &mut advance,
-        ));
+        let glyph = FontGlyph::new(unsafe {
+            (*PLAYDATE.graphics.handle).getPageGlyph.unwrap()(
+                self.handle,
+                c,
+                &mut bitmap,
+                &mut advance,
+            )
+        });
         let bitmap = if bitmap.is_null() {
             None
         } else {
@@ -969,6 +804,6 @@ impl FontGlyph {
 
     /// Returns the kerning adjustment between characters c1 and c2 as specified by the font.
     pub fn get_kerning(&self, c1: u32, c2: u32) -> i32 {
-        PLAYDATE.graphics.get_glyph_kerning(self.handle, c1, c2)
+        unsafe { ((*PLAYDATE.graphics.handle).getGlyphKerning.unwrap())(self.handle, c1, c2) }
     }
 }
