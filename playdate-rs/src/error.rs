@@ -11,6 +11,7 @@ pub enum Error {
     FailedToLoadBitMapFromBitMapTable(String),
     // IO Error
     IO(io::Error),
+    FileNotExists(String),
     // Lua
     Lua(String),
     // All other unknown errors
