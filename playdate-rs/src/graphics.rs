@@ -665,7 +665,7 @@ impl Bitmap {
     }
 
     pub(crate) fn from_ref<'a>(handle: *mut sys::LCDBitmap) -> Ref<'a, Self> {
-        Ref::from(Self { handle })
+        Ref::new(Self { handle })
     }
 
     /// Allocates and returns a new width by height Bitmap filled with bgcolor.

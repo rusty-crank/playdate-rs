@@ -34,7 +34,7 @@ impl SamplePlayer {
     }
 
     fn new_ref<'a>(handle: *mut sys::SamplePlayer) -> Ref<'a, Self> {
-        Ref::from(Self { handle })
+        Ref::new(Self { handle })
     }
 
     pub(crate) fn as_sound_source(&self) -> Ref<SoundSource> {

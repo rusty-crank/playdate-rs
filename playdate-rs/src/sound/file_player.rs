@@ -37,7 +37,7 @@ impl FilePlayer {
     }
 
     fn new_ref<'a>(handle: *mut sys::FilePlayer) -> Ref<'a, Self> {
-        Ref::from(Self { handle })
+        Ref::new(Self { handle })
     }
 
     pub(crate) fn as_sound_source(&self) -> Ref<SoundSource> {

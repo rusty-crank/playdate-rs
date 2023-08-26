@@ -613,7 +613,7 @@ impl Sprite {
     }
 
     pub(crate) fn from_ref<'a>(handle: *mut sys::LCDSprite) -> Ref<'a, Self> {
-        Ref::from(Self { handle })
+        Ref::new(Self { handle })
     }
 
     /// Allocates and returns a new Sprite.

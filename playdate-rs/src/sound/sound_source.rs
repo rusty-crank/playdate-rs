@@ -38,7 +38,7 @@ impl SoundSource {
     // }
 
     pub(crate) fn new_ref<'a>(handle: *mut sys::SoundSource) -> Ref<'a, Self> {
-        Ref::from(Self { handle })
+        Ref::new(Self { handle })
     }
 
     pub(crate) fn drop_callbacks(&self) {

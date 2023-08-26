@@ -8,7 +8,7 @@ pub struct Ref<'a, T: Sized> {
 }
 
 impl<'a, T: Sized> Ref<'a, T> {
-    pub(crate) fn from(wrapper: T) -> Self {
+    pub(crate) fn new(wrapper: T) -> Self {
         Self {
             wrapper: ManuallyDrop::new(wrapper),
             _marker: PhantomData,
