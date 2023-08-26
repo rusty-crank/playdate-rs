@@ -248,56 +248,6 @@ impl PlaydateSystem {
         unsafe { (*self.handle).removeAllMenuItems.unwrap()() }
     }
 
-    /// Removes the menu item from the system menu.
-    pub(crate) fn remove_menu_item(&self, menu_item: *mut sys::PDMenuItem) {
-        unsafe { (*self.handle).removeMenuItem.unwrap()(menu_item) }
-    }
-
-    /// Gets the integer value of the menu item.
-    ///
-    /// For checkmark menu items, 1 means checked, 0 unchecked. For option menu items, the value indicates the array index of the currently selected option.
-    pub(crate) fn get_menu_item_value(&self, menu_item: *mut sys::PDMenuItem) -> i32 {
-        unsafe { (*self.handle).getMenuItemValue.unwrap()(menu_item) }
-    }
-
-    /// Sets the integer value of the menu item.
-    ///
-    /// For checkmark menu items, 1 means checked, 0 unchecked. For option menu items, the value indicates the array index of the currently selected option.
-    pub(crate) fn set_menu_item_value(&self, menu_item: *mut sys::PDMenuItem, value: i32) {
-        unsafe { (*self.handle).setMenuItemValue.unwrap()(menu_item, value) }
-    }
-
-    /// Gets the display title of the menu item.
-    pub(crate) fn get_menu_item_title(&self, menu_item: *mut sys::PDMenuItem) -> *const c_char {
-        unsafe { (*self.handle).getMenuItemTitle.unwrap()(menu_item) }
-    }
-
-    /// Sets the display title of the menu item.
-    pub(crate) fn set_menu_item_title(
-        &self,
-        menu_item: *mut sys::PDMenuItem,
-        title: impl AsRef<str>,
-    ) {
-        unsafe {
-            let c_string = CString::new(title.as_ref()).unwrap();
-            (*self.handle).setMenuItemTitle.unwrap()(menu_item, c_string.as_ptr() as *mut c_char)
-        }
-    }
-
-    /// Gets the userdata value associated with this menu item.
-    pub(crate) fn get_menu_item_userdata(&self, menu_item: *mut sys::PDMenuItem) -> *mut c_void {
-        unsafe { (*self.handle).getMenuItemUserdata.unwrap()(menu_item) }
-    }
-
-    /// Sets the userdata value associated with this menu item.
-    pub(crate) fn set_menu_item_userdata(
-        &self,
-        menu_item: *mut sys::PDMenuItem,
-        userdata: *mut c_void,
-    ) {
-        unsafe { (*self.handle).setMenuItemUserdata.unwrap()(menu_item, userdata) }
-    }
-
     /// Returns 1 if the global "reduce flashing" system setting is set, otherwise 0.
     pub fn get_reduce_flashing(&self) -> bool {
         unsafe {
@@ -376,19 +326,19 @@ impl MenuItem {
     ///
     /// For checkmark menu items, 1 means checked, 0 unchecked. For option menu items, the value indicates the array index of the currently selected option.
     pub fn get_value(&self) -> i32 {
-        PLAYDATE.system.get_menu_item_value(self.handle)
+        unsafe { (*PLAYDATE.system.handle).getMenuItemValue.unwrap()(self.handle) }
     }
 
     /// Sets the integer value of the menu item.
     ///
     /// For checkmark menu items, 1 means checked, 0 unchecked. For option menu items, the value indicates the array index of the currently selected option.
     pub fn set_value(&self, value: i32) {
-        PLAYDATE.system.set_menu_item_value(self.handle, value)
+        unsafe { (*PLAYDATE.system.handle).setMenuItemValue.unwrap()(self.handle, value) }
     }
 
     /// Gets the display title of the menu item.
     pub fn get_title(&self) -> &str {
-        let c_buf = PLAYDATE.system.get_menu_item_title(self.handle);
+        let c_buf = unsafe { (*PLAYDATE.system.handle).getMenuItemTitle.unwrap()(self.handle) };
         let c_str: &CStr = unsafe { CStr::from_ptr(c_buf) };
         let s: &str = c_str.to_str().unwrap();
         s
@@ -396,27 +346,31 @@ impl MenuItem {
 
     /// Sets the display title of the menu item.
     pub fn set_title(&self, title: impl AsRef<str>) {
-        PLAYDATE.system.set_menu_item_title(self.handle, title)
+        let c_string = CString::new(title.as_ref()).unwrap();
+        unsafe {
+            (*PLAYDATE.system.handle).setMenuItemTitle.unwrap()(
+                self.handle,
+                c_string.as_ptr() as *mut c_char,
+            )
+        }
     }
 
     /// Gets the userdata value associated with this menu item.
     #[allow(unused)]
     pub(crate) fn get_userdata(&self) -> *mut c_void {
-        PLAYDATE.system.get_menu_item_userdata(self.handle)
+        unsafe { (*PLAYDATE.system.handle).getMenuItemUserdata.unwrap()(self.handle) }
     }
 
     /// Sets the userdata value associated with this menu item.
     #[allow(unused)]
     pub(crate) fn set_userdata(&self, userdata: *mut c_void) {
-        PLAYDATE
-            .system
-            .set_menu_item_userdata(self.handle, userdata)
+        unsafe { (*PLAYDATE.system.handle).setMenuItemUserdata.unwrap()(self.handle, userdata) }
     }
 }
 
 impl Drop for MenuItem {
     fn drop(&mut self) {
-        PLAYDATE.system.remove_menu_item(self.handle);
+        unsafe { (*PLAYDATE.system.handle).removeMenuItem.unwrap()(self.handle) }
     }
 }
 
