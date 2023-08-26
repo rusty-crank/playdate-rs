@@ -4,11 +4,11 @@ pub use sys::{FileOptions, FileStat, SEEK_CUR, SEEK_END, SEEK_SET};
 
 use no_std_io::io::{self, Read, Seek, Write};
 
-pub struct FileSystem {
+pub struct PlaydateFileSystem {
     handle: *const sys::playdate_file,
 }
 
-impl FileSystem {
+impl PlaydateFileSystem {
     pub(crate) fn new(handle: *const sys::playdate_file) -> Self {
         Self { handle }
     }

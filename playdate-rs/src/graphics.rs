@@ -23,16 +23,16 @@ pub(crate) fn so2d_to_lcdrect(r: SideOffsets2D<i32>) -> sys::LCDRect {
 
 use crate::{error::Error, PLAYDATE};
 
-pub struct Graphics {
+pub struct PlaydateGraphics {
     handle: *const sys::playdate_graphics,
-    pub video: crate::video::Video,
+    pub video: crate::video::PlaydateVideo,
 }
 
-impl Graphics {
+impl PlaydateGraphics {
     pub(crate) fn new(handle: *const sys::playdate_graphics) -> Self {
-        Graphics {
+        Self {
             handle,
-            video: crate::video::Video::new(unsafe { (*handle).video }),
+            video: crate::video::PlaydateVideo::new(unsafe { (*handle).video }),
         }
     }
 

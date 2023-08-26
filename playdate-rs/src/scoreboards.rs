@@ -1,9 +1,9 @@
-pub struct Scoreboards {
+pub struct PlaydateScoreboards {
     #[allow(unused)]
     handle: *const sys::playdate_scoreboards,
 }
 
-impl Scoreboards {
+impl PlaydateScoreboards {
     pub(crate) fn new(handle: *const sys::playdate_scoreboards) -> Self {
         Self { handle }
     }

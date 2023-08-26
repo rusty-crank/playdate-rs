@@ -1,4 +1,4 @@
-pub struct Sound {
+pub struct PlaydateSound {
     #[allow(unused)]
     handle: *const sys::playdate_sound,
     // pub channel: *const playdate_sound_channel,
@@ -17,9 +17,14 @@ pub struct Sound {
     // pub signal: *const playdate_sound_signal,
 }
 
-impl Sound {
+impl PlaydateSound {
     pub(crate) fn new(handle: *const sys::playdate_sound) -> Self {
         Self { handle }
+    }
+
+    /// Returns the sound engine’s current time value, in units of sample frames, 44,100 per second.
+    pub fn get_current_time(&self) -> u32 {
+        unsafe { (*self.handle).getCurrentTime.unwrap()() }
     }
 
     // pub getCurrentTime: ::core::option::Option<unsafe extern "C" fn() -> u32>,
@@ -30,6 +35,17 @@ impl Sound {
     //         stereo: ::core::ffi::c_int,
     //     ) -> *mut SoundSource,
     // >,
+
+    // Returns the default channel, where sound sources play if they haven’t been explicity assigned to a different channel.
+    // pub(crate) fn get_default_channel(&self) -> Option<sys::SoundChannel> {
+    //     let channel = unsafe { (*self.handle).getDefaultChannel.unwrap()() };
+    //     if channel.is_null() {
+    //         None
+    //     } else {
+    //         Some(SoundChannel::new(channel))
+    //     }
+    // }
+
     // pub getDefaultChannel: ::core::option::Option<unsafe extern "C" fn() -> *mut SoundChannel>,
     // pub addChannel: ::core::option::Option<
     //     unsafe extern "C" fn(channel: *mut SoundChannel) -> ::core::ffi::c_int,
@@ -59,4 +75,8 @@ impl Sound {
     // pub removeSource: ::core::option::Option<
     //     unsafe extern "C" fn(source: *mut SoundSource) -> ::core::ffi::c_int,
     // >,
+}
+
+struct SoundSource {
+    handle: *const sys::playdate_sound_source,
 }

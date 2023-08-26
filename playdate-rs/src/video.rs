@@ -2,11 +2,11 @@ use alloc::{borrow::ToOwned, ffi::CString, string::String};
 
 use crate::{graphics::Bitmap, util::Ref, PLAYDATE};
 
-pub struct Video {
+pub struct PlaydateVideo {
     handle: *const sys::playdate_video,
 }
 
-impl Video {
+impl PlaydateVideo {
     pub(crate) fn new(handle: *const sys::playdate_video) -> Self {
         Self { handle }
     }

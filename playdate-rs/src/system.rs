@@ -9,13 +9,13 @@ pub use sys::{
 
 use crate::{graphics::Bitmap, PLAYDATE};
 
-pub struct System {
+pub struct PlaydateSystem {
     handle: *const sys::playdate_sys,
 }
 
-impl System {
+impl PlaydateSystem {
     pub(crate) fn new(handle: *const sys::playdate_sys) -> Self {
-        System { handle }
+        Self { handle }
     }
 
     /// Allocates heap space if ptr is NULL, else reallocates the given pointer. If size is zero, frees the given pointer.

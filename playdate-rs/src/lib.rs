@@ -28,19 +28,19 @@ pub use playdate_rs_macros::app;
 pub struct Playdate {
     raw_api: *mut sys::PlaydateAPI,
     /// System interaction
-    pub system: system::System,
+    pub system: system::PlaydateSystem,
     /// Filesystem operations
-    pub file: fs::FileSystem,
+    pub file: fs::PlaydateFileSystem,
     /// Graphics operations and drawing functions
-    pub graphics: graphics::Graphics,
+    pub graphics: graphics::PlaydateGraphics,
     /// Sprite and global sprite display list operations
-    pub sprite: sprite::_Sprite,
+    pub sprite: sprite::PlaydateSprite,
     /// Display operations and management
-    pub display: display::Display,
+    pub display: display::PlaydateDisplay,
     /// Sound controls
-    pub sound: sound::Sound,
+    pub sound: sound::PlaydateSound,
     /// Scoreboard operations (unimplemented)
-    pub scoreboards: scoreboards::Scoreboards,
+    pub scoreboards: scoreboards::PlaydateScoreboards,
     /// Lua VM interactions (unimplemented)
     pub lua: lua::Lua,
     // The playdate JSON lib is not supported. Please use serde instead:
@@ -55,13 +55,13 @@ impl Playdate {
         let playdate_ref = unsafe { &*playdate };
         Self {
             raw_api: playdate,
-            system: system::System::new(playdate_ref.system),
-            file: fs::FileSystem::new(playdate_ref.file),
-            graphics: graphics::Graphics::new(playdate_ref.graphics),
-            sprite: sprite::_Sprite::new(playdate_ref.sprite),
-            display: display::Display::new(playdate_ref.display),
-            sound: sound::Sound::new(playdate_ref.sound),
-            scoreboards: scoreboards::Scoreboards::new(playdate_ref.scoreboards),
+            system: system::PlaydateSystem::new(playdate_ref.system),
+            file: fs::PlaydateFileSystem::new(playdate_ref.file),
+            graphics: graphics::PlaydateGraphics::new(playdate_ref.graphics),
+            sprite: sprite::PlaydateSprite::new(playdate_ref.sprite),
+            display: display::PlaydateDisplay::new(playdate_ref.display),
+            sound: sound::PlaydateSound::new(playdate_ref.sound),
+            scoreboards: scoreboards::PlaydateScoreboards::new(playdate_ref.scoreboards),
             lua: lua::Lua::new(playdate_ref.lua),
         }
     }

@@ -1,8 +1,8 @@
-pub struct Display {
+pub struct PlaydateDisplay {
     handle: *const sys::playdate_display,
 }
 
-impl Display {
+impl PlaydateDisplay {
     pub(crate) fn new(handle: *const sys::playdate_display) -> Self {
         Self { handle }
     }

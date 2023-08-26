@@ -36,11 +36,11 @@ fn collision_vec_to_vec(vec: sys::CollisionVector) -> Vec2D<i32> {
     Vec2D::new(vec.x, vec.y)
 }
 
-pub struct _Sprite {
+pub struct PlaydateSprite {
     handle: *const sys::playdate_sprite,
 }
 
-impl _Sprite {
+impl PlaydateSprite {
     pub(crate) fn new(handle: *const sys::playdate_sprite) -> Self {
         Self { handle }
     }
