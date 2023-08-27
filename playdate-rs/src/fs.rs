@@ -121,7 +121,7 @@ impl PlaydateFileSystem {
     /// Closes the given file handle. Returns 0 on success, or -1 in case of error.
     pub(crate) fn close(&self, file: *mut sys::SDFile) -> io::Result<()> {
         let result = unsafe { (*self.handle).close.unwrap()(file) };
-        if result != 0 {
+        if result == 0 {
             Ok(())
         } else {
             Err(self.get_error().unwrap())
