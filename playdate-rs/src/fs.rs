@@ -2,7 +2,9 @@ use alloc::ffi::CString;
 
 pub use sys::{FileOptions, FileStat, SEEK_CUR, SEEK_END, SEEK_SET};
 
-use no_std_io::io::{self, Read, Seek, Write};
+use no_std_io::io::{self};
+
+pub use no_std_io::io::{Read, Seek, Write};
 
 pub struct PlaydateFileSystem {
     handle: *const sys::playdate_file,
@@ -202,6 +204,13 @@ impl File {
     /// Open a new file
     pub fn open(name: impl AsRef<str>, mode: FileOptions) -> io::Result<Self> {
         PLAYDATE.file.open(name, mode)
+    }
+
+    /// Read the entire content to a string
+    pub fn read_to_string(&mut self) -> io::Result<String> {
+        let mut buf = Vec::new();
+        self.read_to_end(&mut buf)?;
+        Ok(String::from_utf8(buf).unwrap())
     }
 }
 
