@@ -1,6 +1,12 @@
 [package]
 name = "playdate-rs"
-description = "Rust type-safe bindings for the Playdate SDK"
+description = "Safe Rust bindings for the Playdate SDK C-CPI"
+repository = "https://github.com/rusty-crank/playdate-rs"
+categories = ["api-bindings", "embedded", "game-development", "no-std"]
+documentation = "https://docs.rs/playdate-rs"
+readme = "../README.md"
+homepage = "https://github.com/rusty-crank/playdate-rs"
+keywords = ["playdate", "gamedev"]
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

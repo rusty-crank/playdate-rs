@@ -16,7 +16,7 @@ members = [
 version = "0.0.6"
 edition = "2021"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
-license = "MIT"
+license = "MIT OR Apache-2.0"
 
 [profile.dev]
 panic = "abort"

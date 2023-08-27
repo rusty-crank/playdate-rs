@@ -1,6 +1,16 @@
 [package]
 name = "playdate-cli"
-description = "playdate-rs command line tools"
+description = "The CLI tools for playdate-rs"
+repository = "https://github.com/rusty-crank/playdate-rs"
+categories = [
+    "api-bindings",
+    "command-line-utilities",
+    "embedded",
+    "game-development",
+    "no-std",
+]
+homepage = "https://github.com/rusty-crank/playdate-rs"
+keywords = ["playdate", "gamedev"]
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
