@@ -22,6 +22,8 @@ Only works on Linux/macOS with the playdate simulator for now.
 3. Create a new project: `cargo playdate new hello-world`
 4. Run the project: `cd hello-world && cargo playdate run`
 
+_Please refer to [Playdate CLI docs](playdate-cli/README.md) for all the available CLI commands._
+
 # Application Bundling
 
 The `cargo playdate build` command will automatically create a `target/<profile>/<package_name>.pdx` folder that can run on the simulator. For the device build, it will be located at `target/thumbv7em-none-eabihf/<profile>/<package_name>.pdx`.
