@@ -1,22 +1,26 @@
 # playdate-rs
 
-[![crates.io](https://img.shields.io/crates/v/playdate-rs.svg)](https://crates.io/crates/playdate-rs)
-[![docs](https://img.shields.io/docsrs/playdate-rs/latest)](https://docs.rs/playdate-rs)
-[![workflow-status](https://github.com/rusty-crank/playdate-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/rusty-crank/playdate-rs/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/playdate-rs?style=for-the-badge&logo=rust)](https://crates.io/crates/playdate-rs)
+[![docs](https://img.shields.io/docsrs/playdate-rs/latest?style=for-the-badge&logo=docs.rs)](https://docs.rs/playdate-rs)
+[![workflow-status](https://img.shields.io/github/actions/workflow/status/rusty-crank/playdate-rs/ci.yml?style=for-the-badge&logo=github&label=checks)](https://github.com/rusty-crank/playdate-rs/actions/workflows/ci.yml)
 
 ***Note: Prior to reaching v0.1.0, this is a work in progress. The API is incomplete, and breaking changes can occur frequently across versions.***
 
-Bindings for the [Playdate](https://play.date) SDK C-API.
+Safe binding for the [Playdate](https://play.date) SDK C-API that:
+
+1. Is easy to use and well documented.
+2. Does not require the Rust nightly toolchain.
+3. Is designed with memory safety in mind.
 
 Only works on Linux/macOS with the playdate simulator for now.
 
 # Getting Started
 
-1. Make sure the env variable `PLAYDATE_SDK_PATH` is correctly set.
-   * Skip this step on macOS. The crate will automatically find the SDK by checking the default install location.
-2. `cargo install playdate-cli`
-3. `cargo playdate new hello-world`
-4. `cd hello-world && cargo playdate run`
+1. Ensure that the environment variable `PLAYDATE_SDK_PATH` is correctly set.
+   * Skip this step on macOS, as the crate will automatically find the SDK by checking the default installation location.
+2. Install the CLI tool: `cargo install playdate-cli`
+3. Create a new project: `cargo playdate new hello-world`
+4. Run the project: `cd hello-world && cargo playdate run`
 
 # Application Bundling
 
