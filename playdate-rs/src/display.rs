@@ -8,13 +8,13 @@ impl PlaydateDisplay {
     }
 
     /// Returns the height of the display, taking the current scale into account; e.g., if the scale is 2, this function returns 120 instead of 240.
-    pub fn get_width(&self) -> i32 {
-        unsafe { (*self.handle).getWidth.unwrap()() }
+    pub fn get_width(&self) -> u32 {
+        unsafe { (*self.handle).getWidth.unwrap()() as _ }
     }
 
     /// Returns the width of the display, taking the current scale into account; e.g., if the scale is 2, this function returns 200 instead of 400.
-    pub fn get_height(&self) -> i32 {
-        unsafe { (*self.handle).getHeight.unwrap()() }
+    pub fn get_height(&self) -> u32 {
+        unsafe { (*self.handle).getHeight.unwrap()() as _ }
     }
 
     /// Sets the nominal refresh rate in frames per second. Default is 20 fps, the maximum rate supported by the hardware for full-frame updates.
@@ -23,8 +23,8 @@ impl PlaydateDisplay {
     }
 
     /// If flag evaluates to true, the frame buffer is drawn inverted—black instead of white, and vice versa.
-    pub fn set_inverted(&self, flag: i32) {
-        unsafe { (*self.handle).setInverted.unwrap()(flag) }
+    pub fn set_inverted(&self, flag: bool) {
+        unsafe { (*self.handle).setInverted.unwrap()(flag as _) }
     }
 
     /// Sets the display scale factor. Valid values for scale are 1, 2, 4, and 8.
@@ -50,5 +50,5 @@ impl PlaydateDisplay {
     }
 }
 
-pub const DISPLAY_WIDTH: i32 = 400;
-pub const DISPLAY_HEIGHT: i32 = 240;
+pub const DISPLAY_WIDTH: u32 = 400;
+pub const DISPLAY_HEIGHT: u32 = 240;

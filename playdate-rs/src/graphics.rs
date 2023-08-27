@@ -473,9 +473,13 @@ impl Bitmap {
     }
 
     /// Allocates and returns a new width by height Bitmap filled with bgcolor.
-    pub fn new(width: i32, height: i32, bgcolor: impl Into<LCDColor>) -> Self {
+    pub fn new(width: u32, height: u32, bgcolor: impl Into<LCDColor>) -> Self {
         Self::from(unsafe {
-            ((*PLAYDATE.graphics.handle).newBitmap.unwrap())(width, height, bgcolor.into())
+            ((*PLAYDATE.graphics.handle).newBitmap.unwrap())(
+                width as _,
+                height as _,
+                bgcolor.into(),
+            )
         })
     }
 
@@ -669,7 +673,7 @@ impl BitmapTable {
         Self { handle }
     }
 
-    pub fn new(count: usize, width: usize, height: usize) -> Self {
+    pub fn new(count: usize, width: u32, height: u32) -> Self {
         BitmapTable::from(unsafe {
             ((*PLAYDATE.graphics.handle).newBitmapTable.unwrap())(
                 count as _,
@@ -677,6 +681,17 @@ impl BitmapTable {
                 height as _,
             )
         })
+    }
+
+    pub fn open(
+        count: usize,
+        width: u32,
+        height: u32,
+        path: impl AsRef<str>,
+    ) -> Result<Self, Error> {
+        let mut table = Self::new(count, width, height);
+        table.load(path)?;
+        Ok(table)
     }
 
     /// Returns the idx bitmap in table, If idx is out of bounds, the function returns NULL.
@@ -690,7 +705,7 @@ impl BitmapTable {
     }
 
     /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
-    pub fn load(&self, path: impl AsRef<str>) -> Result<(), Error> {
+    pub fn load(&mut self, path: impl AsRef<str>) -> Result<(), Error> {
         let c_string = CString::new(path.as_ref()).unwrap();
         let mut err: *const c_char = core::ptr::null();
         unsafe {
