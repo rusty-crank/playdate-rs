@@ -30,15 +30,15 @@ The `cargo playdate build` command will automatically create a `target/<profile>
 
 ## Game assets bundling
 
-Please put all the assets file under the `assets` folder under the project root directory (the folder containing `Cargo.toml`). The CLI will automatically copy all the contents to the `.pdx` folder. All supported resources will be transformed by the `pdc` compiler.
+Please put all assets files under the `assets` folder in the project's root directory (the folder containing `Cargo.toml`). The CLI will automatically copy all contents to the `.pdx` folder. All supported resources will be transformed by the `pdc` compiler.
 
-Please refer to the [examples/hello-world](examples/hello-world) project for more details.
+For more details, please refer to the [examples/hello-world](examples/hello-world) project.
 
 ##  `pdxinfo` generation and bundling
 
 The CLI will automatically generate a `pdxinfo` file under the `.pdx` folder. There are two ways to set the content of the `pdxinfo` file:
 
-1. Create a pdxinfo file under the project root directory (the folder containing `Cargo.toml`). The CLI will automatically pick it up.
+1. Create a pdxinfo file in the project's root directory (the folder containing `Cargo.toml`). The CLI will automatically pick it up.
 2. Create a `[package.metadata.pdxinfo]` section in `Cargo.toml`:
 
 ```toml
@@ -53,7 +53,7 @@ content_warning = "Content warning" # Default value: empty string
 content_warning2 = "Content warning 2" # Default value: empty string
 ```
 
-_Note that all the fields in `[package.metadata.pdxinfo]` are optional. The default value will be derived from other fields in `Cargo.toml`. Please refer to the `# Default value` comments above._
+_Note that all fields in `[package.metadata.pdxinfo]` are optional. The default value will be derived from other fields in `Cargo.toml`. Please refer to the `# Default value` comments above._
 
 Example: [examples/hello-world/Cargo.toml](examples/hello-world/Cargo.toml).
 
@@ -63,4 +63,3 @@ Example: [examples/hello-world/Cargo.toml](examples/hello-world/Cargo.toml).
 * [x] Cortex-M7F build
 * [ ] Support all public PlaydateSDK C-API
 * [ ] Run on real playdate device
-* [ ] Async support
