@@ -101,11 +101,11 @@ impl Mandelbrot {
         let iter = self.get_iter();
         for y in 0..DISPLAY_HEIGHT {
             for x in 0..DISPLAY_WIDTH {
-                let c = Point2D::new(x, y);
+                let c = Point2D::new(x as i32, y as i32);
                 let v = f(Complex::from_point(c, self.center, self.scale), iter);
                 PLAYDATE.graphics.draw_pixel(
-                    x,
-                    y,
+                    x as i32,
+                    y as i32,
                     if v {
                         LCDSolidColor::kColorBlack
                     } else {
@@ -120,24 +120,24 @@ impl Mandelbrot {
         let text_area_width = 130;
         let row_height = 14;
         let text_area_height = row_height * 3;
-        let top_left_x = DISPLAY_WIDTH - text_area_width;
+        let top_left_x = DISPLAY_WIDTH as i32 - text_area_width;
         PLAYDATE.graphics.draw_rect(
             top_left_x - 3,
-            DISPLAY_HEIGHT - text_area_height - 3,
+            DISPLAY_HEIGHT as i32 - text_area_height - 3,
             text_area_width + 3,
             text_area_height + 3,
             LCDSolidColor::kColorWhite,
         );
         PLAYDATE.graphics.fill_rect(
             top_left_x - 2,
-            DISPLAY_HEIGHT - text_area_height - 2,
+            DISPLAY_HEIGHT as i32 - text_area_height - 2,
             text_area_width + 2,
             text_area_height + 2,
             LCDSolidColor::kColorBlack,
         );
         PLAYDATE.graphics.fill_rect(
             top_left_x,
-            DISPLAY_HEIGHT - text_area_height,
+            DISPLAY_HEIGHT as i32 - text_area_height,
             text_area_width,
             text_area_height,
             LCDSolidColor::kColorWhite,
@@ -145,17 +145,17 @@ impl Mandelbrot {
         PLAYDATE.graphics.draw_text(
             format!("<{:.4}, {:.4}i>", self.center.re, self.center.im,),
             top_left_x + 2,
-            DISPLAY_HEIGHT - row_height * 3,
+            DISPLAY_HEIGHT as i32 - row_height * 3,
         );
         PLAYDATE.graphics.draw_text(
             format!("SCALE: {:.8}", 1.0 / (self.scale * 100.0)),
             top_left_x + 2,
-            DISPLAY_HEIGHT - row_height * 2,
+            DISPLAY_HEIGHT as i32 - row_height * 2,
         );
         PLAYDATE.graphics.draw_text(
             format!("ITER: {:}", self.get_iter()),
             top_left_x + 2,
-            DISPLAY_HEIGHT - row_height,
+            DISPLAY_HEIGHT as i32 - row_height,
         );
     }
 }
