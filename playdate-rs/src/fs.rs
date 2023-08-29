@@ -1,4 +1,6 @@
 use alloc::ffi::CString;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 pub use sys::{FileOptions, FileStat, SEEK_CUR, SEEK_END, SEEK_SET};
 

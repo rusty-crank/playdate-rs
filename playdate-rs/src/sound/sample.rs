@@ -1,5 +1,6 @@
 use crate::{error::Error, PLAYDATE};
 
+use alloc::borrow::ToOwned;
 use alloc::ffi::CString;
 pub use sys::SoundFormat;
 

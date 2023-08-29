@@ -1,5 +1,6 @@
 use core::cell::RefCell;
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use playdate_rs_sys::LCDPattern;
 

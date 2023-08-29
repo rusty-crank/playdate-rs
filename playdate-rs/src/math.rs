@@ -1,5 +1,7 @@
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
-
+// required for thumbv7em builds
+#[allow(unused_imports)]
+use num_traits::Float;
 use num_traits::Signed;
 
 #[macro_export]

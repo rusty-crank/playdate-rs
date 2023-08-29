@@ -1,3 +1,5 @@
+use alloc::borrow::ToOwned;
+use alloc::boxed::Box;
 use alloc::{collections::BTreeMap, ffi::CString};
 use spin::Mutex;
 
