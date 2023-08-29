@@ -1,5 +1,8 @@
 #![no_std]
 
+#[macro_use]
+extern crate playdate_rs;
+
 use playdate_rs::graphics::{Bitmap, LCDSolidColor};
 use playdate_rs::{app, println, App, PLAYDATE};
 
@@ -24,13 +27,10 @@ impl App for HelloWorld {
         // Draw image
         PLAYDATE.graphics.draw_rotated_bitmap(
             &self.image,
-            130,
-            120,
+            vec2![130, 120],
             self.rotation,
-            0.5,
-            0.5,
-            1.0,
-            1.0,
+            vec2![0.5, 0.5],
+            vec2![1.0, 1.0],
         );
         // Rotate image
         self.rotation += delta * 90.0;
