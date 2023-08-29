@@ -483,6 +483,13 @@ impl Bitmap {
         })
     }
 
+    /// Open an image as a bitmap.
+    pub fn open(width: u32, height: u32, path: impl AsRef<str>) -> Result<Self, Error> {
+        let bitmap = Self::new(width, height, LCDSolidColor::kColorClear);
+        bitmap.load(path)?;
+        Ok(bitmap)
+    }
+
     /// Clears bitmap, filling with the given bgcolor.
     pub fn clear(&self, bgcolor: impl Into<LCDColor>) {
         unsafe { ((*PLAYDATE.graphics.handle).clearBitmap.unwrap())(self.handle, bgcolor.into()) }

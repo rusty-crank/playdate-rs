@@ -333,13 +333,13 @@ impl Sprite {
     }
 
     /// Sets x and y to the current position of sprite.
-    pub fn get_position(&self) -> (f32, f32) {
+    pub fn get_position(&self) -> Point2D<f32> {
         let mut x = 0.0;
         let mut y = 0.0;
         unsafe {
             (*PLAYDATE.sprite.handle).getPosition.unwrap()(self.handle, &mut x, &mut y);
         }
-        (x, y)
+        Point2D::new(x, y)
     }
 
     /// Sets the bounds of the given sprite with bounds.
