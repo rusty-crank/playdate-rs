@@ -73,11 +73,6 @@ impl PlaydateSprite {
         }
     }
 
-    /// Allocates and returns a new LCDSprite.
-    pub fn new_sprite(&self) -> Sprite {
-        Sprite::from(unsafe { (*self.handle).newSprite.unwrap()() })
-    }
-
     /// Adds the given sprite to the display list, so that it is drawn in the current scene.
     pub fn add_sprite(&self, sprite: impl AsRef<Sprite>) {
         unsafe {
@@ -131,65 +126,6 @@ impl PlaydateSprite {
         unsafe {
             (*self.handle).resetCollisionWorld.unwrap()();
         }
-    }
-
-    /// Returns the same values as playdate->sprite->moveWithCollisions() but does not actually move the sprite.
-    pub fn check_collisions(
-        &self,
-        sprite: impl AsRef<Sprite>,
-        goal_x: f32,
-        goal_y: f32,
-    ) -> Vec<SpriteCollisionInfo> {
-        let mut actual_x = 0.0;
-        let mut actual_y = 0.0;
-        let mut len = 0;
-        let info = unsafe {
-            (*self.handle).checkCollisions.unwrap()(
-                sprite.as_ref().handle,
-                goal_x,
-                goal_y,
-                &mut actual_x,
-                &mut actual_y,
-                &mut len,
-            )
-        };
-        let mut result = Vec::new();
-        for i in 0..len {
-            let info = unsafe { info.offset(i as isize).as_ref().unwrap() };
-            result.push(SpriteCollisionInfo::new(info));
-        }
-        // caller is responsible for freeing memory of array returned by moveWithCollisions()
-        PLAYDATE.system.realloc(info as _, 0);
-        result
-    }
-
-    /// Moves the given sprite towards goalX, goalY taking collisions into account and returns an array of SpriteCollisionInfo. len is set to the size of the array and actualX, actualY are set to the sprite’s position after collisions. If no collisions occurred, this will be the same as goalX, goalY.
-    pub fn move_with_collisions(
-        &self,
-        sprite: impl AsRef<Sprite>,
-        goal: Point2D<f32>,
-    ) -> Vec<SpriteCollisionInfo> {
-        let mut actual_x = 0.0;
-        let mut actual_y = 0.0;
-        let mut len = 0;
-        let info = unsafe {
-            (*self.handle).moveWithCollisions.unwrap()(
-                sprite.as_ref().handle,
-                goal.x,
-                goal.y,
-                &mut actual_x,
-                &mut actual_y,
-                &mut len,
-            )
-        };
-        let mut result = Vec::new();
-        for i in 0..len {
-            let info = unsafe { info.offset(i as isize).as_ref().unwrap() };
-            result.push(SpriteCollisionInfo::new(info));
-        }
-        // caller is responsible for freeing memory of array returned by moveWithCollisions()
-        PLAYDATE.system.realloc(info as _, 0);
-        result
     }
 
     pub fn query_sprites_at_point(&self, x: f32, y: f32) -> Vec<Ref<Sprite>> {
@@ -255,20 +191,6 @@ impl PlaydateSprite {
         result
     }
 
-    /// Returns an array of sprites that have collide rects that are currently overlapping the given sprite’s collide rect.
-    pub fn overlapping_sprites(&self, sprite: impl AsRef<Sprite>) -> Vec<Ref<Sprite>> {
-        let mut len = 0;
-        let sprites =
-            unsafe { (*self.handle).overlappingSprites.unwrap()(sprite.as_ref().handle, &mut len) };
-        let mut result = Vec::new();
-        for i in 0..len {
-            let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
-            result.push(Sprite::from_ref(*sprite));
-        }
-        PLAYDATE.system.realloc(sprites as _, 0);
-        result
-    }
-
     /// Returns an array of all sprites that have collide rects that are currently overlapping. Each consecutive pair of sprites is overlapping (eg. 0 & 1 overlap, 2 & 3 overlap, etc).
     pub fn all_overlapping_sprites(&self) -> Vec<Ref<Sprite>> {
         let mut len = 0;
@@ -328,7 +250,7 @@ impl Sprite {
 
     /// Allocates and returns a new Sprite.
     pub fn new() -> Self {
-        PLAYDATE.sprite.new_sprite()
+        Self::from(unsafe { (*PLAYDATE.sprite.handle).newSprite.unwrap()() })
     }
 
     /// Sets x and y to the current position of sprite.
@@ -607,6 +529,70 @@ impl Sprite {
                 tile,
             )
         };
+    }
+
+    /// Returns the same values as playdate->sprite->moveWithCollisions() but does not actually move the sprite.
+    pub fn check_collisions(&self, goal_x: f32, goal_y: f32) -> Vec<SpriteCollisionInfo> {
+        let mut actual_x = 0.0;
+        let mut actual_y = 0.0;
+        let mut len = 0;
+        let info = unsafe {
+            (*PLAYDATE.sprite.handle).checkCollisions.unwrap()(
+                self.handle,
+                goal_x,
+                goal_y,
+                &mut actual_x,
+                &mut actual_y,
+                &mut len,
+            )
+        };
+        let mut result = Vec::new();
+        for i in 0..len {
+            let info = unsafe { info.offset(i as isize).as_ref().unwrap() };
+            result.push(SpriteCollisionInfo::new(info));
+        }
+        // caller is responsible for freeing memory of array returned by moveWithCollisions()
+        PLAYDATE.system.realloc(info as _, 0);
+        result
+    }
+
+    /// Moves the given sprite towards goalX, goalY taking collisions into account and returns an array of SpriteCollisionInfo. len is set to the size of the array and actualX, actualY are set to the sprite’s position after collisions. If no collisions occurred, this will be the same as goalX, goalY.
+    pub fn move_with_collisions(&self, goal: Point2D<f32>) -> Vec<SpriteCollisionInfo> {
+        let mut actual_x = 0.0;
+        let mut actual_y = 0.0;
+        let mut len = 0;
+        let info = unsafe {
+            (*PLAYDATE.sprite.handle).moveWithCollisions.unwrap()(
+                self.handle,
+                goal.x,
+                goal.y,
+                &mut actual_x,
+                &mut actual_y,
+                &mut len,
+            )
+        };
+        let mut result = Vec::new();
+        for i in 0..len {
+            let info = unsafe { info.offset(i as isize).as_ref().unwrap() };
+            result.push(SpriteCollisionInfo::new(info));
+        }
+        // caller is responsible for freeing memory of array returned by moveWithCollisions()
+        PLAYDATE.system.realloc(info as _, 0);
+        result
+    }
+
+    /// Returns an array of sprites that have collide rects that are currently overlapping the given sprite’s collide rect.
+    pub fn overlapping_sprites(&self) -> Vec<Ref<Sprite>> {
+        let mut len = 0;
+        let sprites =
+            unsafe { (*PLAYDATE.sprite.handle).overlappingSprites.unwrap()(self.handle, &mut len) };
+        let mut result = Vec::new();
+        for i in 0..len {
+            let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
+            result.push(Sprite::from_ref(*sprite));
+        }
+        PLAYDATE.system.realloc(sprites as _, 0);
+        result
     }
 }
 
