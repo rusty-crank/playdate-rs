@@ -182,6 +182,10 @@ macro_rules! register_playdate_app {
 
         #[cfg(all(target_arch = "arm", target_os = "none"))]
         #[no_mangle]
+        pub extern "C" fn _sbrk() {}
+
+        #[cfg(all(target_arch = "arm", target_os = "none"))]
+        #[no_mangle]
         extern "C" fn _exit() {}
 
         #[cfg(all(target_arch = "arm", target_os = "none"))]
