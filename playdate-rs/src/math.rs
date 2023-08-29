@@ -98,6 +98,17 @@ impl<T> Vec2<T> {
     {
         self.x.clone() * self.x + self.y.clone() * self.y
     }
+
+    /// Returns the distance between two vectors.
+    #[inline]
+    pub fn distance(self, other: Self) -> f32
+    where
+        T: Into<f32> + Clone,
+    {
+        let x = self.x.clone().into() - other.x.clone().into();
+        let y = self.y.clone().into() - other.y.clone().into();
+        (x * x + y * y).sqrt()
+    }
 }
 
 impl Vec2<f32> {
@@ -184,17 +195,17 @@ impl<T> From<(T, T)> for Vec2<T> {
     }
 }
 
-impl<T> Into<(T, T)> for Vec2<T> {
+impl<T> From<Vec2<T>> for (T, T) {
     #[inline]
-    fn into(self) -> (T, T) {
-        (self.x, self.y)
+    fn from(val: Vec2<T>) -> Self {
+        (val.x, val.y)
     }
 }
 
-impl<T> Into<[T; 2]> for Vec2<T> {
+impl<T> From<Vec2<T>> for [T; 2] {
     #[inline]
-    fn into(self) -> [T; 2] {
-        [self.x, self.y]
+    fn from(val: Vec2<T>) -> Self {
+        [val.x, val.y]
     }
 }
 
@@ -615,14 +626,14 @@ impl Rect<f32> {
     }
 }
 
-impl Into<sys::PDRect> for Rect<f32> {
+impl From<Rect<f32>> for sys::PDRect {
     #[inline]
-    fn into(self) -> sys::PDRect {
+    fn from(val: Rect<f32>) -> Self {
         sys::PDRect {
-            x: self.x,
-            y: self.y,
-            width: self.width,
-            height: self.height,
+            x: val.x,
+            y: val.y,
+            width: val.width,
+            height: val.height,
         }
     }
 }
@@ -694,14 +705,14 @@ impl SideOffsets<i32> {
     };
 }
 
-impl Into<sys::LCDRect> for SideOffsets<i32> {
+impl From<SideOffsets<i32>> for sys::LCDRect {
     #[inline]
-    fn into(self) -> sys::LCDRect {
+    fn from(val: SideOffsets<i32>) -> Self {
         sys::LCDRect {
-            left: self.left,
-            right: self.right,
-            top: self.top,
-            bottom: self.bottom,
+            left: val.left,
+            right: val.right,
+            top: val.top,
+            bottom: val.bottom,
         }
     }
 }
