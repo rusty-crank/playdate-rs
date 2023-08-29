@@ -18,5 +18,4 @@ playdate-rs-sys = { workspace = true }
 playdate-rs-macros = { workspace = true }
 spin = "0.9.8"
 no_std_io = { version = "0.6.0", features = ["alloc"] }
-euclid = { version = "0.22.9", default-features = false, features = ["libm"] }
 bitmask-enum = "2.2.2"

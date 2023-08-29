@@ -1,14 +1,13 @@
 use core::ffi::{c_char, c_void, CStr};
 
 use alloc::{ffi::CString, vec::Vec};
-use euclid::default::Point2D;
 use sys::PDButtons;
 pub use sys::{
     PDDateTime as DateTime, PDLanguage as Language, PDPeripherals as Peripherals,
     PDSystemEvent as SystemEvent,
 };
 
-use crate::{graphics::Bitmap, PLAYDATE};
+use crate::{graphics::Bitmap, math::Vec2, PLAYDATE};
 
 pub struct PlaydateSystem {
     handle: *const sys::playdate_sys,
@@ -60,7 +59,7 @@ impl PlaydateSystem {
     }
 
     /// Calculates the current frames per second and draws that value at `x`, `y`.
-    pub fn draw_fps(&self, pos: Point2D<i32>) {
+    pub fn draw_fps(&self, pos: Vec2<i32>) {
         unsafe { (*self.handle).drawFPS.unwrap()(pos.x, pos.y) }
     }
 

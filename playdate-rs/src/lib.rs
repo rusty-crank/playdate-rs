@@ -7,12 +7,14 @@ extern crate playdate_rs_sys as sys;
 #[doc(hidden)]
 pub mod print;
 
+#[macro_use]
+pub mod math;
+
 pub mod display;
 pub mod error;
 pub mod fs;
 pub mod graphics;
 pub mod lua;
-pub mod math;
 mod memory;
 pub mod scoreboards;
 pub mod sound;

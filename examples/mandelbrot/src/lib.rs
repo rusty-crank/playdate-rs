@@ -1,13 +1,15 @@
 #![no_std]
 
 extern crate alloc;
+#[macro_use]
+extern crate playdate_rs;
 
 use core::ops::{Add, Mul};
 
 use alloc::format;
 use playdate_rs::display::{DISPLAY_HEIGHT, DISPLAY_WIDTH};
 use playdate_rs::graphics::LCDSolidColor;
-use playdate_rs::math::{Point2D, Rect, Size2D};
+use playdate_rs::math::Vec2;
 use playdate_rs::system::Buttons;
 use playdate_rs::{app, println, App, PLAYDATE};
 
@@ -22,7 +24,7 @@ impl Complex {
         Self { re, im }
     }
 
-    fn from_point(point: Point2D<i32>, center: Complex, scale: f32) -> Self {
+    fn from_point(point: Vec2<i32>, center: Complex, scale: f32) -> Self {
         let bounds = (DISPLAY_WIDTH as f32, DISPLAY_HEIGHT as f32);
         let c1 = Complex::new(
             center.re - bounds.0 / 2.0 * scale,
@@ -101,10 +103,10 @@ impl Mandelbrot {
         let iter = self.get_iter();
         for y in 0..DISPLAY_HEIGHT {
             for x in 0..DISPLAY_WIDTH {
-                let c = Point2D::new(x as i32, y as i32);
-                let v = f(Complex::from_point(c, self.center, self.scale), iter);
+                let pos = vec2![x as i32, y as i32];
+                let v = f(Complex::from_point(pos, self.center, self.scale), iter);
                 PLAYDATE.graphics.draw_pixel(
-                    Point2D::new(x as i32, y as i32),
+                    pos,
                     if v {
                         LCDSolidColor::kColorBlack
                     } else {
@@ -121,37 +123,37 @@ impl Mandelbrot {
         let text_area_height = row_height * 3;
         let top_left_x = DISPLAY_WIDTH as i32 - text_area_width;
         PLAYDATE.graphics.draw_rect(
-            Rect {
-                origin: Point2D::new(top_left_x - 3, DISPLAY_HEIGHT as i32 - text_area_height - 3),
-                size: Size2D::new(text_area_width + 3, text_area_height + 3),
+            rect! {
+                x: top_left_x - 3, y: DISPLAY_HEIGHT as i32 - text_area_height - 3,
+                w: text_area_width + 3, h: text_area_height + 3,
             },
             LCDSolidColor::kColorWhite,
         );
         PLAYDATE.graphics.fill_rect(
-            Rect {
-                origin: Point2D::new(top_left_x - 2, DISPLAY_HEIGHT as i32 - text_area_height - 2),
-                size: Size2D::new(text_area_width + 2, text_area_height + 2),
+            rect! {
+                x: top_left_x - 2, y: DISPLAY_HEIGHT as i32 - text_area_height - 2,
+                w: text_area_width + 2, h: text_area_height + 2,
             },
             LCDSolidColor::kColorBlack,
         );
         PLAYDATE.graphics.fill_rect(
-            Rect {
-                origin: Point2D::new(top_left_x, DISPLAY_HEIGHT as i32 - text_area_height),
-                size: Size2D::new(text_area_width, text_area_height),
+            rect! {
+                x: top_left_x, y: DISPLAY_HEIGHT as i32 - text_area_height,
+                w: text_area_width , h: text_area_height,
             },
             LCDSolidColor::kColorWhite,
         );
         PLAYDATE.graphics.draw_text(
             format!("<{:.4}, {:.4}i>", self.center.re, self.center.im,),
-            Point2D::new(top_left_x + 2, DISPLAY_HEIGHT as i32 - row_height * 3),
+            vec2![top_left_x + 2, DISPLAY_HEIGHT as i32 - row_height * 3],
         );
         PLAYDATE.graphics.draw_text(
             format!("SCALE: {:.8}", 1.0 / (self.scale * 100.0)),
-            Point2D::new(top_left_x + 2, DISPLAY_HEIGHT as i32 - row_height * 2),
+            vec2![top_left_x + 2, DISPLAY_HEIGHT as i32 - row_height * 2],
         );
         PLAYDATE.graphics.draw_text(
             format!("ITER: {:}", self.get_iter()),
-            Point2D::new(top_left_x + 2, DISPLAY_HEIGHT as i32 - row_height),
+            vec2![top_left_x + 2, DISPLAY_HEIGHT as i32 - row_height],
         );
     }
 }
@@ -209,6 +211,6 @@ impl App for Mandelbrot {
         // Draw metadata
         self.draw_meta();
         // Draw FPS
-        PLAYDATE.system.draw_fps(Point2D::new(0, 0));
+        PLAYDATE.system.draw_fps(vec2![0, 0]);
     }
 }

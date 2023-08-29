@@ -3,25 +3,15 @@ use core::{
     marker::PhantomData,
 };
 
-use crate::math::Rect;
+use crate::math::{Rect, Vec2};
 use alloc::ffi::CString;
-use euclid::default::{Point2D, Vector2D};
 
-use crate::{math::SideOffsets2D, util::Ref};
+use crate::{math::SideOffsets, util::Ref};
 
 pub use sys::{
     LCDBitmapDrawMode, LCDBitmapFlip, LCDColor, LCDFontData, LCDLineCapStyle, LCDPattern,
     LCDPolygonFillRule, LCDSolidColor, LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
 };
-
-pub(crate) fn so2d_to_lcdrect(r: SideOffsets2D<i32>) -> sys::LCDRect {
-    sys::LCDRect {
-        top: r.top,
-        right: r.right,
-        bottom: r.bottom,
-        left: r.left,
-    }
-}
 
 use crate::{error::Error, PLAYDATE};
 
@@ -70,7 +60,7 @@ impl PlaydateGraphics {
 
     /// Offsets the origin point for all drawing calls to x, y (can be negative).
     /// This is useful, for example, for centering a "camera" on a sprite that is moving around a world larger than the screen.
-    pub fn set_draw_offset(&self, delta: Vector2D<i32>) {
+    pub fn set_draw_offset(&self, delta: Vec2<i32>) {
         unsafe {
             ((*self.handle).setDrawOffset.unwrap())(delta.x, delta.y);
         }
@@ -79,12 +69,7 @@ impl PlaydateGraphics {
     /// Sets the current clip rect, using world coordinates—​that is, the given rectangle will be translated by the current drawing offset. The clip rect is cleared at the beginning of each update.
     pub fn set_clip_rect(&self, rect: Rect<i32>) {
         unsafe {
-            ((*self.handle).setClipRect.unwrap())(
-                rect.origin.x,
-                rect.origin.y,
-                rect.size.width,
-                rect.size.height,
-            );
+            ((*self.handle).setClipRect.unwrap())(rect.x, rect.y, rect.width, rect.height);
         }
     }
 
@@ -131,7 +116,7 @@ impl PlaydateGraphics {
     }
 
     /// Draws the bitmap with its upper-left corner at location x, y, using the given flip orientation.
-    pub fn draw_bitmap(&self, bitmap: impl AsRef<Bitmap>, pos: Point2D<i32>, flip: LCDBitmapFlip) {
+    pub fn draw_bitmap(&self, bitmap: impl AsRef<Bitmap>, pos: Vec2<i32>, flip: LCDBitmapFlip) {
         unsafe {
             ((*self.handle).drawBitmap.unwrap())(bitmap.as_ref().handle, pos.x, pos.y, flip);
         }
@@ -142,10 +127,10 @@ impl PlaydateGraphics {
         unsafe {
             ((*self.handle).tileBitmap.unwrap())(
                 bitmap.as_ref().handle,
-                rect.origin.x,
-                rect.origin.y,
-                rect.size.width,
-                rect.size.height,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
                 flip,
             );
         }
@@ -184,7 +169,7 @@ impl PlaydateGraphics {
     }
 
     /// Draws a pixel at x, y.
-    pub fn draw_pixel(&self, pos: Point2D<i32>, color: LCDSolidColor) {
+    pub fn draw_pixel(&self, pos: Vec2<i32>, color: LCDSolidColor) {
         let fb = self.get_frame();
         let byte_ptr = unsafe { fb.add((pos.y * LCD_ROWSIZE as i32 + (pos.x >> 3)) as usize) };
         if color == LCDSolidColor::kColorBlack {
@@ -198,10 +183,10 @@ impl PlaydateGraphics {
     pub fn draw_rect(&self, rect: Rect<i32>, color: impl Into<LCDColor>) {
         unsafe {
             ((*self.handle).drawRect.unwrap())(
-                rect.origin.x,
-                rect.origin.y,
-                rect.size.width,
-                rect.size.height,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
                 color.into(),
             );
         }
@@ -211,10 +196,10 @@ impl PlaydateGraphics {
     pub fn fill_rect(&self, rect: Rect<i32>, color: impl Into<LCDColor>) {
         unsafe {
             ((*self.handle).fillRect.unwrap())(
-                rect.origin.x,
-                rect.origin.y,
-                rect.size.width,
-                rect.size.height,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
                 color.into(),
             );
         }
@@ -232,10 +217,10 @@ impl PlaydateGraphics {
     ) {
         unsafe {
             ((*self.handle).drawEllipse.unwrap())(
-                rect.origin.x,
-                rect.origin.y,
-                rect.size.width,
-                rect.size.height,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
                 line_width,
                 start_angle,
                 end_angle,
@@ -255,10 +240,10 @@ impl PlaydateGraphics {
     ) {
         unsafe {
             ((*self.handle).fillEllipse.unwrap())(
-                rect.origin.x,
-                rect.origin.y,
-                rect.size.width,
-                rect.size.height,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
                 start_angle,
                 end_angle,
                 color.into(),
@@ -267,12 +252,7 @@ impl PlaydateGraphics {
     }
 
     /// Draws the bitmap scaled to xscale and yscale with its upper-left corner at location x, y. Note that flip is not available when drawing scaled bitmaps but negative scale values will achieve the same effect.
-    pub fn draw_scaled_bitmap(
-        &self,
-        bitmap: impl AsRef<Bitmap>,
-        pos: Point2D<i32>,
-        scale: Vector2D<f32>,
-    ) {
+    pub fn draw_scaled_bitmap(&self, bitmap: impl AsRef<Bitmap>, pos: Vec2<i32>, scale: Vec2<f32>) {
         unsafe {
             ((*self.handle).drawScaledBitmap.unwrap())(
                 bitmap.as_ref().handle,
@@ -285,7 +265,7 @@ impl PlaydateGraphics {
     }
 
     /// Draws the given text using the provided options. If no font has been set with setFont, the default system font Asheville Sans 14 Light is used.
-    pub fn draw_text(&self, text: impl AsRef<str>, pos: Point2D<i32>) -> i32 {
+    pub fn draw_text(&self, text: impl AsRef<str>, pos: Vec2<i32>) -> i32 {
         let ptr = text.as_ref().as_ptr() as *const c_void;
         let len = text.as_ref().len();
         unsafe {
@@ -396,12 +376,7 @@ impl PlaydateGraphics {
     /// Sets the current clip rect in screen coordinates.
     pub fn set_screen_clip_rect(&self, rect: Rect<i32>) {
         unsafe {
-            ((*self.handle).setScreenClipRect.unwrap())(
-                rect.origin.x,
-                rect.origin.y,
-                rect.size.width,
-                rect.size.height,
-            );
+            ((*self.handle).setScreenClipRect.unwrap())(rect.x, rect.y, rect.width, rect.height);
         }
     }
 
@@ -434,10 +409,10 @@ impl PlaydateGraphics {
     pub fn draw_rotated_bitmap(
         &self,
         bitmap: impl AsRef<Bitmap>,
-        pos: Point2D<i32>,
+        pos: Vec2<i32>,
         rotation: f32,
-        center_pos: Point2D<f32>,
-        scale: Vector2D<f32>,
+        center_pos: Vec2<f32>,
+        scale: Vec2<f32>,
     ) {
         unsafe {
             ((*self.handle).drawRotatedBitmap.unwrap())(
@@ -541,7 +516,7 @@ impl Bitmap {
         x2: i32,
         y2: i32,
         flip2: LCDBitmapFlip,
-        rect: SideOffsets2D<i32>,
+        rect: SideOffsets<i32>,
     ) -> bool {
         unsafe {
             ((*PLAYDATE.graphics.handle).checkMaskCollision.unwrap())(
@@ -553,7 +528,7 @@ impl Bitmap {
                 x2,
                 y2,
                 flip2,
-                so2d_to_lcdrect(rect),
+                rect.into(),
             ) == 1
         }
     }
@@ -594,7 +569,7 @@ impl Bitmap {
     }
 
     /// Returns a new, rotated and scaled LCDBitmap based on the given bitmap.
-    pub fn rotated(&self, rotation: f32, scale: Vector2D<f32>) -> Bitmap {
+    pub fn rotated(&self, rotation: f32, scale: Vec2<f32>) -> Bitmap {
         let mut alloced_size = 0;
         Self::from(unsafe {
             ((*PLAYDATE.graphics.handle).rotatedBitmap.unwrap())(
@@ -608,7 +583,7 @@ impl Bitmap {
     }
 
     /// Get color as an 8 x 8 pattern using the given bitmap. x, y indicates the top left corner of the 8 x 8 pattern.
-    pub fn get_color_pattern(&self, pos: Point2D<i32>) -> ColorPatternData {
+    pub fn get_color_pattern(&self, pos: Vec2<i32>) -> ColorPatternData {
         let mut color = LCDColor::default();
         unsafe {
             ((*PLAYDATE.graphics.handle).setColorToPattern.unwrap())(

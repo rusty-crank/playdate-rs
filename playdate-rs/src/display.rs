@@ -1,4 +1,4 @@
-use euclid::default::{Point2D, Vector2D};
+use crate::math::Vec2;
 
 pub struct PlaydateDisplay {
     handle: *const sys::playdate_display,
@@ -37,7 +37,7 @@ impl PlaydateDisplay {
     }
 
     /// Adds a mosaic effect to the display. Valid x and y values are between 0 and 3, inclusive.
-    pub fn set_mosaic(&self, effect: Vector2D<u32>) {
+    pub fn set_mosaic(&self, effect: Vec2<u32>) {
         debug_assert!(
             effect.x < 4 && effect.y < 4,
             "invalid mosaic effect: {:?}",
@@ -52,7 +52,7 @@ impl PlaydateDisplay {
     }
 
     /// Offsets the display by the given amount. Areas outside of the displayed area are filled with the current background color.
-    pub fn set_offset(&self, delta: Point2D<i32>) {
+    pub fn set_offset(&self, delta: Vec2<i32>) {
         unsafe { (*self.handle).setOffset.unwrap()(delta.x, delta.y) }
     }
 }

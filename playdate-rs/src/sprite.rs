@@ -1,41 +1,16 @@
 use core::cell::RefCell;
 
 use alloc::vec::Vec;
-use euclid::default::Vector2D;
 use playdate_rs_sys::LCDPattern;
 
 use crate::{
-    graphics::{so2d_to_lcdrect, Bitmap},
-    math::{Point2D, Rect, SideOffsets2D, Vec2D},
+    graphics::Bitmap,
+    math::{Rect, SideOffsets, Vec2},
     util::Ref,
     PLAYDATE,
 };
 
 pub use sys::SpriteCollisionResponseType;
-
-fn rect_to_pdrect(rect: Rect<f32>) -> sys::PDRect {
-    sys::PDRect {
-        x: rect.origin.x,
-        y: rect.origin.y,
-        width: rect.size.width,
-        height: rect.size.height,
-    }
-}
-
-fn pdrect_to_rect(rect: sys::PDRect) -> Rect<f32> {
-    Rect {
-        origin: (rect.x, rect.y).into(),
-        size: (rect.width, rect.height).into(),
-    }
-}
-
-fn collision_point_to_point(point: sys::CollisionPoint) -> Point2D<f32> {
-    Point2D::new(point.x, point.y)
-}
-
-fn collision_vec_to_vec(vec: sys::CollisionVector) -> Vec2D<i32> {
-    Vec2D::new(vec.x, vec.y)
-}
 
 pub struct PlaydateSprite {
     handle: *const sys::playdate_sprite,
@@ -54,9 +29,9 @@ impl PlaydateSprite {
     }
 
     /// Marks the given dirtyRect (in screen coordinates) as needing a redraw. Graphics drawing functions now call this automatically, adding their drawn areas to the sprite’s dirty list, so there’s usually no need to call this manually.
-    pub fn add_dirty_rect(&self, dirty_rect: SideOffsets2D<i32>) {
+    pub fn add_dirty_rect(&self, dirty_rect: SideOffsets<i32>) {
         unsafe {
-            (*self.handle).addDirtyRect.unwrap()(so2d_to_lcdrect(dirty_rect));
+            (*self.handle).addDirtyRect.unwrap()(dirty_rect.into());
         }
     }
 
@@ -109,9 +84,9 @@ impl PlaydateSprite {
     }
 
     /// Sets the clipping rectangle for all sprites with a Z index within startZ and endZ inclusive.
-    pub fn set_clip_rects_in_range(&self, clip_rect: SideOffsets2D<i32>, start_z: i32, end_z: i32) {
+    pub fn set_clip_rects_in_range(&self, clip_rect: SideOffsets<i32>, start_z: i32, end_z: i32) {
         unsafe {
-            (*self.handle).setClipRectsInRange.unwrap()(so2d_to_lcdrect(clip_rect), start_z, end_z);
+            (*self.handle).setClipRectsInRange.unwrap()(clip_rect.into(), start_z, end_z);
         }
     }
 
@@ -129,7 +104,7 @@ impl PlaydateSprite {
         }
     }
 
-    pub fn query_sprites_at_point(&self, pos: Point2D<f32>) -> Vec<Ref<Sprite>> {
+    pub fn query_sprites_at_point(&self, pos: Vec2<f32>) -> Vec<Ref<Sprite>> {
         let mut len = 0;
         let sprites =
             unsafe { (*self.handle).querySpritesAtPoint.unwrap()(pos.x, pos.y, &mut len) };
@@ -146,10 +121,10 @@ impl PlaydateSprite {
         let mut len = 0;
         let sprites = unsafe {
             (*self.handle).querySpritesInRect.unwrap()(
-                rect.origin.x,
-                rect.origin.y,
-                rect.size.width,
-                rect.size.height,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
                 &mut len,
             )
         };
@@ -257,32 +232,32 @@ impl Sprite {
     }
 
     /// Sets x and y to the current position of sprite.
-    pub fn get_position(&self) -> Point2D<f32> {
+    pub fn get_position(&self) -> Vec2<f32> {
         let mut x = 0.0;
         let mut y = 0.0;
         unsafe {
             (*PLAYDATE.sprite.handle).getPosition.unwrap()(self.handle, &mut x, &mut y);
         }
-        Point2D::new(x, y)
+        Vec2::new(x, y)
     }
 
     /// Sets the bounds of the given sprite with bounds.
     pub fn set_bounds(&self, bounds: Rect<f32>) {
-        unsafe { (*PLAYDATE.sprite.handle).setBounds.unwrap()(self.handle, rect_to_pdrect(bounds)) }
+        unsafe { (*PLAYDATE.sprite.handle).setBounds.unwrap()(self.handle, bounds.into()) }
     }
 
     /// Returns the bounds of the given sprite as an PDRect;
     pub fn get_bounds(&self) -> Rect<f32> {
-        unsafe { pdrect_to_rect((*PLAYDATE.sprite.handle).getBounds.unwrap()(self.handle)) }
+        unsafe { (*PLAYDATE.sprite.handle).getBounds.unwrap()(self.handle).into() }
     }
 
     /// Moves the given sprite to x, y and resets its bounds based on the bitmap dimensions and center.
-    pub fn move_to(&self, pos: Point2D<f32>) {
+    pub fn move_to(&self, pos: Vec2<f32>) {
         unsafe { (*PLAYDATE.sprite.handle).moveTo.unwrap()(self.handle, pos.x, pos.y) }
     }
 
     /// Moves the given sprite to by offsetting its current position by dx, dy.
-    pub fn move_by(&self, delta: Vector2D<f32>) {
+    pub fn move_by(&self, delta: Vec2<f32>) {
         unsafe { (*PLAYDATE.sprite.handle).moveBy.unwrap()(self.handle, delta.x, delta.y) }
     }
 
@@ -348,10 +323,8 @@ impl Sprite {
     }
 
     /// Sets the clipping rectangle for sprite drawing.
-    pub fn set_clip_rect(&self, clip_rect: SideOffsets2D<i32>) {
-        unsafe {
-            (*PLAYDATE.sprite.handle).setClipRect.unwrap()(self.handle, so2d_to_lcdrect(clip_rect))
-        };
+    pub fn set_clip_rect(&self, clip_rect: SideOffsets<i32>) {
+        unsafe { (*PLAYDATE.sprite.handle).setClipRect.unwrap()(self.handle, clip_rect.into()) };
     }
 
     /// Clears the sprite’s clipping rectangle.
@@ -441,7 +414,7 @@ impl Sprite {
             let sprite = Sprite::from_ref(sprite);
             let func = sprite.get_userdata().draw_fn.borrow();
             let func = &func.as_ref().unwrap();
-            func(&sprite, pdrect_to_rect(bounds), pdrect_to_rect(drawrect))
+            func(&sprite, bounds.into(), drawrect.into())
         }
         unsafe { (*PLAYDATE.sprite.handle).setDrawFunction.unwrap()(self.handle, Some(callback)) };
     }
@@ -449,20 +422,13 @@ impl Sprite {
     /// Marks the area of the given sprite, relative to its bounds, to be checked for collisions with other sprites' collide rects.
     pub fn set_collide_rect(&self, collide_rect: Rect<f32>) {
         unsafe {
-            (*PLAYDATE.sprite.handle).setCollideRect.unwrap()(
-                self.handle,
-                rect_to_pdrect(collide_rect),
-            );
+            (*PLAYDATE.sprite.handle).setCollideRect.unwrap()(self.handle, collide_rect.into());
         }
     }
 
     /// Returns the given sprite’s collide rect.
     pub fn get_collide_rect(&self) -> Rect<f32> {
-        unsafe {
-            pdrect_to_rect((*PLAYDATE.sprite.handle).getCollideRect.unwrap()(
-                self.handle,
-            ))
-        }
+        unsafe { (*PLAYDATE.sprite.handle).getCollideRect.unwrap()(self.handle).into() }
     }
 
     /// Clears the given sprite’s collide rect.
@@ -535,7 +501,7 @@ impl Sprite {
     }
 
     /// Returns the same values as playdate->sprite->moveWithCollisions() but does not actually move the sprite.
-    pub fn check_collisions(&self, move_goal: Point2D<f32>) -> Vec<SpriteCollisionInfo> {
+    pub fn check_collisions(&self, move_goal: Vec2<f32>) -> Vec<SpriteCollisionInfo> {
         let mut actual_x = 0.0;
         let mut actual_y = 0.0;
         let mut len = 0;
@@ -560,7 +526,7 @@ impl Sprite {
     }
 
     /// Moves the given sprite towards goalX, goalY taking collisions into account and returns an array of SpriteCollisionInfo. len is set to the size of the array and actualX, actualY are set to the sprite’s position after collisions. If no collisions occurred, this will be the same as goalX, goalY.
-    pub fn move_with_collisions(&self, goal: Point2D<f32>) -> Vec<SpriteCollisionInfo> {
+    pub fn move_with_collisions(&self, goal: Vec2<f32>) -> Vec<SpriteCollisionInfo> {
         let mut actual_x = 0.0;
         let mut actual_y = 0.0;
         let mut len = 0;
@@ -627,9 +593,9 @@ pub struct SpriteCollisionInfo<'a> {
     pub response_type: SpriteCollisionResponseType,
     pub overlaps: u8,
     pub ti: f32,
-    pub move_: Point2D<f32>,
-    pub normal: Vec2D<i32>,
-    pub touch: Point2D<f32>,
+    pub move_: Vec2<f32>,
+    pub normal: Vec2<i32>,
+    pub touch: Vec2<f32>,
     pub sprite_rect: Rect<f32>,
     pub other_rect: Rect<f32>,
 }
@@ -642,11 +608,11 @@ impl<'a> SpriteCollisionInfo<'a> {
             response_type: info.responseType,
             overlaps: info.overlaps,
             ti: info.ti,
-            move_: collision_point_to_point(info.move_),
-            normal: collision_vec_to_vec(info.normal),
-            touch: collision_point_to_point(info.touch),
-            sprite_rect: pdrect_to_rect(info.spriteRect),
-            other_rect: pdrect_to_rect(info.otherRect),
+            move_: info.move_.into(),
+            normal: info.normal.into(),
+            touch: info.touch.into(),
+            sprite_rect: info.spriteRect.into(),
+            other_rect: info.otherRect.into(),
         }
     }
 }
@@ -656,8 +622,8 @@ pub struct SpriteQueryInfo<'a> {
     pub sprite: Ref<'a, Sprite>,
     pub ti1: f32,
     pub ti2: f32,
-    pub entry_point: Point2D<f32>,
-    pub exit_point: Point2D<f32>,
+    pub entry_point: Vec2<f32>,
+    pub exit_point: Vec2<f32>,
 }
 
 impl<'a> SpriteQueryInfo<'a> {
@@ -666,8 +632,8 @@ impl<'a> SpriteQueryInfo<'a> {
             sprite: Sprite::from_ref(info.sprite),
             ti1: info.ti1,
             ti2: info.ti2,
-            entry_point: collision_point_to_point(info.entryPoint),
-            exit_point: collision_point_to_point(info.exitPoint),
+            entry_point: info.entryPoint.into(),
+            exit_point: info.exitPoint.into(),
         }
     }
 }
