@@ -35,8 +35,10 @@ impl App for HelloWorld {
         // Rotate image
         self.rotation += delta * 90.0;
         // Draw text
-        PLAYDATE.graphics.draw_text("Hello, World!", 230, 112);
+        PLAYDATE
+            .graphics
+            .draw_text("Hello, World!", vec2![230, 112]);
         // Draw FPS
-        PLAYDATE.system.draw_fps(0, 0);
+        PLAYDATE.system.draw_fps(vec2![0, 0]);
     }
 }
