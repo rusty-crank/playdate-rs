@@ -80,9 +80,11 @@ jobs:
         playdate-rs-version:
           - head
           - crates-io
+        exclude:
+          - cli-command: new
+            playdate-rs-version: head
     env:
       CARGO_PROFILE_BUILD_FLAGS: ${{ matrix.profile == 'thumbv7em-none-eabihf' && '--device' || '' }} ${{ matrix.profile == 'release' && '--release' || '' }}
-    if: ${{ !(matrix.cli-command == 'new' && matrix.playdate-rs-version == 'head') }}
     steps:
       # Install packages
       - name: Install gcc-arm-none-eabi
