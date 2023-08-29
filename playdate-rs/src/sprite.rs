@@ -527,7 +527,7 @@ impl Sprite {
     }
 
     /// Moves the given sprite towards goalX, goalY taking collisions into account and returns an array of SpriteCollisionInfo. len is set to the size of the array and actualX, actualY are set to the sprite’s position after collisions. If no collisions occurred, this will be the same as goalX, goalY.
-    pub fn move_with_collisions(&self, goal: Vec2<f32>) -> Vec<SpriteCollisionInfo> {
+    pub fn move_with_collisions(&self, goal: Vec2<f32>) -> (Vec2<f32>, Vec<SpriteCollisionInfo>) {
         let mut actual_x = 0.0;
         let mut actual_y = 0.0;
         let mut len = 0;
@@ -548,7 +548,7 @@ impl Sprite {
         }
         // caller is responsible for freeing memory of array returned by moveWithCollisions()
         PLAYDATE.system.realloc(info as _, 0);
-        result
+        (vec2!(actual_x, actual_y), result)
     }
 
     /// Returns an array of sprites that have collide rects that are currently overlapping the given sprite’s collide rect.

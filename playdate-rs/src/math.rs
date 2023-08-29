@@ -602,7 +602,7 @@ impl Rect<f32> {
 
     /// Check if the rectangle intersects another rectangle.
     #[inline]
-    pub fn intersects(&self, other: Self) -> bool {
+    pub fn intersects(&self, other: &Self) -> bool {
         self.x < other.x + other.width
             && self.x + self.width > other.x
             && self.y < other.y + other.height
@@ -620,7 +620,7 @@ impl Rect<f32> {
 
     /// Check if the rectangle contains another rectangle.
     #[inline]
-    pub fn contains_rect(&self, other: Self) -> bool {
+    pub fn contains_rect(&self, other: &Self) -> bool {
         self.x <= other.x
             && self.x + self.width >= other.x + other.width
             && self.y <= other.y

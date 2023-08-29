@@ -3,7 +3,7 @@ use core::{
     marker::PhantomData,
 };
 
-use crate::math::{Rect, Vec2};
+use crate::math::{Rect, Size, Vec2};
 use alloc::ffi::CString;
 
 use crate::{math::SideOffsets, util::Ref};
@@ -539,8 +539,8 @@ impl Bitmap {
         unsafe {
             ((*PLAYDATE.graphics.handle).getBitmapData.unwrap())(
                 self.handle,
-                &mut data.width,
-                &mut data.height,
+                &mut data.size.width,
+                &mut data.size.height,
                 &mut data.rowbytes,
                 &mut data.mask,
                 &mut data.data,
@@ -639,8 +639,7 @@ pub enum ColorPatternData {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BitmapData<'a> {
-    pub width: i32,
-    pub height: i32,
+    pub size: Size<i32>,
     pub rowbytes: i32,
     pub mask: *mut u8,
     pub data: *mut u8,
@@ -650,8 +649,7 @@ pub struct BitmapData<'a> {
 impl<'a> BitmapData<'a> {
     fn new() -> Self {
         BitmapData {
-            width: 0,
-            height: 0,
+            size: Size::default(),
             rowbytes: 0,
             mask: core::ptr::null_mut(),
             data: core::ptr::null_mut(),

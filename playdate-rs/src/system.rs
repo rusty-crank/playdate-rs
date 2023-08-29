@@ -1,7 +1,11 @@
-use core::ffi::{c_char, c_void, CStr};
+use core::{
+    cell::UnsafeCell,
+    ffi::{c_char, c_void, CStr},
+};
 
 use alloc::{ffi::CString, vec::Vec};
 use rand::{rngs::SmallRng, SeedableRng};
+use spin::Lazy;
 use sys::PDButtons;
 pub use sys::{
     PDDateTime as DateTime, PDLanguage as Language, PDPeripherals as Peripherals,
@@ -316,10 +320,10 @@ impl PlaydateSystem {
             COUNTER
         };
         seed += self.get_timezone_offset().abs() as u64;
-        let x = self.get_accelerometer();
-        seed += x.0 as u64;
-        seed += x.1 as u64;
-        seed += x.2 as u64;
+        // let x = self.get_accelerometer();
+        // seed += x.0 as u64;
+        // seed += x.1 as u64;
+        // seed += x.2 as u64;
         seed += self.get_current_time_milliseconds() as u64;
         seed += self.get_elapsed_time() as u64;
         seed += self.get_battery_percentage() as u64;
@@ -329,10 +333,21 @@ impl PlaydateSystem {
     }
 
     /// Returns a random number generator seeded with a value that should be unique to the device state and time.
-    pub fn rand(&self) -> SmallRng {
-        SmallRng::seed_from_u64(self.generate_seed())
+    pub fn rand(&self) -> &mut SmallRng {
+        unsafe { &mut *RNG.0.get() }
     }
 }
+
+struct SmallRngCell(UnsafeCell<SmallRng>);
+
+unsafe impl Send for SmallRngCell {}
+unsafe impl Sync for SmallRngCell {}
+
+static RNG: Lazy<SmallRngCell> = Lazy::new(|| {
+    SmallRngCell(UnsafeCell::new(SmallRng::seed_from_u64(
+        PLAYDATE.system.generate_seed(),
+    )))
+});
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct MenuItem {
