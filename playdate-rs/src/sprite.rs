@@ -167,8 +167,7 @@ impl PlaydateSprite {
     pub fn move_with_collisions(
         &self,
         sprite: impl AsRef<Sprite>,
-        goal_x: f32,
-        goal_y: f32,
+        goal: Point2D<f32>,
     ) -> Vec<SpriteCollisionInfo> {
         let mut actual_x = 0.0;
         let mut actual_y = 0.0;
@@ -176,8 +175,8 @@ impl PlaydateSprite {
         let info = unsafe {
             (*self.handle).moveWithCollisions.unwrap()(
                 sprite.as_ref().handle,
-                goal_x,
-                goal_y,
+                goal.x,
+                goal.y,
                 &mut actual_x,
                 &mut actual_y,
                 &mut len,
