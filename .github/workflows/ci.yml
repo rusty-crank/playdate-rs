@@ -18,13 +18,14 @@ jobs:
     strategy:
       matrix:
         target:
-          - x86_64-unknown-linux-gnu
-          - thumbv7em-none-eabihf
+          - x86_64
+          - thumbv7em
         profile:
           - debug
           - release
     env:
-      CARGO_BUILD_FLAGS: --target ${{ matrix.target }} ${{ matrix.profile == 'release' && '--release' || '' }}
+      CARGO_BUILD_FLAGS: --target ${{ matrix.target == 'x86_64' && 'x86_64-unknown-linux-gnu' || 'thumbv7em-none-eabihf' }} ${{ matrix.profile == 'release' && '--release' || '' }}
+      CARGO_TARGET: ${{ matrix.target == 'x86_64' && 'x86_64-unknown-linux-gnu' || 'thumbv7em-none-eabihf' }}
     steps:
       # Checkout repo
       - name: Checkout
@@ -36,18 +37,18 @@ jobs:
           curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-${{ env.PLAYDATE_SDK_VERSION }}.tar.gz | tar xz --strip 1 -C PlaydateSDK
       # Setup up rust toolchain
       - name: Setup Rust Toolchain
-        run: rustup update stable && rustup target add ${{ matrix.target }}
+        run: rustup update stable && rustup target add ${{ env.CARGO_TARGET }}
       # Build all projects except playdate-cli
       - name: Cargo Build (${{ matrix.target }}, ${{ matrix.profile }})
-        run: cargo build --workspace ${{ matrix.CARGO_BUILD_FLAGS }} --exclude playdate-cli
+        run: cargo build --workspace ${{ env.CARGO_BUILD_FLAGS }} --exclude playdate-cli
       # Test sys package
       - name: Cargo Test (${{ matrix.target }}, ${{ matrix.profile }})
-        run: cargo test -p playdate-rs-sys ${{ matrix.CARGO_BUILD_FLAGS }}
-        if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' }}
+        run: cargo test -p playdate-rs-sys ${{ env.CARGO_BUILD_FLAGS }}
+        if: ${{ matrix.target == 'x86_64' }}
       # Format checks
       - name: Cargo clippy checks
-        run: cargo clippy ${{ matrix.CARGO_BUILD_FLAGS }} -- -D warnings
-        if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' }}
+        run: cargo clippy ${{ env.CARGO_BUILD_FLAGS }} -- -D warnings
+        if: ${{ matrix.target == 'x86_64' }}
 
   # Cargo format checks
   format-checks:
@@ -69,8 +70,8 @@ jobs:
     strategy:
       matrix:
         target:
-          - x86_64-unknown-linux-gnu
-          - thumbv7em-none-eabihf
+          - x86_64
+          - thumbv7em
         profile:
           - debug
           - release
@@ -84,14 +85,15 @@ jobs:
           - cli-command: new
             playdate-rs-version: head
     env:
-      CARGO_PROFILE_BUILD_FLAGS: ${{ matrix.profile == 'thumbv7em-none-eabihf' && '--device' || '' }} ${{ matrix.profile == 'release' && '--release' || '' }}
+      CARGO_PROFILE_BUILD_FLAGS: ${{ matrix.target == 'thumbv7em' && '--device' || '' }} ${{ matrix.profile == 'release' && '--release' || '' }}
+      CARGO_TARGET: ${{ matrix.target == 'x86_64' && 'x86_64-unknown-linux-gnu' || 'thumbv7em-none-eabihf' }}
     steps:
       # Install packages
       - name: Install gcc-arm-none-eabi
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-arm-none-eabi
-        if: ${{ matrix.target == 'thumbv7em-none-eabihf' }}
+        if: ${{ matrix.target == 'thumbv7em' }}
       # Checkout repo
       - name: Checkout
         uses: actions/checkout@v3
@@ -102,7 +104,7 @@ jobs:
           curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-${{ env.PLAYDATE_SDK_VERSION }}.tar.gz | tar xz --strip 1 -C PlaydateSDK
       # Setup up rust toolchain
       - name: Setup Rust Toolchain
-        run: rustup update stable && rustup target add ${{ matrix.target }}
+        run: rustup update stable && rustup target add ${{ env.CARGO_TARGET }}
       # Install playdate-cli
       - name: Install playdate-cli
         run: |
@@ -130,7 +132,7 @@ jobs:
       - name: Cargo clippy checks
         run: cargo clippy -- -D warnings
         working-directory: new-project
-        if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' }}
+        if: ${{ matrix.target == 'x86_64' }}
 
   # Cargo format checks
   build-docs:
