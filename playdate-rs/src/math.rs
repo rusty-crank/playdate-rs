@@ -1,5 +1,7 @@
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
+use num_traits::Signed;
+
 #[macro_export]
 macro_rules! vec2 {
     ($x:expr, $y:expr $(,)?) => {
@@ -62,6 +64,137 @@ impl<T> Vec2<T> {
         T: Into<U>,
     {
         Vec2::new(self.x.into(), self.y.into())
+    }
+
+    /// Returns a vector with the absolute value of each component.
+    #[inline]
+    pub fn abs(self) -> Self
+    where
+        T: Signed,
+    {
+        Self::new(self.x.abs(), self.y.abs())
+    }
+
+    /// cross product.
+    #[inline]
+    pub fn cross(self, other: Self) -> T
+    where
+        T: Sub<Output = T> + Mul<Output = T>,
+    {
+        self.x * other.y - self.y * other.x
+    }
+
+    /// swap x and y
+    #[inline]
+    pub fn yx(self) -> Self {
+        Self::new(self.y, self.x)
+    }
+
+    /// Returns the square of the vector length.
+    #[inline]
+    pub fn square_length(self) -> T
+    where
+        T: Add<Output = T> + Mul<Output = T> + Clone,
+    {
+        self.x.clone() * self.x + self.y.clone() * self.y
+    }
+}
+
+impl Vec2<f32> {
+    /// Round each component to the nearest integer.
+    #[inline]
+    pub fn round(self) -> Self {
+        Self::new(self.x.round(), self.y.round())
+    }
+
+    /// Round each component up to the nearest integer.
+    #[inline]
+    pub fn ceil(self) -> Self {
+        Self::new(self.x.ceil(), self.y.ceil())
+    }
+
+    /// Round each component down to the nearest integer.
+    #[inline]
+    pub fn floor(self) -> Self {
+        Self::new(self.x.floor(), self.y.floor())
+    }
+
+    /// Normalize the vector.
+    #[inline]
+    pub fn normalize(self) -> Self {
+        let length = self.length();
+        if length == 0.0 {
+            return Self::ZERO;
+        }
+        self / length
+    }
+
+    /// scale the vector to the given length.
+    #[inline]
+    pub fn with_length(self, length: f32) -> Self {
+        self.normalize() * length
+    }
+
+    /// Rotate the vector around a center point by the given angle in radians.
+    #[inline]
+    pub fn rotate_around(self, center: Self, radians: f32) -> Self {
+        let (sin, cos) = radians.sin_cos();
+        let x = self.x - center.x;
+        let y = self.y - center.y;
+        Self::new(x * cos - y * sin + center.x, x * sin + y * cos + center.y)
+    }
+
+    /// Rotate the vector by the given angle in radians.
+    #[inline]
+    pub fn rotate(self, radians: f32) -> Self {
+        let (sin, cos) = radians.sin_cos();
+        Self::new(self.x * cos - self.y * sin, self.x * sin + self.y * cos)
+    }
+
+    /// Scale the vector by another vector.
+    #[inline]
+    pub fn scale(self, other: Self) -> Self {
+        Self::new(self.x * other.x, self.y * other.y)
+    }
+
+    /// Translate the vector by another vector.
+    #[inline]
+    pub fn translate(self, other: Self) -> Self {
+        Self::new(self.x + other.x, self.y + other.y)
+    }
+
+    /// Project the vector onto another vector.
+    #[inline]
+    pub fn project_onto(self, other: Self) -> Self {
+        let other = other.normalize();
+        other * self.dot(other)
+    }
+
+    /// Reflect the vector around a normal.
+    #[inline]
+    pub fn reflect(self, normal: Self) -> Self {
+        self - normal * 2.0 * self.dot(normal)
+    }
+}
+
+impl<T> From<(T, T)> for Vec2<T> {
+    #[inline]
+    fn from(v: (T, T)) -> Self {
+        Self { x: v.0, y: v.1 }
+    }
+}
+
+impl<T> Into<(T, T)> for Vec2<T> {
+    #[inline]
+    fn into(self) -> (T, T) {
+        (self.x, self.y)
+    }
+}
+
+impl<T> Into<[T; 2]> for Vec2<T> {
+    #[inline]
+    fn into(self) -> [T; 2] {
+        [self.x, self.y]
     }
 }
 
@@ -163,37 +296,30 @@ impl<T: DivAssign<T>> DivAssign<Self> for Vec2<T> {
 
 impl Vec2<i8> {
     pub const ZERO: Self = Self { x: 0, y: 0 };
-    pub const ONE: Self = Self { x: 1, y: 1 };
 }
 
 impl Vec2<u8> {
     pub const ZERO: Self = Self { x: 0, y: 0 };
-    pub const ONE: Self = Self { x: 1, y: 1 };
 }
 
 impl Vec2<i32> {
     pub const ZERO: Self = Self { x: 0, y: 0 };
-    pub const ONE: Self = Self { x: 1, y: 1 };
 }
 
 impl Vec2<u32> {
     pub const ZERO: Self = Self { x: 0, y: 0 };
-    pub const ONE: Self = Self { x: 1, y: 1 };
 }
 
 impl Vec2<isize> {
     pub const ZERO: Self = Self { x: 0, y: 0 };
-    pub const ONE: Self = Self { x: 1, y: 1 };
 }
 
 impl Vec2<usize> {
     pub const ZERO: Self = Self { x: 0, y: 0 };
-    pub const ONE: Self = Self { x: 1, y: 1 };
 }
 
 impl Vec2<f32> {
     pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
-    pub const ONE: Self = Self { x: 1.0, y: 1.0 };
 }
 
 #[macro_export]
@@ -439,6 +565,53 @@ impl<T> Rect<T> {
         let width = self.width.clone().into();
         let height = self.height.clone().into();
         width / height
+    }
+}
+
+impl Rect<f32> {
+    /// Scale the rectangle size by another vector.
+    #[inline]
+    pub fn scale(self, scale: Vec2<f32>) -> Self {
+        Self::new(self.x, self.y, self.width * scale.x, self.height * scale.y)
+    }
+
+    /// Translate the rectangle by another vector.
+    #[inline]
+    pub fn translate(self, delta: Vec2<f32>) -> Self {
+        Self::new(self.x + delta.x, self.y + delta.y, self.width, self.height)
+    }
+
+    /// Returns the center of the rectangle.
+    #[inline]
+    pub fn center(&self) -> Vec2<f32> {
+        Vec2::new(self.x + self.width / 2.0, self.y + self.height / 2.0)
+    }
+
+    /// Check if the rectangle intersects another rectangle.
+    #[inline]
+    pub fn intersects(&self, other: Self) -> bool {
+        self.x < other.x + other.width
+            && self.x + self.width > other.x
+            && self.y < other.y + other.height
+            && self.y + self.height > other.y
+    }
+
+    /// Check if the rectangle contains a point.
+    #[inline]
+    pub fn contains_point(&self, point: Vec2<f32>) -> bool {
+        point.x >= self.x
+            && point.x <= self.x + self.width
+            && point.y >= self.y
+            && point.y <= self.y + self.height
+    }
+
+    /// Check if the rectangle contains another rectangle.
+    #[inline]
+    pub fn contains_rect(&self, other: Self) -> bool {
+        self.x <= other.x
+            && self.x + self.width >= other.x + other.width
+            && self.y <= other.y
+            && self.y + self.height >= other.y + other.height
     }
 }
 
