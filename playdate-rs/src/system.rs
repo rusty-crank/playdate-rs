@@ -1,6 +1,7 @@
 use core::ffi::{c_char, c_void, CStr};
 
 use alloc::{ffi::CString, vec::Vec};
+use euclid::default::Point2D;
 use sys::PDButtons;
 pub use sys::{
     PDDateTime as DateTime, PDLanguage as Language, PDPeripherals as Peripherals,
@@ -59,8 +60,8 @@ impl PlaydateSystem {
     }
 
     /// Calculates the current frames per second and draws that value at `x`, `y`.
-    pub fn draw_fps(&self, x: i32, y: i32) {
-        unsafe { (*self.handle).drawFPS.unwrap()(x, y) }
+    pub fn draw_fps(&self, pos: Point2D<i32>) {
+        unsafe { (*self.handle).drawFPS.unwrap()(pos.x, pos.y) }
     }
 
     /// Replaces the default Lua run loop function with a custom update function. The update function should return a non-zero number to tell the system to update the display, or zero if update isn’t needed.

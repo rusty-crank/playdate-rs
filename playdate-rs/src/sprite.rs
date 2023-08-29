@@ -1,6 +1,7 @@
 use core::cell::RefCell;
 
 use alloc::vec::Vec;
+use euclid::default::Vector2D;
 use playdate_rs_sys::LCDPattern;
 
 use crate::{
@@ -128,9 +129,10 @@ impl PlaydateSprite {
         }
     }
 
-    pub fn query_sprites_at_point(&self, x: f32, y: f32) -> Vec<Ref<Sprite>> {
+    pub fn query_sprites_at_point(&self, pos: Point2D<f32>) -> Vec<Ref<Sprite>> {
         let mut len = 0;
-        let sprites = unsafe { (*self.handle).querySpritesAtPoint.unwrap()(x, y, &mut len) };
+        let sprites =
+            unsafe { (*self.handle).querySpritesAtPoint.unwrap()(pos.x, pos.y, &mut len) };
         let mut result = Vec::new();
         for i in 0..len {
             let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
@@ -140,16 +142,17 @@ impl PlaydateSprite {
         result
     }
 
-    pub fn query_sprites_in_rect(
-        &self,
-        x: f32,
-        y: f32,
-        width: f32,
-        height: f32,
-    ) -> Vec<Ref<Sprite>> {
+    pub fn query_sprites_in_rect(&self, rect: Rect<f32>) -> Vec<Ref<Sprite>> {
         let mut len = 0;
-        let sprites =
-            unsafe { (*self.handle).querySpritesInRect.unwrap()(x, y, width, height, &mut len) };
+        let sprites = unsafe {
+            (*self.handle).querySpritesInRect.unwrap()(
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
+                &mut len,
+            )
+        };
         let mut result = Vec::new();
         for i in 0..len {
             let sprite = unsafe { sprites.offset(i as isize).as_ref().unwrap() };
@@ -274,13 +277,13 @@ impl Sprite {
     }
 
     /// Moves the given sprite to x, y and resets its bounds based on the bitmap dimensions and center.
-    pub fn move_to(&self, x: f32, y: f32) {
-        unsafe { (*PLAYDATE.sprite.handle).moveTo.unwrap()(self.handle, x, y) }
+    pub fn move_to(&self, pos: Point2D<f32>) {
+        unsafe { (*PLAYDATE.sprite.handle).moveTo.unwrap()(self.handle, pos.x, pos.y) }
     }
 
     /// Moves the given sprite to by offsetting its current position by dx, dy.
-    pub fn move_by(&self, dx: f32, dy: f32) {
-        unsafe { (*PLAYDATE.sprite.handle).moveBy.unwrap()(self.handle, dx, dy) }
+    pub fn move_by(&self, delta: Vector2D<f32>) {
+        unsafe { (*PLAYDATE.sprite.handle).moveBy.unwrap()(self.handle, delta.x, delta.y) }
     }
 
     /// Sets the given sprite's image to the given bitmap.
@@ -532,15 +535,15 @@ impl Sprite {
     }
 
     /// Returns the same values as playdate->sprite->moveWithCollisions() but does not actually move the sprite.
-    pub fn check_collisions(&self, goal_x: f32, goal_y: f32) -> Vec<SpriteCollisionInfo> {
+    pub fn check_collisions(&self, move_goal: Point2D<f32>) -> Vec<SpriteCollisionInfo> {
         let mut actual_x = 0.0;
         let mut actual_y = 0.0;
         let mut len = 0;
         let info = unsafe {
             (*PLAYDATE.sprite.handle).checkCollisions.unwrap()(
                 self.handle,
-                goal_x,
-                goal_y,
+                move_goal.x,
+                move_goal.y,
                 &mut actual_x,
                 &mut actual_y,
                 &mut len,

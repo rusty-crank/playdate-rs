@@ -1,6 +1,8 @@
 #![no_std]
 
 use playdate_rs::graphics::{Bitmap, LCDSolidColor};
+use playdate_rs::math::euclid::default::Vector2D;
+use playdate_rs::math::Point2D;
 use playdate_rs::{app, println, App, PLAYDATE};
 
 #[app]
@@ -24,19 +26,18 @@ impl App for HelloWorld {
         // Draw image
         PLAYDATE.graphics.draw_rotated_bitmap(
             &self.image,
-            130,
-            120,
+            Point2D::new(130, 120),
             self.rotation,
-            0.5,
-            0.5,
-            1.0,
-            1.0,
+            Point2D::new(0.5, 0.5),
+            Vector2D::new(1.0, 1.0),
         );
         // Rotate image
         self.rotation += delta * 90.0;
         // Draw text
-        PLAYDATE.graphics.draw_text("Hello, World!", 230, 112);
+        PLAYDATE
+            .graphics
+            .draw_text("Hello, World!", Point2D::new(230, 112));
         // Draw FPS
-        PLAYDATE.system.draw_fps(0, 0);
+        PLAYDATE.system.draw_fps(Point2D::new(0, 0));
     }
 }

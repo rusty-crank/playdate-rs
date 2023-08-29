@@ -1,3 +1,5 @@
+use euclid::default::{Point2D, Vector2D};
+
 pub struct PlaydateDisplay {
     handle: *const sys::playdate_display,
 }
@@ -35,18 +37,23 @@ impl PlaydateDisplay {
     }
 
     /// Adds a mosaic effect to the display. Valid x and y values are between 0 and 3, inclusive.
-    pub fn set_mosaic(&self, x: u32, y: u32) {
-        unsafe { (*self.handle).setMosaic.unwrap()(x, y) }
+    pub fn set_mosaic(&self, effect: Vector2D<u32>) {
+        debug_assert!(
+            effect.x < 4 && effect.y < 4,
+            "invalid mosaic effect: {:?}",
+            effect
+        );
+        unsafe { (*self.handle).setMosaic.unwrap()(effect.x, effect.y) }
     }
 
     /// Flips the display on the x or y axis, or both.
-    pub fn set_flipped(&self, x: i32, y: i32) {
-        unsafe { (*self.handle).setFlipped.unwrap()(x, y) }
+    pub fn set_flipped(&self, x: bool, y: bool) {
+        unsafe { (*self.handle).setFlipped.unwrap()(x as _, y as _) }
     }
 
     /// Offsets the display by the given amount. Areas outside of the displayed area are filled with the current background color.
-    pub fn set_offset(&self, x: i32, y: i32) {
-        unsafe { (*self.handle).setOffset.unwrap()(x, y) }
+    pub fn set_offset(&self, delta: Point2D<i32>) {
+        unsafe { (*self.handle).setOffset.unwrap()(delta.x, delta.y) }
     }
 }
 

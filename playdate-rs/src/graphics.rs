@@ -3,7 +3,9 @@ use core::{
     marker::PhantomData,
 };
 
+use crate::math::Rect;
 use alloc::ffi::CString;
+use euclid::default::{Point2D, Vector2D};
 
 use crate::{math::SideOffsets2D, util::Ref};
 
@@ -68,16 +70,21 @@ impl PlaydateGraphics {
 
     /// Offsets the origin point for all drawing calls to x, y (can be negative).
     /// This is useful, for example, for centering a "camera" on a sprite that is moving around a world larger than the screen.
-    pub fn set_draw_offset(&self, dx: i32, dy: i32) {
+    pub fn set_draw_offset(&self, delta: Vector2D<i32>) {
         unsafe {
-            ((*self.handle).setDrawOffset.unwrap())(dx, dy);
+            ((*self.handle).setDrawOffset.unwrap())(delta.x, delta.y);
         }
     }
 
     /// Sets the current clip rect, using world coordinates—​that is, the given rectangle will be translated by the current drawing offset. The clip rect is cleared at the beginning of each update.
-    pub fn set_clip_rect(&self, x: i32, y: i32, width: i32, height: i32) {
+    pub fn set_clip_rect(&self, rect: Rect<i32>) {
         unsafe {
-            ((*self.handle).setClipRect.unwrap())(x, y, width, height);
+            ((*self.handle).setClipRect.unwrap())(
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
+            );
         }
     }
 
@@ -124,24 +131,23 @@ impl PlaydateGraphics {
     }
 
     /// Draws the bitmap with its upper-left corner at location x, y, using the given flip orientation.
-    pub fn draw_bitmap(&self, bitmap: impl AsRef<Bitmap>, x: i32, y: i32, flip: LCDBitmapFlip) {
+    pub fn draw_bitmap(&self, bitmap: impl AsRef<Bitmap>, pos: Point2D<i32>, flip: LCDBitmapFlip) {
         unsafe {
-            ((*self.handle).drawBitmap.unwrap())(bitmap.as_ref().handle, x, y, flip);
+            ((*self.handle).drawBitmap.unwrap())(bitmap.as_ref().handle, pos.x, pos.y, flip);
         }
     }
 
     /// Draws the bitmap with its upper-left corner at location x, y tiled inside a width by height rectangle.
-    pub fn tile_bitmap(
-        &self,
-        bitmap: impl AsRef<Bitmap>,
-        x: i32,
-        y: i32,
-        width: i32,
-        height: i32,
-        flip: LCDBitmapFlip,
-    ) {
+    pub fn tile_bitmap(&self, bitmap: impl AsRef<Bitmap>, rect: Rect<i32>, flip: LCDBitmapFlip) {
         unsafe {
-            ((*self.handle).tileBitmap.unwrap())(bitmap.as_ref().handle, x, y, width, height, flip);
+            ((*self.handle).tileBitmap.unwrap())(
+                bitmap.as_ref().handle,
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
+                flip,
+            );
         }
     }
 
@@ -178,27 +184,39 @@ impl PlaydateGraphics {
     }
 
     /// Draws a pixel at x, y.
-    pub fn draw_pixel(&self, x: i32, y: i32, color: LCDSolidColor) {
+    pub fn draw_pixel(&self, pos: Point2D<i32>, color: LCDSolidColor) {
         let fb = self.get_frame();
-        let byte_ptr = unsafe { fb.add((y * LCD_ROWSIZE as i32 + (x >> 3)) as usize) };
+        let byte_ptr = unsafe { fb.add((pos.y * LCD_ROWSIZE as i32 + (pos.x >> 3)) as usize) };
         if color == LCDSolidColor::kColorBlack {
-            unsafe { *byte_ptr &= !(1 << (7 - (x & 7))) };
+            unsafe { *byte_ptr &= !(1 << (7 - (pos.x & 7))) };
         } else {
-            unsafe { *byte_ptr |= 1 << (7 - (x & 7)) };
+            unsafe { *byte_ptr |= 1 << (7 - (pos.x & 7)) };
         }
     }
 
     /// Draws a width by height rect at x, y.
-    pub fn draw_rect(&self, x: i32, y: i32, width: i32, height: i32, color: impl Into<LCDColor>) {
+    pub fn draw_rect(&self, rect: Rect<i32>, color: impl Into<LCDColor>) {
         unsafe {
-            ((*self.handle).drawRect.unwrap())(x, y, width, height, color.into());
+            ((*self.handle).drawRect.unwrap())(
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
+                color.into(),
+            );
         }
     }
 
     /// Draws a filled width by height rect at x, y.
-    pub fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32, color: impl Into<LCDColor>) {
+    pub fn fill_rect(&self, rect: Rect<i32>, color: impl Into<LCDColor>) {
         unsafe {
-            ((*self.handle).fillRect.unwrap())(x, y, width, height, color.into());
+            ((*self.handle).fillRect.unwrap())(
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
+                color.into(),
+            );
         }
     }
 
@@ -206,10 +224,7 @@ impl PlaydateGraphics {
     #[allow(clippy::too_many_arguments)]
     pub fn draw_ellipse(
         &self,
-        x: i32,
-        y: i32,
-        width: i32,
-        height: i32,
+        rect: Rect<i32>,
         line_width: i32,
         start_angle: f32,
         end_angle: f32,
@@ -217,10 +232,10 @@ impl PlaydateGraphics {
     ) {
         unsafe {
             ((*self.handle).drawEllipse.unwrap())(
-                x,
-                y,
-                width,
-                height,
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
                 line_width,
                 start_angle,
                 end_angle,
@@ -233,20 +248,17 @@ impl PlaydateGraphics {
     #[allow(clippy::too_many_arguments)]
     pub fn fill_ellipse(
         &self,
-        x: i32,
-        y: i32,
-        width: i32,
-        height: i32,
+        rect: Rect<i32>,
         start_angle: f32,
         end_angle: f32,
         color: impl Into<LCDColor>,
     ) {
         unsafe {
             ((*self.handle).fillEllipse.unwrap())(
-                x,
-                y,
-                width,
-                height,
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
                 start_angle,
                 end_angle,
                 color.into(),
@@ -258,28 +270,32 @@ impl PlaydateGraphics {
     pub fn draw_scaled_bitmap(
         &self,
         bitmap: impl AsRef<Bitmap>,
-        x: i32,
-        y: i32,
-        xscale: f32,
-        yscale: f32,
+        pos: Point2D<i32>,
+        scale: Vector2D<f32>,
     ) {
         unsafe {
             ((*self.handle).drawScaledBitmap.unwrap())(
                 bitmap.as_ref().handle,
-                x,
-                y,
-                xscale,
-                yscale,
+                pos.x,
+                pos.y,
+                scale.x,
+                scale.y,
             );
         }
     }
 
     /// Draws the given text using the provided options. If no font has been set with setFont, the default system font Asheville Sans 14 Light is used.
-    pub fn draw_text(&self, text: impl AsRef<str>, x: i32, y: i32) -> i32 {
+    pub fn draw_text(&self, text: impl AsRef<str>, pos: Point2D<i32>) -> i32 {
         let ptr = text.as_ref().as_ptr() as *const c_void;
         let len = text.as_ref().len();
         unsafe {
-            ((*self.handle).drawText.unwrap())(ptr, len, sys::PDStringEncoding::kUTF8Encoding, x, y)
+            ((*self.handle).drawText.unwrap())(
+                ptr,
+                len,
+                sys::PDStringEncoding::kUTF8Encoding,
+                pos.x,
+                pos.y,
+            )
         }
     }
 
@@ -378,9 +394,14 @@ impl PlaydateGraphics {
     }
 
     /// Sets the current clip rect in screen coordinates.
-    pub fn set_screen_clip_rect(&self, x: i32, y: i32, width: i32, height: i32) {
+    pub fn set_screen_clip_rect(&self, rect: Rect<i32>) {
         unsafe {
-            ((*self.handle).setScreenClipRect.unwrap())(x, y, width, height);
+            ((*self.handle).setScreenClipRect.unwrap())(
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
+            );
         }
     }
 
@@ -413,24 +434,21 @@ impl PlaydateGraphics {
     pub fn draw_rotated_bitmap(
         &self,
         bitmap: impl AsRef<Bitmap>,
-        x: i32,
-        y: i32,
+        pos: Point2D<i32>,
         rotation: f32,
-        centerx: f32,
-        centery: f32,
-        xscale: f32,
-        yscale: f32,
+        center_pos: Point2D<f32>,
+        scale: Vector2D<f32>,
     ) {
         unsafe {
             ((*self.handle).drawRotatedBitmap.unwrap())(
                 bitmap.as_ref().handle,
-                x,
-                y,
+                pos.x,
+                pos.y,
                 rotation,
-                centerx,
-                centery,
-                xscale,
-                yscale,
+                center_pos.x,
+                center_pos.y,
+                scale.x,
+                scale.y,
             );
         }
     }
@@ -576,24 +594,29 @@ impl Bitmap {
     }
 
     /// Returns a new, rotated and scaled LCDBitmap based on the given bitmap.
-    pub fn rotated(&self, rotation: f32, xscale: f32, yscale: f32) -> Bitmap {
+    pub fn rotated(&self, rotation: f32, scale: Vector2D<f32>) -> Bitmap {
         let mut alloced_size = 0;
         Self::from(unsafe {
             ((*PLAYDATE.graphics.handle).rotatedBitmap.unwrap())(
                 self.handle,
                 rotation,
-                xscale,
-                yscale,
+                scale.x,
+                scale.y,
                 &mut alloced_size,
             )
         })
     }
 
     /// Get color as an 8 x 8 pattern using the given bitmap. x, y indicates the top left corner of the 8 x 8 pattern.
-    pub fn get_color_pattern(&self, x: i32, y: i32) -> ColorPatternData {
+    pub fn get_color_pattern(&self, pos: Point2D<i32>) -> ColorPatternData {
         let mut color = LCDColor::default();
         unsafe {
-            ((*PLAYDATE.graphics.handle).setColorToPattern.unwrap())(&mut color, self.handle, x, y);
+            ((*PLAYDATE.graphics.handle).setColorToPattern.unwrap())(
+                &mut color,
+                self.handle,
+                pos.x,
+                pos.y,
+            );
         }
         if let Some(scolor) = color.as_solid_color() {
             ColorPatternData::Solid(scolor)
