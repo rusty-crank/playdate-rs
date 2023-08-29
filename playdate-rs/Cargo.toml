@@ -20,3 +20,4 @@ playdate-rs-macros = { workspace = true }
 spin = "0.9.8"
 no_std_io = { version = "0.6.0", features = ["alloc"] }
 bitmask-enum = "2.2.2"
+rand = { version = "0.8.5", features = ["small_rng"], default-features = false }

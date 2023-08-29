@@ -2,6 +2,7 @@
 
 extern crate alloc;
 extern crate playdate_rs_sys as sys;
+pub extern crate rand;
 
 #[macro_use]
 #[doc(hidden)]

@@ -1,6 +1,7 @@
 use core::ffi::{c_char, c_void, CStr};
 
 use alloc::{ffi::CString, vec::Vec};
+use rand::{rngs::SmallRng, SeedableRng};
 use sys::PDButtons;
 pub use sys::{
     PDDateTime as DateTime, PDLanguage as Language, PDPeripherals as Peripherals,
@@ -306,6 +307,30 @@ impl PlaydateSystem {
     /// Flush the CPU instruction cache, on the very unlikely chance you’re modifying instruction code on the fly. (If you don’t know what I’m talking about, you don’t need this. :smile:)
     pub fn clear_icache(&self) {
         unsafe { (*self.handle).clearICache.unwrap()() }
+    }
+
+    fn generate_seed(&self) -> u64 {
+        static mut COUNTER: u64 = 0;
+        let mut seed = unsafe {
+            COUNTER += 1;
+            COUNTER
+        };
+        seed += self.get_timezone_offset().abs() as u64;
+        let x = self.get_accelerometer();
+        seed += x.0 as u64;
+        seed += x.1 as u64;
+        seed += x.2 as u64;
+        seed += self.get_current_time_milliseconds() as u64;
+        seed += self.get_elapsed_time() as u64;
+        seed += self.get_battery_percentage() as u64;
+        seed += self.get_crank_angle() as u64;
+        seed += self.get_button_state().current.bits() as u64;
+        seed
+    }
+
+    /// Returns a random number generator seeded with a value that should be unique to the device state and time.
+    pub fn rand(&self) -> SmallRng {
+        SmallRng::seed_from_u64(self.generate_seed())
     }
 }
 
