@@ -1,5 +1,6 @@
 use crate::{error::Error, PLAYDATE};
 
+use alloc::ffi::CString;
 pub use sys::SoundFormat;
 
 pub struct PlaydateSample {
@@ -28,7 +29,7 @@ impl AudioSample {
 
     /// Allocates and returns a new AudioSample, with the sound data loaded in memory. If there is no file at path, the function returns null.
     pub fn open(path: impl AsRef<str>) -> Result<Self, Error> {
-        let c_string = std::ffi::CString::new(path.as_ref()).unwrap();
+        let c_string = CString::new(path.as_ref()).unwrap();
         let handle = unsafe { (*PLAYDATE.sound.sample.handle).load.unwrap()(c_string.as_ptr()) };
         if handle.is_null() {
             Err(Error::FileNotExists(path.as_ref().to_owned()))
@@ -42,7 +43,7 @@ impl AudioSample {
 
     /// Loads the sound data from the file at path into an existing AudioSample, sample.
     pub fn load(&mut self, path: impl AsRef<str>) -> Result<(), Error> {
-        let c_string = std::ffi::CString::new(path.as_ref()).unwrap();
+        let c_string = CString::new(path.as_ref()).unwrap();
         let result = unsafe {
             (*PLAYDATE.sound.sample.handle).loadIntoSample.unwrap()(self.handle, c_string.as_ptr())
         };
@@ -55,7 +56,7 @@ impl AudioSample {
 
     /// Retrieves the sample’s data, format, sample rate, and data length.
     pub fn get_data(&self) -> AudioSampleData {
-        let mut data = std::ptr::null_mut();
+        let mut data = core::ptr::null_mut();
         let mut format = sys::SoundFormat(0);
         let mut sample_rate = 0;
         let mut byte_length = 0;
