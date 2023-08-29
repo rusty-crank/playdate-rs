@@ -77,8 +77,12 @@ jobs:
         cli-command:
           - init
           - new
+        playdate-rs-version:
+          - head
+          - crates-io
     env:
       CARGO_PROFILE_BUILD_FLAGS: ${{ matrix.profile == 'thumbv7em-none-eabihf' && '--device' || '' }} ${{ matrix.profile == 'release' && '--release' || '' }}
+    if: ${{ !(matrix.cli-command == 'new' && matrix.playdate-rs-version == 'head') }}
     steps:
       # Install packages
       - name: Install gcc-arm-none-eabi
@@ -107,9 +111,12 @@ jobs:
       - name: Create cargo playdate project
         run: cargo playdate new new-project
         if: ${{ matrix.cli-command == 'new' }}
-      - name: Init cargo playdate project
+      - name: Init cargo playdate project (crates.io)
         run: mkdir new-project && cd new-project && cargo playdate init
-        if: ${{ matrix.cli-command == 'init' }}
+        if: ${{ matrix.cli-command == 'init' && matrix.playdate-rs-version == 'crates-io' }}
+      - name: Init cargo playdate project (head)
+        run: mkdir new-project && cd new-project && cargo playdate init --use-local-playdate-rs ${{ github.workspace }}/playdate-rs
+        if: ${{ matrix.cli-command == 'init' && matrix.playdate-rs-version == 'head' }}
       # Build project
       - name: Build cargo playdate project
         run: cargo playdate build ${{ env.CARGO_PROFILE_BUILD_FLAGS }}

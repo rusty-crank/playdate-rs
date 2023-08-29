@@ -27,11 +27,18 @@ static GITIGNORE: &str = include_str!(concat!(
 pub struct Init {
     #[clap(default_value = ".")]
     path: PathBuf,
+    /// Use local playdate-rs crate
+    #[clap(long)]
+    use_local_playdate_rs: Option<PathBuf>,
 }
 
 impl Init {
     /// Initialize playdate project
-    fn init_playdate_impl(new: bool, path: &Path) -> anyhow::Result<()> {
+    fn init_playdate_impl(
+        new: bool,
+        path: &Path,
+        use_local_playdate_rs: &Option<PathBuf>,
+    ) -> anyhow::Result<()> {
         info!("Configuring cargo playdate project ...");
         // Adding game assets and overwrite files
         info!("+  overwrite files");
@@ -50,11 +57,24 @@ impl Init {
         })?;
         std::fs::write("Cargo.toml", pd_cargo_toml)?;
         // Add playdate-rs dependency
-        info!("➔  cargo add playdate-rs");
-        Command::new("cargo")
-            .arg("add")
-            .arg("playdate-rs")
-            .check()?;
+        if let Some(local_path) = use_local_playdate_rs {
+            info!(
+                "➔  cargo add playdate-rs --path {}",
+                local_path.to_string_lossy()
+            );
+            Command::new("cargo")
+                .arg("add")
+                .arg("playdate-rs")
+                .arg("--path")
+                .arg(local_path)
+                .check()?;
+        } else {
+            info!("➔  cargo add playdate-rs");
+            Command::new("cargo")
+                .arg("add")
+                .arg("playdate-rs")
+                .check()?;
+        }
         println!("🎉 Initialized playdate project: {}", name);
         let cmd = if new {
             format!("cd {} && cargo playdate run", path.to_string_lossy())
@@ -67,10 +87,14 @@ impl Init {
     }
 
     /// Initialize playdate project
-    pub fn init_playdate(new: bool, path: &PathBuf) -> anyhow::Result<()> {
+    pub fn init_playdate(
+        new: bool,
+        path: &PathBuf,
+        use_local_playdate_rs: &Option<PathBuf>,
+    ) -> anyhow::Result<()> {
         let cwd = std::env::current_dir()?;
         std::env::set_current_dir(path)?;
-        let result = Self::init_playdate_impl(new, path);
+        let result = Self::init_playdate_impl(new, path, use_local_playdate_rs);
         std::env::set_current_dir(cwd)?;
         result
     }
@@ -83,7 +107,7 @@ impl Runnable for Init {
         info!("➔  cargo init --lib {}", self.path.to_string_lossy());
         Command::new("cargo").arg("init").arg("--lib").check()?;
         // Initialize playdate project
-        Self::init_playdate(false, &self.path)?;
+        Self::init_playdate(false, &self.path, &self.use_local_playdate_rs)?;
         Ok(())
     }
 }

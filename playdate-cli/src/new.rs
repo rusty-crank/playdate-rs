@@ -18,7 +18,7 @@ impl Runnable for New {
             .arg(&self.path)
             .check()?;
         // Initialize playdate project
-        crate::init::Init::init_playdate(true, &self.path)?;
+        crate::init::Init::init_playdate(true, &self.path, &None)?;
         Ok(())
     }
 }
