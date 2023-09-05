@@ -160,6 +160,11 @@ jobs:
       # Checkout repo
       - name: Checkout
         uses: actions/checkout@v3
+      # Install Playdate SDK
+      - name: Install Playdate SDK
+        run: |
+          mkdir PlaydateSDK
+          curl -L https://download-keycdn.panic.com/playdate_sdk/Linux/PlaydateSDK-${{ env.PLAYDATE_SDK_VERSION }}.tar.gz | tar xz --strip 1 -C PlaydateSDK
       # Setup up rust toolchain
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
