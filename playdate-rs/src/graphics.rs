@@ -466,19 +466,19 @@ impl Bitmap {
     }
 
     /// Allocates and returns a new width by height Bitmap filled with bgcolor.
-    pub fn new(width: u32, height: u32, bgcolor: impl Into<LCDColor>) -> Self {
+    pub fn new(size: Size<u32>, bgcolor: impl Into<LCDColor>) -> Self {
         Self::from(unsafe {
             ((*PLAYDATE.graphics.handle).newBitmap.unwrap())(
-                width as _,
-                height as _,
+                size.width as _,
+                size.height as _,
                 bgcolor.into(),
             )
         })
     }
 
     /// Open an image as a bitmap.
-    pub fn open(width: u32, height: u32, path: impl AsRef<str>) -> Result<Self, Error> {
-        let bitmap = Self::new(width, height, LCDSolidColor::kColorClear);
+    pub fn open(size: Size<u32>, path: impl AsRef<str>) -> Result<Self, Error> {
+        let bitmap = Self::new(size, LCDSolidColor::kColorClear);
         bitmap.load(path)?;
         Ok(bitmap)
     }

@@ -232,7 +232,7 @@ impl Sprite {
         Self::from(unsafe { (*PLAYDATE.sprite.handle).newSprite.unwrap()() })
     }
 
-    /// Sets x and y to the current position of sprite.
+    /// Gets x and y to the current position of sprite. This is the position of the sprite rectangle’s center.
     pub fn get_position(&self) -> Vec2<f32> {
         let mut x = 0.0;
         let mut y = 0.0;
@@ -242,12 +242,13 @@ impl Sprite {
         Vec2::new(x, y)
     }
 
-    /// Sets the bounds of the given sprite with bounds.
+    /// Sets the bounds of the given sprite with bounds. This is the position of the sprite rectangle’s center.
     pub fn set_bounds(&self, bounds: Rect<f32>) {
         unsafe { (*PLAYDATE.sprite.handle).setBounds.unwrap()(self.handle, bounds.into()) }
     }
 
     /// Returns the bounds of the given sprite as an PDRect;
+    /// The (x, y) refers to the top-left corner of the sprite rectangle.
     pub fn get_bounds(&self) -> Rect<f32> {
         unsafe { (*PLAYDATE.sprite.handle).getBounds.unwrap()(self.handle).into() }
     }
