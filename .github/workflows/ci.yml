@@ -164,27 +164,8 @@ jobs:
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
       # Publish crates
-      - name: Publish playdate-rs-sys
+      - name: Publish Crates
         uses: katyo/publish-crates@v2
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          path: "./playdate-rs-sys"
-          ignore-unpublished-changes: true
-      - name: Publish playdate-rs-macros
-        uses: katyo/publish-crates@v2
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          path: "./playdate-rs/macros"
-          ignore-unpublished-changes: true
-      - name: Publish playdate-rs
-        uses: katyo/publish-crates@v2
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          path: "./playdate-rs"
-          ignore-unpublished-changes: true
-      - name: Publish playdate-cli
-        uses: katyo/publish-crates@v2
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          path: "./playdate-cli"
           ignore-unpublished-changes: true
