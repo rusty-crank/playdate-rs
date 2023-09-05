@@ -752,7 +752,7 @@ impl Font {
     }
 
     /// Returns the width of the given text in the given font.
-    pub fn get_text_width(&self, text: impl AsRef<str>, tracking: i32) -> i32 {
+    pub fn get_text_width(&self, text: impl AsRef<str>, tracking: i32) -> u32 {
         let ptr = text.as_ref().as_ptr() as *const c_void;
         let len = text.as_ref().len();
         unsafe {
@@ -762,7 +762,7 @@ impl Font {
                 len,
                 sys::PDStringEncoding::kUTF8Encoding,
                 tracking,
-            )
+            ) as _
         }
     }
 

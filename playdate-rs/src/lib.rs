@@ -87,7 +87,14 @@ pub trait App: Sized + 'static {
     fn new() -> Self;
 
     /// Returns a reference to the app singleton.
-    fn get() -> &'static mut Self {
+    fn get() -> &'static Self {
+        unsafe { &*(APP.unwrap() as *const Self) }
+    }
+
+    /// # Safety
+    ///
+    /// Should always be safe as this is a single-threaded environment.
+    unsafe fn get_mut() -> &'static mut Self {
         unsafe { &mut *(APP.unwrap() as *mut Self) }
     }
 
@@ -106,7 +113,7 @@ pub trait App: Sized + 'static {
 static mut APP: Option<*mut ()> = None;
 
 unsafe extern "C" fn update<T: App>(_: *mut core::ffi::c_void) -> i32 {
-    let app = T::get();
+    let app = T::get_mut();
     // calculate delta time since last frame
     let delta_time = {
         static mut LAST_FRAME_TIME: Option<usize> = None;
@@ -150,7 +157,7 @@ pub fn __playdate_handle_event<T: App>(
     if event == system::SystemEvent::kEventInit {
         start_playdate_app::<T>(pd);
     }
-    T::get().handle_event(event, arg);
+    unsafe { T::get_mut().handle_event(event, arg) };
 }
 
 #[doc(hidden)]
