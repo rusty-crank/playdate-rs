@@ -190,6 +190,26 @@ impl Vec2<f32> {
     }
 }
 
+impl From<Vec2<i32>> for Vec2<f32> {
+    #[inline]
+    fn from(v: Vec2<i32>) -> Self {
+        Self {
+            x: v.x as _,
+            y: v.y as _,
+        }
+    }
+}
+
+impl From<Vec2<f32>> for Vec2<i32> {
+    #[inline]
+    fn from(v: Vec2<f32>) -> Self {
+        Self {
+            x: v.x as _,
+            y: v.y as _,
+        }
+    }
+}
+
 impl<T> From<(T, T)> for Vec2<T> {
     #[inline]
     fn from(v: (T, T)) -> Self {
