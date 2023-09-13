@@ -21,6 +21,10 @@ static GITIGNORE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/templates/hello-world/.gitignore"
 ));
+static RUST_TOOLCHAIN: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/templates/hello-world/rust-toolchain.toml.template"
+));
 
 /// Create a new cargo playdate package in an existing directory
 #[derive(clap::Args, Debug)]
@@ -45,6 +49,7 @@ impl Init {
         std::fs::create_dir_all("assets")?;
         std::fs::write(PathBuf::from("assets").join("rust.png"), RUST_PNG)?;
         std::fs::write(PathBuf::from(".gitignore"), GITIGNORE)?;
+        std::fs::write(PathBuf::from("rust-toolchain.toml"), RUST_TOOLCHAIN)?;
         std::fs::write(PathBuf::from("src").join("lib.rs"), LIB_RS)?;
         let original_cargo_toml =
             toml::from_str::<toml::Value>(&std::fs::read_to_string("Cargo.toml")?)?;
