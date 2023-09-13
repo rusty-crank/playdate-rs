@@ -1,13 +1,15 @@
-use core::cell::UnsafeCell;
+use core::{
+    cell::UnsafeCell,
+    ops::{Deref, DerefMut},
+};
 
 use rand::{rngs::SmallRng, SeedableRng};
-use spin::Lazy;
 
 use crate::PLAYDATE;
 
 /// Get global random number generator.
 pub fn rng() -> impl rand::Rng {
-    unsafe { &mut *RNG.0.get() }
+    unsafe { &mut *RNG }
 }
 
 fn generate_seed() -> u64 {
@@ -29,10 +31,37 @@ fn generate_seed() -> u64 {
     seed
 }
 
-struct SmallRngCell(UnsafeCell<SmallRng>);
+static mut RNG: Rng = Rng {
+    _p: UnsafeCell::new(None),
+};
 
-unsafe impl Send for SmallRngCell {}
-unsafe impl Sync for SmallRngCell {}
+struct Rng {
+    _p: UnsafeCell<Option<SmallRng>>,
+}
 
-static RNG: Lazy<SmallRngCell> =
-    Lazy::new(|| SmallRngCell(UnsafeCell::new(SmallRng::seed_from_u64(generate_seed()))));
+unsafe impl Send for Rng {}
+unsafe impl Sync for Rng {}
+
+impl Rng {
+    unsafe fn get(&self) -> *mut SmallRng {
+        let ptr = &mut *self._p.get();
+        if (*ptr).is_none() {
+            *ptr = Some(SmallRng::seed_from_u64(generate_seed()));
+        }
+        ptr.as_mut().unwrap()
+    }
+}
+
+impl Deref for Rng {
+    type Target = SmallRng;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.get() }
+    }
+}
+
+impl DerefMut for Rng {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.get() }
+    }
+}

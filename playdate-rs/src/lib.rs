@@ -1,7 +1,7 @@
 #![cfg_attr(all(target_arch = "arm", target_os = "none"), no_std)]
 
 extern crate alloc;
-extern crate playdate_rs_sys as sys;
+pub extern crate playdate_rs_sys as sys;
 pub extern crate rand;
 
 #[macro_use]
@@ -24,11 +24,13 @@ pub mod system;
 pub mod util;
 pub mod video;
 
+use core::{cell::UnsafeCell, ops::Deref};
+
 use alloc::{boxed::Box, format};
 pub use no_std_io::io;
 pub use playdate_rs_macros::app;
 
-pub struct Playdate {
+pub struct PlaydateAPI {
     raw_api: *mut sys::PlaydateAPI,
     /// System interaction
     pub system: system::PlaydateSystem,
@@ -50,10 +52,10 @@ pub struct Playdate {
     // pub json: *const playdate_json,
 }
 
-unsafe impl Sync for Playdate {}
-unsafe impl Send for Playdate {}
+unsafe impl Sync for PlaydateAPI {}
+unsafe impl Send for PlaydateAPI {}
 
-impl Playdate {
+impl PlaydateAPI {
     fn new(playdate: *mut sys::PlaydateAPI) -> Self {
         let playdate_ref = unsafe { &*playdate };
         Self {
@@ -75,12 +77,24 @@ impl Playdate {
     }
 }
 
-static INIT: spin::Once = spin::Once::new();
+pub static PLAYDATE: Playdate = Playdate {
+    _p: UnsafeCell::new(None),
+};
 
-static mut PLAYDATE_PTR: *mut sys::PlaydateAPI = core::ptr::null_mut();
+pub struct Playdate {
+    _p: UnsafeCell<Option<PlaydateAPI>>,
+}
 
-pub static PLAYDATE: spin::Lazy<Playdate> =
-    spin::Lazy::new(|| Playdate::new(unsafe { PLAYDATE_PTR }));
+unsafe impl Sync for Playdate {}
+unsafe impl Send for Playdate {}
+
+impl Deref for Playdate {
+    type Target = PlaydateAPI;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { (*self._p.get()).as_ref().unwrap() }
+    }
+}
 
 pub trait App: Sized + 'static {
     /// Constructor for the app. This is called once when the app is loaded.
@@ -133,10 +147,9 @@ unsafe extern "C" fn update<T: App>(_: *mut core::ffi::c_void) -> i32 {
 
 fn start_playdate_app<T: App>(pd: *mut sys::PlaydateAPI) {
     // Initialize playdate singleton
-    INIT.call_once(|| unsafe {
-        PLAYDATE_PTR = pd;
-        spin::Lazy::force(&PLAYDATE);
-    });
+    unsafe {
+        *PLAYDATE._p.get() = Some(PlaydateAPI::new(pd));
+    }
     // Create app instance
     let app = Box::leak(Box::new(T::new()));
     unsafe {
@@ -181,6 +194,7 @@ macro_rules! register_playdate_app {
                 $crate::__playdate_handle_event::<super::$app>(pd, event, arg);
             }
         }
+
         #[cfg(all(target_arch = "arm", target_os = "none"))]
         #[panic_handler]
         #[doc(hidden)]
