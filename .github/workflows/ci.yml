@@ -36,6 +36,7 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
         with:
           targets: ${{ env.CARGO_TARGET }}
+          components: clippy, rust-src
       # Build all projects except playdate-cli
       - name: Cargo Build (${{ matrix.target }}, ${{ matrix.profile }})
         run: cargo build --workspace ${{ env.CARGO_BUILD_FLAGS }} --exclude playdate-cli
@@ -58,6 +59,8 @@ jobs:
       # Setup up rust toolchain
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
       # Format checks
       - name: Cargo fmt checks
         run: cargo fmt -- --check
@@ -105,6 +108,7 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
         with:
           targets: ${{ env.CARGO_TARGET }}
+          components: clippy, rust-src, rustfmt
       # Install playdate-cli
       - name: Install playdate-cli
         run: |
