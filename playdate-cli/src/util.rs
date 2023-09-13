@@ -12,7 +12,7 @@ impl CommandExt for Command {
         let cmd = self.get_program().to_str().unwrap();
         let args = self
             .get_args()
-            .map(|a| a.to_str().unwrap().to_owned().replace(" ", "\\ "))
+            .map(|a| a.to_str().unwrap().to_owned().replace(' ', "\\ "))
             .collect::<Vec<String>>()
             .join(" ");
         if log {
@@ -105,7 +105,7 @@ pub fn eject_playdate_data_volume() -> anyhow::Result<()> {
         .arg("eject")
         .arg("/Volumes/PLAYDATE")
         .check(true)?;
-    wait_until(|| !get_playdate_serial_device().is_err())?;
+    wait_until(|| get_playdate_serial_device().is_ok())?;
     Ok(())
 }
 
