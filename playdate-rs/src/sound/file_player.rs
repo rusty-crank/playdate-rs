@@ -31,7 +31,7 @@ impl Default for FilePlayer {
 }
 
 impl FilePlayer {
-    /// Allocates a new FilePlayer.
+    /// Create a new FilePlayer.
     pub fn new() -> Self {
         Self {
             handle: unsafe { (*PLAYDATE.sound.file_player.handle).newPlayer.unwrap()() },
@@ -60,6 +60,13 @@ impl FilePlayer {
         } else {
             Err(Error::FileNotExists(path.as_ref().to_owned()))
         }
+    }
+
+    /// Create a new FilePlayer and load an audio file.
+    pub fn open(path: impl AsRef<str>) -> Result<Self, Error> {
+        let player = Self::new();
+        player.load(path)?;
+        Ok(player)
     }
 
     /// Pause the file player
