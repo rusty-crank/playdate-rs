@@ -656,6 +656,16 @@ impl<'a> BitmapData<'a> {
             _p: PhantomData,
         }
     }
+
+    /// Get the value of a pixel at x, y. Returns true if the pixel is black
+    pub fn get_pixel(&self, pos: Vec2<u32>) -> bool {
+        let byte_index = pos.y * self.rowbytes as u32 + pos.x / 8;
+        let byte_ptr = unsafe { self.data.add(byte_index as _) };
+        let v = unsafe { *byte_ptr };
+        let bit_index = pos.x % 8;
+        let mask = 1 << (7 - bit_index);
+        v & mask != 0
+    }
 }
 
 /// There are two kinds of image tables: matrix and sequential.
