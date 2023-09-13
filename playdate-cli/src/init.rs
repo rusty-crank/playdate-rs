@@ -58,22 +58,17 @@ impl Init {
         std::fs::write("Cargo.toml", pd_cargo_toml)?;
         // Add playdate-rs dependency
         if let Some(local_path) = use_local_playdate_rs {
-            info!(
-                "➔  cargo add playdate-rs --path {}",
-                local_path.to_string_lossy()
-            );
             Command::new("cargo")
                 .arg("add")
                 .arg("playdate-rs")
                 .arg("--path")
                 .arg(local_path)
-                .check()?;
+                .check(true)?;
         } else {
-            info!("➔  cargo add playdate-rs");
             Command::new("cargo")
                 .arg("add")
                 .arg("playdate-rs")
-                .check()?;
+                .check(true)?;
         }
         println!("🎉 Initialized playdate project: {}", name);
         let cmd = if new {
@@ -105,7 +100,10 @@ impl Runnable for Init {
         // Create cargo project
         info!("Initializing cargo project ...");
         info!("➔  cargo init --lib {}", self.path.to_string_lossy());
-        Command::new("cargo").arg("init").arg("--lib").check()?;
+        Command::new("cargo")
+            .arg("init")
+            .arg("--lib")
+            .check(false)?;
         // Initialize playdate project
         Self::init_playdate(false, &self.path, &self.use_local_playdate_rs)?;
         Ok(())

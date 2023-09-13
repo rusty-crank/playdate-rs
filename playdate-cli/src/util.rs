@@ -4,11 +4,20 @@ use std::{
 };
 
 pub trait CommandExt {
-    fn check(&mut self) -> anyhow::Result<()>;
+    fn check(&mut self, log: bool) -> anyhow::Result<()>;
 }
 
 impl CommandExt for Command {
-    fn check(&mut self) -> anyhow::Result<()> {
+    fn check(&mut self, log: bool) -> anyhow::Result<()> {
+        let cmd = self.get_program().to_str().unwrap();
+        let args = self
+            .get_args()
+            .map(|a| a.to_str().unwrap().to_owned().replace(" ", "\\ "))
+            .collect::<Vec<String>>()
+            .join(" ");
+        if log {
+            info!("➔  {} {}", cmd, args);
+        }
         let status = self.status()?;
         if !status.success() {
             let args = self
@@ -45,4 +54,68 @@ pub fn get_playdate_sdk_path() -> anyhow::Result<PathBuf> {
         )
     }
     Ok(playdate_sdk_path)
+}
+
+pub fn get_playdate_serial_device() -> anyhow::Result<PathBuf> {
+    assert!(cfg!(target_os = "macos"));
+    for device in std::fs::read_dir("/dev")? {
+        let device = device?;
+        let path = device.path();
+        if path
+            .file_name()
+            .map(|f| f.to_str().unwrap())
+            .unwrap()
+            .starts_with("cu.usbmodemPDU")
+        {
+            return Ok(path);
+        }
+    }
+    Err(anyhow::anyhow!(
+        "Could not find Playdate serial device. Did you forget to plug it in or unlock it?"
+    ))
+}
+
+pub fn get_playdate_data_volume(wait: bool) -> anyhow::Result<PathBuf> {
+    assert!(cfg!(target_os = "macos"));
+    let playdate_data_volume = PathBuf::from("/Volumes/PLAYDATE");
+    if !wait {
+        if !playdate_data_volume.join("Games").is_dir() {
+            anyhow::bail!("Playdate data volume is not mounted");
+        }
+    } else {
+        wait_until(|| playdate_data_volume.join("Games").is_dir())?;
+    }
+    Ok(playdate_data_volume)
+}
+
+pub fn mount_playdate_data_volume() -> anyhow::Result<PathBuf> {
+    assert!(cfg!(target_os = "macos"));
+    let dev = get_playdate_serial_device()?;
+    let playdate_sdk_path = get_playdate_sdk_path()?;
+    let pdutil = playdate_sdk_path.join("bin").join("pdutil");
+    info!("Mounting Playdate data volume");
+    Command::new(pdutil).arg(dev).arg("datadisk").check(true)?;
+    get_playdate_data_volume(true)
+}
+
+pub fn eject_playdate_data_volume() -> anyhow::Result<()> {
+    assert!(cfg!(target_os = "macos"));
+    info!("Ejecting Playdate data volume");
+    Command::new("diskutil")
+        .arg("eject")
+        .arg("/Volumes/PLAYDATE")
+        .check(true)?;
+    wait_until(|| !get_playdate_serial_device().is_err())?;
+    Ok(())
+}
+
+fn wait_until(predicate: impl Fn() -> bool) -> anyhow::Result<()> {
+    let t = std::time::SystemTime::now();
+    while !predicate() {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        if t.elapsed().unwrap().as_secs() > 60 {
+            anyhow::bail!("Timed out");
+        }
+    }
+    Ok(())
 }
