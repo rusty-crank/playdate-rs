@@ -178,13 +178,13 @@ impl PlaydateSystem {
     ///
     /// title will be the title displayed by the menu item.
     ///
-    /// value should be 0 for unchecked, 1 for checked.
+    /// value should be false for unchecked, true for checked.
     ///
     /// If this menu item is interacted with while the system menu is open, callback will be called when the menu is closed.
     pub fn add_checkmark_menu_item(
         &self,
         title: impl AsRef<str>,
-        value: i32,
+        value: bool,
         callback: fn(),
     ) -> MenuItem {
         extern "C" fn callback_impl(payload: *mut c_void) {
@@ -195,7 +195,7 @@ impl PlaydateSystem {
             let c_string = CString::new(title.as_ref()).unwrap();
             (*self.handle).addCheckmarkMenuItem.unwrap()(
                 c_string.as_ptr() as *mut c_char,
-                value,
+                value as _,
                 Some(callback_impl),
                 callback as _,
             )
@@ -215,7 +215,6 @@ impl PlaydateSystem {
         &self,
         title: impl AsRef<str>,
         option_titles: &[&str],
-        options_count: i32,
         callback: fn(),
     ) -> MenuItem {
         extern "C" fn callback_impl(payload: *mut c_void) {
@@ -235,7 +234,7 @@ impl PlaydateSystem {
             (*self.handle).addOptionsMenuItem.unwrap()(
                 c_string.as_ptr() as *mut c_char,
                 title_ptrs.as_mut_ptr(),
-                options_count,
+                option_titles.len() as _,
                 Some(callback_impl),
                 callback as _,
             )
