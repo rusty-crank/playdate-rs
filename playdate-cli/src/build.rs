@@ -160,6 +160,14 @@ impl Build {
                     default.to_owned()
                 })
         };
+        let fmt_content_warning = |n: &str, s: &str| -> String {
+            let s = s.trim();
+            if !s.is_empty() {
+                format!("{}={}\n", n, s)
+            } else {
+                "".to_owned()
+            }
+        };
         let mut env = minijinja::Environment::new();
         env.add_template("pdxinfo", PDXINFO)?;
         let template = env.get_template("pdxinfo").unwrap();
@@ -171,8 +179,8 @@ impl Build {
             bundle_id => get_meta("bundle_id", &default_bundle_id, Some(&format!("Using default bundle id: {}", default_bundle_id))),
             image_path => get_meta("image_path", "", None),
             launch_sound_path => get_meta("launch_sound_path", "", None),
-            content_warning => get_meta("content_warning", "", None),
-            content_warning2 => get_meta("content_warning2", "", None),
+            content_warning => fmt_content_warning("contentWarning", &get_meta("content_warning", "", None).trim().to_owned()),
+            content_warning2 => fmt_content_warning("contentWarning2", &get_meta("content_warning2", "", None)),
         })?;
         Ok(s)
     }

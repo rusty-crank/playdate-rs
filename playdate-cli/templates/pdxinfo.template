@@ -4,5 +4,5 @@ description={{ description }}
 bundleID={{ bundle_id }}
 imagePath={{ image_path }}
 launchSoundPath={{ launch_sound_path }}
-contentWarning={{ content_warning }}
-contentWarning2={{ content_warning2 }}
+{{ content_warning }}
+{{ content_warning2 }}
