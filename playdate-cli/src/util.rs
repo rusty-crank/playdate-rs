@@ -56,8 +56,8 @@ pub fn get_playdate_sdk_path() -> anyhow::Result<PathBuf> {
     Ok(playdate_sdk_path)
 }
 
+#[cfg(target_os = "macos")]
 pub fn get_playdate_serial_device() -> anyhow::Result<PathBuf> {
-    assert!(cfg!(target_os = "macos"));
     for device in std::fs::read_dir("/dev")? {
         let device = device?;
         let path = device.path();
@@ -75,6 +75,28 @@ pub fn get_playdate_serial_device() -> anyhow::Result<PathBuf> {
     ))
 }
 
+#[cfg(target_os = "linux")]
+pub fn get_playdate_serial_device() -> anyhow::Result<PathBuf> {
+    if Path::new("/dev/serial/by-id").is_dir() {
+        for device in std::fs::read_dir("/dev/serial/by-id")? {
+            let device = device?;
+            let path = device.path();
+            if path
+                .file_name()
+                .map(|f| f.to_str().unwrap())
+                .unwrap()
+                .starts_with("usb-Panic_Inc_Playdate_")
+            {
+                return Ok(path);
+            }
+        }
+    }
+    Err(anyhow::anyhow!(
+        "Could not find Playdate serial device. Did you forget to plug it in or unlock it?"
+    ))
+}
+
+#[cfg(target_os = "macos")]
 pub fn get_playdate_data_volume(wait: bool) -> anyhow::Result<PathBuf> {
     assert!(cfg!(target_os = "macos"));
     let playdate_data_volume = PathBuf::from("/Volumes/PLAYDATE");
@@ -83,13 +105,45 @@ pub fn get_playdate_data_volume(wait: bool) -> anyhow::Result<PathBuf> {
             anyhow::bail!("Playdate data volume is not mounted");
         }
     } else {
-        wait_until(|| playdate_data_volume.join("Games").is_dir())?;
+        wait_until(|| playdate_data_volume.join("Games").is_dir(), Some(60))?;
     }
     Ok(playdate_data_volume)
 }
 
+#[cfg(target_os = "linux")]
+pub fn get_playdate_data_volume(wait: bool) -> anyhow::Result<PathBuf> {
+    let user = std::env::var("USER")?;
+    let playdate_data_volumes = [
+        PathBuf::from("/media").join(&user).join("PLAYDATE"),
+        PathBuf::from("/run/media").join(&user).join("PLAYDATE"),
+    ];
+    if wait {
+        println!("Waiting for Playdate data volume to be mounted...");
+        println!("Please ensure the datadisk is mounted to one of the following locations:");
+        for v in &playdate_data_volumes {
+            println!(" - {}", v.to_string_lossy());
+        }
+        wait_until(
+            || {
+                for v in &playdate_data_volumes {
+                    if v.join("Games").is_dir() {
+                        return true;
+                    }
+                }
+                false
+            },
+            None,
+        )?;
+    }
+    for v in &playdate_data_volumes {
+        if v.join("Games").is_dir() {
+            return Ok(v.clone());
+        }
+    }
+    anyhow::bail!("Playdate data volume is not mounted");
+}
+
 pub fn mount_playdate_data_volume() -> anyhow::Result<PathBuf> {
-    assert!(cfg!(target_os = "macos"));
     let dev = get_playdate_serial_device()?;
     let playdate_sdk_path = get_playdate_sdk_path()?;
     let pdutil = playdate_sdk_path.join("bin").join("pdutil");
@@ -98,23 +152,48 @@ pub fn mount_playdate_data_volume() -> anyhow::Result<PathBuf> {
     get_playdate_data_volume(true)
 }
 
+#[cfg(target_os = "macos")]
 pub fn eject_playdate_data_volume() -> anyhow::Result<()> {
-    assert!(cfg!(target_os = "macos"));
     info!("Ejecting Playdate data volume");
     Command::new("diskutil")
         .arg("eject")
         .arg("/Volumes/PLAYDATE")
         .check(true)?;
-    wait_until(|| get_playdate_serial_device().is_ok())?;
+    wait_until(|| get_playdate_serial_device().is_ok(), Some(60))?;
     Ok(())
 }
 
-fn wait_until(predicate: impl Fn() -> bool) -> anyhow::Result<()> {
+#[cfg(target_os = "linux")]
+pub fn eject_playdate_data_volume() -> anyhow::Result<()> {
+    info!("Ejecting Playdate data volume");
+    if Path::new("/dev/disk/by-id").is_dir() {
+        for device in std::fs::read_dir("/dev/disk/by-id")? {
+            let device = device?;
+            let path = device.path();
+            if path
+                .file_name()
+                .map(|f| f.to_str().unwrap())
+                .unwrap()
+                .starts_with("usb-Panic_Inc_Playdate_")
+            {
+                Command::new("umount").arg(path).check(true)?;
+            }
+        }
+    }
+    info!("Please press A on the Playdate to restart");
+    wait_until(|| get_playdate_serial_device().is_ok(), None)?;
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    Ok(())
+}
+
+fn wait_until(predicate: impl Fn() -> bool, limit_secs: Option<u64>) -> anyhow::Result<()> {
     let t = std::time::SystemTime::now();
     while !predicate() {
         std::thread::sleep(std::time::Duration::from_secs(1));
-        if t.elapsed().unwrap().as_secs() > 60 {
-            anyhow::bail!("Timed out");
+        if let Some(limit_secs) = limit_secs {
+            if t.elapsed().unwrap().as_secs() > limit_secs {
+                anyhow::bail!("Timed out");
+            }
         }
     }
     Ok(())
