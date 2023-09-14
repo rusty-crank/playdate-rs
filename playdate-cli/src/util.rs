@@ -9,14 +9,28 @@ pub trait CommandExt {
 
 impl CommandExt for Command {
     fn check(&mut self, log: bool) -> anyhow::Result<()> {
-        let cmd = self.get_program().to_str().unwrap();
+        let cmd = self.get_program().to_str().unwrap().to_owned();
         let args = self
             .get_args()
             .map(|a| a.to_str().unwrap().to_owned().replace(' ', "\\ "))
             .collect::<Vec<String>>()
             .join(" ");
+        let mut env = self
+            .get_envs()
+            .map(|(k, v)| {
+                format!(
+                    "{}={}",
+                    k.to_str().unwrap(),
+                    v.unwrap_or_default().to_str().unwrap()
+                )
+            })
+            .collect::<Vec<String>>()
+            .join(" ");
+        if !env.is_empty() {
+            env = format!("{} ", env);
+        }
         if log {
-            info!("➔  {} {}", cmd, args);
+            info!("➔  {}{} {}", env, cmd, args);
         }
         let status = self.status()?;
         if !status.success() {
@@ -25,11 +39,7 @@ impl CommandExt for Command {
                 .map(|a| a.to_str().unwrap().to_owned())
                 .collect::<Vec<String>>()
                 .join(" ");
-            anyhow::bail!(
-                "failed to execute command: {} {}",
-                self.get_program().to_str().unwrap(),
-                args
-            );
+            anyhow::bail!("failed to execute command: {}{} {}", env, cmd, args);
         }
         Ok(())
     }

@@ -207,7 +207,7 @@ impl Build {
             .arg(format!("{}/setup.c.obj", target_dir.to_string_lossy()))
             .arg("-c")
             .arg(setup_c)
-            .check(false)?;
+            .check(true)?;
         Ok(target_dir.join("setup.c.obj"))
     }
 
@@ -217,7 +217,19 @@ impl Build {
         target_dir: &Path,
         lib_path: &Path,
     ) -> anyhow::Result<PathBuf> {
+        // check arm-none-eabi-gcc
+        if Command::new("arm-none-eabi-gcc")
+            .arg("--version")
+            .output()
+            .is_err()
+        {
+            anyhow::bail!(
+                "arm-none-eabi-gcc not found. Please ensure it is installed and in PATH."
+            );
+        }
+        // build setup.c
         let setup_obj = self.build_setup(target_dir)?;
+        // link
         let linker_script = crate::util::get_playdate_sdk_path()?
             .join("C_API")
             .join("buildsupport")
@@ -233,7 +245,7 @@ impl Build {
         .arg("-o")
         .arg( target_dir
             .join(format!("{}.elf", target_name)))
-        .check(false)?;
+        .check(true)?;
         Ok(target_dir.join(format!("{}.elf", target_name)))
     }
 
@@ -319,7 +331,7 @@ impl Runnable<BuildInfo> for Build {
             } else {
                 Default::default()
             })
-            .check(false)?;
+            .check(true)?;
         if self.device {
             // Link the staticlib using arm-none-eabi-gcc
             let staticlib = target_dir.join(format!("lib{}.a", target_name));
