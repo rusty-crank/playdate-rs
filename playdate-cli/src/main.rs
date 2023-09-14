@@ -39,7 +39,7 @@ fn main() -> anyhow::Result<()> {
 
     let args = std::env::args();
     let mut args = args.collect::<Vec<_>>();
-    if args[1] == "playdate" {
+    if args.len() > 1 && args[1] == "playdate" {
         args = args[1..].to_vec();
     }
     let command = Commands::parse_from(args);

@@ -11,7 +11,7 @@ categories = [
 ]
 homepage = "https://github.com/rusty-crank/playdate-rs"
 keywords = ["playdate", "gamedev"]
-version = "0.0.12"
+version = "0.0.13"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
