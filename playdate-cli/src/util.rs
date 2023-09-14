@@ -11,37 +11,36 @@ impl CommandExt for Command {
     /// Executes the command and checks the exit status.
     /// Optionally logs the command before executing.
     fn check(&mut self, log: bool) -> anyhow::Result<()> {
-        let cmd = self.get_program().to_str().unwrap().to_owned();
-        let args = self
-            .get_args()
-            .map(|a| a.to_str().unwrap().to_owned().replace(' ', "\\ "))
-            .collect::<Vec<String>>()
-            .join(" ");
-        let mut env = self
-            .get_envs()
-            .map(|(k, v)| {
-                format!(
-                    "{}={}",
-                    k.to_str().unwrap(),
-                    v.unwrap_or_default().to_str().unwrap()
-                )
-            })
-            .collect::<Vec<String>>()
-            .join(" ");
-        if !env.is_empty() {
-            env = format!("{} ", env);
-        }
-        if log {
-            info!("➔  {}{} {}", env, cmd, args);
+        let cmd = {
+            let args = self
+                .get_args()
+                .map(|a| a.to_str().unwrap().to_owned().replace(' ', "\\ "))
+                .collect::<Vec<String>>()
+                .join(" ");
+            let mut env = self
+                .get_envs()
+                .map(|(k, v)| {
+                    format!(
+                        "{}={}",
+                        k.to_str().unwrap(),
+                        v.unwrap_or_default().to_str().unwrap()
+                    )
+                })
+                .collect::<Vec<String>>()
+                .join(" ");
+            if !env.is_empty() {
+                env = format!("{} ", env);
+            }
+            format!("{}{} {}", env, self.get_program().to_str().unwrap(), args)
+        };
+        if log_enabled!(log::Level::Debug) {
+            debug!("➔  {}", cmd);
+        } else if log {
+            info!("➔  {}", cmd);
         }
         let status = self.status()?;
         if !status.success() {
-            let args = self
-                .get_args()
-                .map(|a| a.to_str().unwrap().to_owned())
-                .collect::<Vec<String>>()
-                .join(" ");
-            anyhow::bail!("failed to execute command: {}{} {}", env, cmd, args);
+            anyhow::bail!("failed to execute command: {}", cmd);
         }
         Ok(())
     }
