@@ -8,6 +8,8 @@ pub trait CommandExt {
 }
 
 impl CommandExt for Command {
+    /// Executes the command and checks the exit status.
+    /// Optionally logs the command before executing.
     fn check(&mut self, log: bool) -> anyhow::Result<()> {
         let cmd = self.get_program().to_str().unwrap().to_owned();
         let args = self
