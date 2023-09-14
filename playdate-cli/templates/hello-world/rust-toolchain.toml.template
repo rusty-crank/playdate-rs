@@ -1,0 +1,4 @@
+[toolchain]
+channel = "nightly"
+components = ["rust-src", "rustfmt", "clippy", "rust-analysis"]
+targets = ["thumbv7em-none-eabihf", "x86_64-unknown-linux-gnu", "x86_64-apple-darwin", "aarch64-apple-darwin"]

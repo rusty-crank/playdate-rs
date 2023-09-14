@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -63,6 +64,7 @@ impl Build {
         if self.device {
             flags.push("--target".to_owned());
             flags.push("thumbv7em-none-eabihf".to_owned());
+            flags.push("-Zbuild-std".to_owned());
         }
         flags
     }
@@ -158,6 +160,14 @@ impl Build {
                     default.to_owned()
                 })
         };
+        let fmt_content_warning = |n: &str, s: &str| -> String {
+            let s = s.trim();
+            if !s.is_empty() {
+                format!("{}={}\n", n, s)
+            } else {
+                "".to_owned()
+            }
+        };
         let mut env = minijinja::Environment::new();
         env.add_template("pdxinfo", PDXINFO)?;
         let template = env.get_template("pdxinfo").unwrap();
@@ -169,8 +179,8 @@ impl Build {
             bundle_id => get_meta("bundle_id", &default_bundle_id, Some(&format!("Using default bundle id: {}", default_bundle_id))),
             image_path => get_meta("image_path", "", None),
             launch_sound_path => get_meta("launch_sound_path", "", None),
-            content_warning => get_meta("content_warning", "", None),
-            content_warning2 => get_meta("content_warning2", "", None),
+            content_warning => fmt_content_warning("contentWarning", &get_meta("content_warning", "", None)),
+            content_warning2 => fmt_content_warning("contentWarning2", &get_meta("content_warning2", "", None)),
         })?;
         Ok(s)
     }
@@ -183,39 +193,47 @@ pub struct BuildInfo {
 }
 
 impl Build {
+    fn build_setup(&self, target_dir: &Path) -> anyhow::Result<PathBuf> {
+        let sdk = crate::util::get_playdate_sdk_path()?;
+        let setup_c = sdk.join("C_API").join("buildsupport").join("setup.c");
+        Command::new("arm-none-eabi-gcc")
+            .args(["-DTARGET_EXTENSION=1", "-DTARGET_PLAYDATE=1"])
+            .arg(format!("-I{}", sdk.join("C_API").to_string_lossy()))
+            .args("-std=gnu11 -Wall -Wno-unknown-pragmas -Wdouble-promotion -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-sp-d16 -D__FPU_USED=1 -falign-functions=16 -fomit-frame-pointer -gdwarf-2 -fverbose-asm -ffunction-sections -fdata-sections -mword-relocations -fno-common -MD -MT".split(' '))
+            .arg(format!("{}/setup.c.obj", target_dir.to_string_lossy()))
+            .arg("-MF")
+            .arg(format!("{}/setup.c.obj.d", target_dir.to_string_lossy()))
+            .arg("-o")
+            .arg(format!("{}/setup.c.obj", target_dir.to_string_lossy()))
+            .arg("-c")
+            .arg(setup_c)
+            .check(false)?;
+        Ok(target_dir.join("setup.c.obj"))
+    }
+
     fn link_arm_binary(
         &self,
         target_name: &str,
         target_dir: &Path,
         lib_path: &Path,
     ) -> anyhow::Result<PathBuf> {
+        let setup_obj = self.build_setup(target_dir)?;
         let linker_script = crate::util::get_playdate_sdk_path()?
             .join("C_API")
             .join("buildsupport")
             .join("link_map.ld");
-        const LINKER_ARGS: &str = "-nostartfiles -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-sp-d16 -D__FPU_USED=1 -Wl,--gc-sections,--no-warn-mismatch,--emit-relocs -fno-exceptions";
-        let mut args = vec![];
-        args.push(lib_path.to_str().unwrap().to_owned());
-        args.append(
-            &mut LINKER_ARGS
-                .split(' ')
-                .map(|s| s.to_owned())
-                .collect::<Vec<_>>(),
-        );
-        args.push("-T".to_owned());
-        args.push(linker_script.to_str().unwrap().to_owned());
-        args.push("-o".to_owned());
-        args.push(
-            target_dir
-                .join(format!("{}.elf", target_name))
-                .to_str()
-                .unwrap()
-                .to_owned(),
-        );
-        args.push("--entry".to_owned());
-        args.push("eventHandler".to_owned());
-        info!("➔  arm-none-eabi-gcc {}", args.join(" "));
-        Command::new("arm-none-eabi-gcc").args(&args).check()?;
+        Command::new("arm-none-eabi-gcc")
+        .args("-nostartfiles -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-sp-d16 -D__FPU_USED=1".split(' '))
+        .arg("-T")
+        .arg(linker_script )
+        .args("-Wl,--gc-sections,--no-warn-mismatch,--emit-relocs".split(' '))
+        .args(["--entry", "eventHandlerShim"])
+        .arg(setup_obj)
+        .arg(lib_path)
+        .arg("-o")
+        .arg( target_dir
+            .join(format!("{}.elf", target_name)))
+        .check(false)?;
         Ok(target_dir.join(format!("{}.elf", target_name)))
     }
 
@@ -228,14 +246,14 @@ impl Build {
     ) -> anyhow::Result<PathBuf> {
         // Create pdx folder
         let pdx_src = target_dir.join(format!("{}.source", target_name));
-        Command::new("rm").arg("-rf").arg(&pdx_src).check()?;
-        Command::new("mkdir").arg("-p").arg(&pdx_src).check()?;
+        Command::new("rm").arg("-rf").arg(&pdx_src).check(false)?;
+        Command::new("mkdir").arg("-p").arg(&pdx_src).check(false)?;
         // Copy output files
         let pdex_so = if self.device { "pdex.elf" } else { PDEX_SO };
         Command::new("cp")
             .arg(binary)
             .arg(pdx_src.join(pdex_so))
-            .check()?;
+            .check(false)?;
         let pdxinfo = self.load_pdxinfo(package, target_name)?;
         std::fs::write(pdx_src.join("pdxinfo"), pdxinfo)?;
         Ok(pdx_src)
@@ -252,9 +270,9 @@ impl Build {
                         .arg("-r")
                         .arg(&path)
                         .arg(pdx_src)
-                        .check()?;
+                        .check(false)?;
                 } else {
-                    Command::new("cp").arg(&path).arg(pdx_src).check()?;
+                    Command::new("cp").arg(&path).arg(pdx_src).check(false)?;
                 }
             }
         }
@@ -270,13 +288,11 @@ impl Build {
         let pdx_out = target_dir.join(format!("{}.pdx", target_name));
         let playdate_sdk_path = crate::util::get_playdate_sdk_path()?;
         let pdx_bin = playdate_sdk_path.join("bin").join("pdc");
-        info!(
-            "➔  {} {} {}",
-            pdx_bin.to_string_lossy().replace(' ', "\\ "),
-            pdx_src.to_string_lossy().replace(' ', "\\ "),
-            pdx_out.to_string_lossy().replace(' ', "\\ "),
-        );
-        Command::new(pdx_bin).arg(pdx_src).arg(&pdx_out).check()?;
+        Command::new(pdx_bin)
+            .arg("--strip")
+            .arg(pdx_src)
+            .arg(&pdx_out)
+            .check(true)?;
         Ok(pdx_out)
     }
 }
@@ -293,9 +309,17 @@ impl Runnable<BuildInfo> for Build {
         let mut binary = target_dir.join(format!("lib{}.{}", target_name, DYLIB_EXT));
         // Build rust project
         Command::new("cargo")
+            .arg("+nightly")
             .arg("build")
             .args(self.get_cargo_flags())
-            .check()?;
+            .envs(&if self.device {
+                let mut map = HashMap::new();
+                map.insert("RUSTFLAGS", ["-Crelocation-model=pic"].join(" "));
+                map
+            } else {
+                Default::default()
+            })
+            .check(false)?;
         if self.device {
             // Link the staticlib using arm-none-eabi-gcc
             let staticlib = target_dir.join(format!("lib{}.a", target_name));

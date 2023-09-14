@@ -9,8 +9,7 @@
 Safe binding for the [Playdate](https://play.date) SDK C-API that:
 
 1. Is easy to use and well documented.
-2. Does not require the Rust nightly toolchain.
-3. Is designed with memory safety in mind.
+2. Designed with memory safety in mind.
 
 Only works on Linux/macOS with the playdate simulator for now.
 

@@ -21,6 +21,10 @@ static GITIGNORE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/templates/hello-world/.gitignore"
 ));
+static RUST_TOOLCHAIN: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/templates/hello-world/rust-toolchain.toml.template"
+));
 
 /// Create a new cargo playdate package in an existing directory
 #[derive(clap::Args, Debug)]
@@ -45,6 +49,7 @@ impl Init {
         std::fs::create_dir_all("assets")?;
         std::fs::write(PathBuf::from("assets").join("rust.png"), RUST_PNG)?;
         std::fs::write(PathBuf::from(".gitignore"), GITIGNORE)?;
+        std::fs::write(PathBuf::from("rust-toolchain.toml"), RUST_TOOLCHAIN)?;
         std::fs::write(PathBuf::from("src").join("lib.rs"), LIB_RS)?;
         let original_cargo_toml =
             toml::from_str::<toml::Value>(&std::fs::read_to_string("Cargo.toml")?)?;
@@ -58,22 +63,17 @@ impl Init {
         std::fs::write("Cargo.toml", pd_cargo_toml)?;
         // Add playdate-rs dependency
         if let Some(local_path) = use_local_playdate_rs {
-            info!(
-                "➔  cargo add playdate-rs --path {}",
-                local_path.to_string_lossy()
-            );
             Command::new("cargo")
                 .arg("add")
                 .arg("playdate-rs")
                 .arg("--path")
                 .arg(local_path)
-                .check()?;
+                .check(true)?;
         } else {
-            info!("➔  cargo add playdate-rs");
             Command::new("cargo")
                 .arg("add")
                 .arg("playdate-rs")
-                .check()?;
+                .check(true)?;
         }
         println!("🎉 Initialized playdate project: {}", name);
         let cmd = if new {
@@ -105,7 +105,10 @@ impl Runnable for Init {
         // Create cargo project
         info!("Initializing cargo project ...");
         info!("➔  cargo init --lib {}", self.path.to_string_lossy());
-        Command::new("cargo").arg("init").arg("--lib").check()?;
+        Command::new("cargo")
+            .arg("init")
+            .arg("--lib")
+            .check(false)?;
         // Initialize playdate project
         Self::init_playdate(false, &self.path, &self.use_local_playdate_rs)?;
         Ok(())
