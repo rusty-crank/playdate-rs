@@ -267,7 +267,7 @@ impl PlaydateGraphics {
     /// Draws the given text using the provided options. If no font has been set with setFont, the default system font Asheville Sans 14 Light is used.
     pub fn draw_text(&self, text: impl AsRef<str>, pos: Vec2<i32>) -> i32 {
         let ptr = text.as_ref().as_ptr() as *const c_void;
-        let len = text.as_ref().len();
+        let len = text.as_ref().chars().count();
         unsafe {
             ((*self.handle).drawText.unwrap())(
                 ptr,
@@ -764,7 +764,7 @@ impl Font {
     /// Returns the width of the given text in the given font.
     pub fn get_text_width(&self, text: impl AsRef<str>, tracking: i32) -> u32 {
         let ptr = text.as_ref().as_ptr() as *const c_void;
-        let len = text.as_ref().len();
+        let len = text.as_ref().chars().count();
         unsafe {
             ((*PLAYDATE.graphics.handle).getTextWidth.unwrap())(
                 self.handle,
