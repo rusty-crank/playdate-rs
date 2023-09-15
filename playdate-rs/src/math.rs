@@ -604,12 +604,14 @@ impl<T> Rect<T> {
     #[inline]
     pub fn intersection(&self, other: &Self) -> Option<Self>
     where
-        T: Ord + Add<T, Output = T> + Sub<T, Output = T> + Default + Clone + Copy,
+        T: PartialOrd + Add<T, Output = T> + Sub<T, Output = T> + Default + Clone + Copy,
     {
-        let x = self.x.max(other.x);
-        let y = self.y.max(other.y);
-        let width = (self.x + self.width).min(other.x + other.width) - x;
-        let height = (self.y + self.height).min(other.y + other.height) - y;
+        let min = |a: T, b: T| if a < b { a } else { b };
+        let max = |a: T, b: T| if a > b { a } else { b };
+        let x = max(self.x, other.x);
+        let y = max(self.y, other.y);
+        let width = min(self.x + self.width, other.x + other.width) - x;
+        let height = min(self.y + self.height, other.y + other.height) - y;
         if width <= T::default() || height <= T::default() {
             None
         } else {
