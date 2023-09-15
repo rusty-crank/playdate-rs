@@ -599,6 +599,23 @@ impl<T> Rect<T> {
         let height = self.height.clone().into();
         width / height
     }
+
+    /// Get the intersection of two rectangles.
+    #[inline]
+    pub fn intersection(&self, other: &Self) -> Option<Self>
+    where
+        T: Ord + Add<T, Output = T> + Sub<T, Output = T> + Default + Clone + Copy,
+    {
+        let x = self.x.max(other.x);
+        let y = self.y.max(other.y);
+        let width = (self.x + self.width).min(other.x + other.width) - x;
+        let height = (self.y + self.height).min(other.y + other.height) - y;
+        if width <= T::default() || height <= T::default() {
+            None
+        } else {
+            Some(Self::new(x, y, width, height))
+        }
+    }
 }
 
 impl Rect<f32> {
