@@ -15,7 +15,7 @@ members = [
 [workspace.package]
 # This is the version for playdate-rs, playdate-rs-macros, and example packages.
 # playdate-rs-sys and playdate-cli have separate versions specified in their own Cargo.toml.
-version = "0.0.12"
+version = "0.0.13"
 edition = "2021"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 license = "MIT OR Apache-2.0"
@@ -29,7 +29,7 @@ panic = "abort"
 # Put internal dependencies here, to make verison bumping easier when making a new release.
 [workspace.dependencies]
 playdate-rs-sys = { version = "0.0.11", path = "./playdate-rs-sys" }
-playdate-rs-macros = { version = "0.0.12", path = "./playdate-rs/macros" }
+playdate-rs-macros = { version = "0.0.13", path = "./playdate-rs/macros" }
 
 # Notes on versioning:
 # - playdate-rs-sys and playdate-cli have their own version numbers, which are
