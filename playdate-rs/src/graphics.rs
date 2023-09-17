@@ -10,7 +10,7 @@ use crate::{math::SideOffsets, util::Ref};
 
 pub use sys::{
     LCDBitmapDrawMode, LCDBitmapFlip, LCDColor, LCDFontData, LCDLineCapStyle, LCDPattern,
-    LCDPolygonFillRule, LCDSolidColor, LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
+    LCDPolygonFillRule, LCDSolidColor, LCDSolidColor as Color, LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
 };
 
 use crate::{error::Error, PLAYDATE};
