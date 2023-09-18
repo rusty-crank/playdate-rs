@@ -503,6 +503,30 @@ impl Size<f32> {
     pub const TILE16: Self = Self::new(16.0, 16.0);
     pub const TILE32: Self = Self::new(32.0, 32.0);
     pub const TILE64: Self = Self::new(64.0, 64.0);
+
+    /// Round each component to the nearest integer.
+    #[inline]
+    pub fn round(self) -> Self {
+        Self::new(self.width.round(), self.height.round())
+    }
+
+    /// Round each component up to the nearest integer.
+    #[inline]
+    pub fn ceil(self) -> Self {
+        Self::new(self.width.ceil(), self.height.ceil())
+    }
+
+    /// Round each component down to the nearest integer.
+    #[inline]
+    pub fn floor(self) -> Self {
+        Self::new(self.width.floor(), self.height.floor())
+    }
+
+    /// Scale the size by another vector.
+    #[inline]
+    pub fn scale(self, scale: Vec2<f32>) -> Self {
+        Self::new(self.width * scale.x, self.height * scale.y)
+    }
 }
 
 #[macro_export]
@@ -637,6 +661,39 @@ impl<T> Rect<T> {
 }
 
 impl Rect<f32> {
+    /// Round each component to the nearest integer.
+    #[inline]
+    pub fn round(self) -> Self {
+        Self::new(
+            self.x.round(),
+            self.y.round(),
+            self.width.round(),
+            self.height.round(),
+        )
+    }
+
+    /// Round each component up to the nearest integer.
+    #[inline]
+    pub fn ceil(self) -> Self {
+        Self::new(
+            self.x.ceil(),
+            self.y.ceil(),
+            self.width.ceil(),
+            self.height.ceil(),
+        )
+    }
+
+    /// Round each component down to the nearest integer.
+    #[inline]
+    pub fn floor(self) -> Self {
+        Self::new(
+            self.x.floor(),
+            self.y.floor(),
+            self.width.floor(),
+            self.height.floor(),
+        )
+    }
+
     /// Scale the rectangle size by another vector.
     #[inline]
     pub fn scale(self, scale: Vec2<f32>) -> Self {
