@@ -480,10 +480,19 @@ impl Bitmap {
     }
 
     /// Open an image as a bitmap.
-    pub fn open(size: Size<u32>, path: impl AsRef<str>) -> Result<Self, Error> {
-        let bitmap = Self::new(size, Color::Clear);
-        bitmap.load(path)?;
-        Ok(bitmap)
+    pub fn open(path: impl AsRef<str>) -> Result<Self, Error> {
+        unsafe {
+            let c_string = CString::new(path.as_ref()).unwrap();
+            let mut err: *const c_char = core::ptr::null();
+            let ptr =
+                ((*PLAYDATE.graphics.handle).loadBitmap.unwrap())(c_string.as_ptr() as _, &mut err);
+            if !err.is_null() {
+                let err = CString::from_raw(err as *mut c_char);
+                let err = err.into_string().unwrap();
+                return Err(Error::FailedToLoadBitMapFromFile(err));
+            }
+            Ok(Bitmap::from(ptr))
+        }
     }
 
     /// Clears bitmap, filling with the given bgcolor.
