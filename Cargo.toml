@@ -7,9 +7,8 @@ members = [
     "playdate-rs-sys",
     # CLI Tools
     "playdate-cli",
-    # Examples
+    # Example playdate-rs project
     "examples/hello-world",
-    "examples/mandelbrot",
 ]
 
 [workspace.package]

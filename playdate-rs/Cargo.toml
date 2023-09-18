@@ -21,3 +21,11 @@ spin = "0.9.8"
 no_std_io = { version = "0.6.0", features = ["alloc"] }
 bitmask-enum = "2.2.2"
 rand = { version = "0.8.5", features = ["small_rng"], default-features = false }
+
+[[example]]
+name = "hello_world"
+crate-type = ["cdylib", "staticlib"]
+
+[[example]]
+name = "mandelbrot"
+crate-type = ["cdylib", "staticlib"]

@@ -4,7 +4,7 @@ use std::{
     process::Command,
 };
 
-use cargo_metadata::{Metadata, MetadataCommand, Package};
+use cargo_metadata::{Metadata, MetadataCommand, Package, Target};
 
 use crate::{util::CommandExt, Runnable};
 
@@ -36,6 +36,9 @@ pub struct Build {
     #[arg(short, long)]
     /// Package to process (see `cargo help pkgid`)
     pub package: Option<String>,
+    #[arg(short, long)]
+    /// Build only the specified example
+    pub example: Option<String>,
     /// Build for the real device (default is simulator)
     #[clap(long, default_value = "false")]
     pub device: bool,
@@ -59,6 +62,10 @@ impl Build {
         }
         if let Some(pkg) = self.package.as_ref() {
             flags.push("--package".to_owned());
+            flags.push(pkg.to_owned());
+        }
+        if let Some(pkg) = self.example.as_ref() {
+            flags.push("--example".to_owned());
             flags.push(pkg.to_owned());
         }
         if self.device {
@@ -97,14 +104,32 @@ impl Build {
         }
     }
 
-    fn get_target_name(&self, package: &Package) -> anyhow::Result<String> {
-        let target = &package
-            .targets
-            .iter()
-            .find(|t| t.crate_types.contains(&"cdylib".to_lowercase()));
-        let Some(target) = target else {
-            anyhow::bail!("Current crate has no cdylib target");
-        };
+    fn get_target(&self, package: &Package) -> anyhow::Result<Target> {
+        if let Some(example) = self.example.as_ref() {
+            let t = package
+                .targets
+                .iter()
+                .find(|t| t.is_example() && &t.name == example);
+            if t.is_none() {
+                anyhow::bail!("No example found with name {}", example);
+            }
+            Ok(t.unwrap().clone())
+        } else {
+            let t = package.targets.iter().find(|t| {
+                t.is_lib()
+                    && t.crate_types.contains(&"cdylib".to_lowercase())
+                    && t.crate_types.contains(&"staticlib".to_lowercase())
+            });
+            if t.is_none() {
+                anyhow::bail!(
+                    "Current crate has no target with `crate-type = [\"cdylib\", \"staticlib\"]`"
+                );
+            };
+            Ok(t.unwrap().clone())
+        }
+    }
+
+    fn get_target_name(&self, target: &Target) -> anyhow::Result<String> {
         Ok(target.name.replace('-', "_"))
     }
 
@@ -116,6 +141,10 @@ impl Build {
             .parent()
             .unwrap()
             .to_owned();
+        if self.example.is_some() {
+            // Use <project>/examples/assets/ as the assets dir
+            return Ok(project_dir.join("examples").join("assets"));
+        }
         Ok(project_dir.join("assets"))
     }
 
@@ -133,6 +162,13 @@ impl Build {
     }
 
     fn load_pdxinfo(&self, pkg: &Package, target_name: &str) -> anyhow::Result<String> {
+        if self.example.is_some() {
+            let pdxinfo = format!(
+                "name={}\nauthor=playdate-rs\ndescription=playdate-rs-example\nbundleID=me.wenyu.playdate.example.{}\n",
+                target_name, target_name
+            );
+            return Ok(pdxinfo);
+        }
         // If there is a pdxinfo file under package root, just use it
         let pdxinfo_path = pkg
             .manifest_path
@@ -315,9 +351,10 @@ impl Runnable<BuildInfo> for Build {
         // Find dylib target
         let meta = self.load_metadata()?;
         let package = self.get_package(&meta)?;
-        info!("Building {}", package.name);
+        let target = self.get_target(&package)?;
+        info!("Building {}", target.name);
         // Find target name and target output dir
-        let target_name = self.get_target_name(&package)?;
+        let target_name = self.get_target_name(&target)?;
         let target_dir = self.get_target_dir(&meta)?;
         let mut binary = target_dir.join(format!("lib{}.{}", target_name, DYLIB_EXT));
         // Build rust project

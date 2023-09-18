@@ -68,7 +68,7 @@ impl bindgen::callbacks::ParseCallbacks for EnumRenameParseCallbacks {
                 return Some(x.to_owned());
             }
         }
-        return Some(original_variant_name.to_owned());
+        Some(original_variant_name.to_owned())
     }
 }
 
