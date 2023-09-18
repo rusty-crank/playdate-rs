@@ -1,4 +1,4 @@
-use crate::math::Vec2;
+use crate::math::{Size, Vec2};
 
 pub struct PlaydateDisplay {
     handle: *const sys::playdate_display,
@@ -59,3 +59,4 @@ impl PlaydateDisplay {
 
 pub const DISPLAY_WIDTH: u32 = 400;
 pub const DISPLAY_HEIGHT: u32 = 240;
+pub const DISPLAY_SIZE: Size<u32> = size!(DISPLAY_WIDTH, DISPLAY_HEIGHT);

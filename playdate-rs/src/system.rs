@@ -3,8 +3,8 @@ use core::ffi::{c_char, c_void, CStr};
 use alloc::{ffi::CString, vec::Vec};
 use sys::PDButtons;
 pub use sys::{
-    PDDateTime as DateTime, PDLanguage as Language, PDPeripherals as Peripherals,
-    PDSystemEvent as SystemEvent,
+    LCDFontData as FontData, PDDateTime as DateTime, PDLanguage as Language,
+    PDPeripherals as Peripherals, PDSystemEvent as SystemEvent,
 };
 
 use crate::{graphics::Bitmap, math::Vec2, PLAYDATE};
