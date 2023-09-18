@@ -23,7 +23,7 @@ impl App for HelloWorld {
 
     fn update(&mut self, delta: f32) {
         // Clear screen
-        PLAYDATE.graphics.clear(Color::kColorWhite);
+        PLAYDATE.graphics.clear(Color::White);
         // Draw image
         PLAYDATE.graphics.draw_rotated_bitmap(
             &self.image,

@@ -116,9 +116,8 @@ impl Build {
             Ok(t.unwrap().clone())
         } else {
             let t = package.targets.iter().find(|t| {
-                t.is_lib()
-                    && t.crate_types.contains(&"cdylib".to_lowercase())
-                    && t.crate_types.contains(&"staticlib".to_lowercase())
+                t.crate_types.contains(&"cdylib".to_owned())
+                    && t.crate_types.contains(&"staticlib".to_owned())
             });
             if t.is_none() {
                 anyhow::bail!(
