@@ -2,7 +2,7 @@ use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 // required for thumbv7em builds
 #[allow(unused_imports)]
 use num_traits::Float;
-use num_traits::Signed;
+use num_traits::{NumCast, Signed};
 
 #[macro_export]
 macro_rules! vec2 {
@@ -61,11 +61,23 @@ impl<T> Vec2<T> {
 
     /// Type conversion.
     #[inline]
-    pub fn cast<U>(self) -> Vec2<U>
+    pub fn cast<U: NumCast>(self) -> Vec2<U>
     where
-        T: Into<U>,
+        T: NumCast,
     {
-        Vec2::new(self.x.into(), self.y.into())
+        self.try_cast().unwrap()
+    }
+
+    /// Type conversion.
+    #[inline]
+    pub fn try_cast<U: NumCast>(self) -> Option<Vec2<U>>
+    where
+        T: NumCast,
+    {
+        match (NumCast::from(self.x), NumCast::from(self.y)) {
+            (Some(x), Some(y)) => Some(Vec2::new(x, y)),
+            _ => None,
+        }
     }
 
     /// Returns a vector with the absolute value of each component.
@@ -187,26 +199,6 @@ impl Vec2<f32> {
     #[inline]
     pub fn reflect(self, normal: Self) -> Self {
         self - normal * 2.0 * self.dot(normal)
-    }
-}
-
-impl From<Vec2<i32>> for Vec2<f32> {
-    #[inline]
-    fn from(v: Vec2<i32>) -> Self {
-        Self {
-            x: v.x as _,
-            y: v.y as _,
-        }
-    }
-}
-
-impl From<Vec2<f32>> for Vec2<i32> {
-    #[inline]
-    fn from(v: Vec2<f32>) -> Self {
-        Self {
-            x: v.x as _,
-            y: v.y as _,
-        }
     }
 }
 
@@ -401,11 +393,23 @@ impl<T> Size<T> {
 
     /// Type conversion.
     #[inline]
-    pub fn cast<U>(self) -> Size<U>
+    pub fn cast<U: NumCast>(self) -> Size<U>
     where
-        T: Into<U>,
+        T: NumCast,
     {
-        Size::new(self.width.into(), self.height.into())
+        self.try_cast().unwrap()
+    }
+
+    /// Type conversion.
+    #[inline]
+    pub fn try_cast<U: NumCast>(self) -> Option<Size<U>>
+    where
+        T: NumCast,
+    {
+        match (NumCast::from(self.width), NumCast::from(self.height)) {
+            (Some(w), Some(h)) => Some(Size::new(w, h)),
+            _ => None,
+        }
     }
 
     /// Returns the area of the size.
@@ -568,16 +572,28 @@ impl<T> Rect<T> {
 
     /// Type conversion.
     #[inline]
-    pub fn cast<U>(self) -> Rect<U>
+    pub fn cast<U: NumCast>(self) -> Rect<U>
     where
-        T: Into<U>,
+        T: NumCast,
     {
-        Rect::new(
-            self.x.into(),
-            self.y.into(),
-            self.width.into(),
-            self.height.into(),
-        )
+        self.try_cast().unwrap()
+    }
+
+    /// Type conversion.
+    #[inline]
+    pub fn try_cast<U: NumCast>(self) -> Option<Rect<U>>
+    where
+        T: NumCast,
+    {
+        match (
+            NumCast::from(self.x),
+            NumCast::from(self.y),
+            NumCast::from(self.width),
+            NumCast::from(self.height),
+        ) {
+            (Some(x), Some(y), Some(w), Some(h)) => Some(Rect::new(x, y, w, h)),
+            _ => None,
+        }
     }
 
     /// Returns the area of the rectangle.
@@ -733,6 +749,32 @@ impl<T> SideOffsets<T> {
             right: v.clone(),
             top: v.clone(),
             bottom: v,
+        }
+    }
+
+    /// Type conversion.
+    #[inline]
+    pub fn cast<U: NumCast>(self) -> SideOffsets<U>
+    where
+        T: NumCast,
+    {
+        self.try_cast().unwrap()
+    }
+
+    /// Type conversion.
+    #[inline]
+    pub fn try_cast<U: NumCast>(self) -> Option<SideOffsets<U>>
+    where
+        T: NumCast,
+    {
+        match (
+            NumCast::from(self.left),
+            NumCast::from(self.right),
+            NumCast::from(self.top),
+            NumCast::from(self.bottom),
+        ) {
+            (Some(l), Some(r), Some(t), Some(b)) => Some(SideOffsets::new(l, r, t, b)),
+            _ => None,
         }
     }
 }
