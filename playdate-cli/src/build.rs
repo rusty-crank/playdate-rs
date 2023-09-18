@@ -64,7 +64,8 @@ impl Build {
         if self.device {
             flags.push("--target".to_owned());
             flags.push("thumbv7em-none-eabihf".to_owned());
-            flags.push("-Zbuild-std".to_owned());
+            flags.push("-Zbuild-std=core,alloc,compiler_builtins".to_owned());
+            flags.push("-Zbuild-std-features=compiler-builtins-mem".to_owned());
         }
         flags
     }
