@@ -63,6 +63,12 @@ jobs:
       CARGO_PROFILE_BUILD_FLAGS: -p playdate-rs ${{ matrix.target == 'thumbv7em' && '--device' || '' }}
       CARGO_TARGET: ${{ matrix.target == 'x86_64' && 'x86_64-unknown-linux-gnu' || 'thumbv7em-none-eabihf' }}
     steps:
+      # Install packages
+      - name: Install gcc-arm-none-eabi
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi
+        if: ${{ matrix.target == 'thumbv7em' }}
       # Checkout repo
       - name: Checkout
         uses: actions/checkout@v3
