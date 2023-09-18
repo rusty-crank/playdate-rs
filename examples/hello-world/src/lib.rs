@@ -3,7 +3,7 @@
 #[macro_use]
 extern crate playdate_rs;
 
-use playdate_rs::graphics::{Bitmap, LCDSolidColor};
+use playdate_rs::graphics::{Bitmap, Color};
 use playdate_rs::{app, println, App, PLAYDATE};
 
 #[app]
@@ -23,7 +23,7 @@ impl App for HelloWorld {
 
     fn update(&mut self, delta: f32) {
         // Clear screen
-        PLAYDATE.graphics.clear(LCDSolidColor::kColorWhite);
+        PLAYDATE.graphics.clear(Color::White);
         // Draw image
         PLAYDATE.graphics.draw_rotated_bitmap(
             &self.image,

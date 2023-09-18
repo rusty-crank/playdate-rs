@@ -1,3 +1,4 @@
+use bindgen::callbacks::EnumVariantValue;
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -21,6 +22,54 @@ pub fn get_playdate_sdk_path() -> String {
         )
     }
     playdate_sdk_path
+}
+
+#[derive(Debug)]
+struct EnumRenameParseCallbacks;
+
+impl bindgen::callbacks::ParseCallbacks for EnumRenameParseCallbacks {
+    fn enum_variant_name(
+        &self,
+        _enum_name: Option<&str>,
+        original_variant_name: &str,
+        _variant_value: EnumVariantValue,
+    ) -> Option<String> {
+        let renames = [
+            ("kASCIIEncoding", "ASCII"),
+            ("kUTF8Encoding", "UTF8"),
+            ("k16BitLEEncoding", "LE16Bit"),
+            ("kInt", "Int"),
+            ("kFloat", "Float"),
+            ("kStr", "Str"),
+        ];
+        for (from, to) in &renames {
+            if original_variant_name == *from {
+                return Some((*to).to_owned());
+            }
+        }
+        let prefixes = [
+            "kDrawMode",
+            "kBitmap",
+            "kColor",
+            "kLineCapStyle",
+            "kLCDFontLanguage",
+            "kPolygonFill",
+            "kPDLanguage",
+            "kType",
+            "kJSON",
+            "kCollisionType",
+            "kLFOType",
+            "kWaveform",
+            "kFilterType",
+            "kEvent",
+        ];
+        for prefix in &prefixes {
+            if let Some(x) = original_variant_name.strip_prefix(prefix) {
+                return Some(x.to_owned());
+            }
+        }
+        return Some(original_variant_name.to_owned());
+    }
 }
 
 pub fn generate(device: bool, out_dir: impl AsRef<Path>, arm_gcc_path: Option<&str>) {
@@ -63,6 +112,7 @@ pub fn generate(device: bool, out_dir: impl AsRef<Path>, arm_gcc_path: Option<&s
         .use_core()
         // Skip LCDColor
         .blocklist_type("LCDColor")
+        .parse_callbacks(Box::new(EnumRenameParseCallbacks))
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))

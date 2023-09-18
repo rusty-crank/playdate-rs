@@ -1,6 +1,7 @@
 #![cfg_attr(all(target_arch = "arm", target_os = "none"), no_std)]
 
 extern crate alloc;
+#[doc(hidden)]
 pub extern crate playdate_rs_sys as sys;
 pub extern crate rand;
 
@@ -167,7 +168,7 @@ pub fn __playdate_handle_event<T: App>(
     arg: u32,
 ) {
     let pd = pd as *mut sys::PlaydateAPI;
-    if event == system::SystemEvent::kEventInit {
+    if event == system::SystemEvent::Init {
         start_playdate_app::<T>(pd);
     }
     unsafe { T::get_mut().handle_event(event, arg) };

@@ -8,7 +8,7 @@ use core::ops::{Add, Mul};
 
 use alloc::format;
 use playdate_rs::display::{DISPLAY_HEIGHT, DISPLAY_WIDTH};
-use playdate_rs::graphics::LCDSolidColor;
+use playdate_rs::graphics::Color;
 use playdate_rs::math::Vec2;
 use playdate_rs::system::Buttons;
 use playdate_rs::{app, println, App, PLAYDATE};
@@ -99,20 +99,15 @@ impl Mandelbrot {
     }
 
     fn draw_frame(&self) {
-        PLAYDATE.graphics.clear(LCDSolidColor::kColorWhite);
+        PLAYDATE.graphics.clear(Color::White);
         let iter = self.get_iter();
         for y in 0..DISPLAY_HEIGHT {
             for x in 0..DISPLAY_WIDTH {
                 let pos = vec2![x as i32, y as i32];
                 let v = f(Complex::from_point(pos, self.center, self.scale), iter);
-                PLAYDATE.graphics.draw_pixel(
-                    pos,
-                    if v {
-                        LCDSolidColor::kColorBlack
-                    } else {
-                        LCDSolidColor::kColorWhite
-                    },
-                );
+                PLAYDATE
+                    .graphics
+                    .draw_pixel(pos, if v { Color::Black } else { Color::White });
             }
         }
     }
@@ -127,21 +122,21 @@ impl Mandelbrot {
                 x: top_left_x - 3, y: DISPLAY_HEIGHT as i32 - text_area_height - 3,
                 w: text_area_width + 3, h: text_area_height + 3,
             },
-            LCDSolidColor::kColorWhite,
+            Color::White,
         );
         PLAYDATE.graphics.fill_rect(
             rect! {
                 x: top_left_x - 2, y: DISPLAY_HEIGHT as i32 - text_area_height - 2,
                 w: text_area_width + 2, h: text_area_height + 2,
             },
-            LCDSolidColor::kColorBlack,
+            Color::Black,
         );
         PLAYDATE.graphics.fill_rect(
             rect! {
                 x: top_left_x, y: DISPLAY_HEIGHT as i32 - text_area_height,
                 w: text_area_width , h: text_area_height,
             },
-            LCDSolidColor::kColorWhite,
+            Color::White,
         );
         PLAYDATE.graphics.draw_text(
             format!("<{:.4}, {:.4}i>", self.center.re, self.center.im,),

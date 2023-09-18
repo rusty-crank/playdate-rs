@@ -154,58 +154,58 @@ fn bindgen_test_layout_LCDRect() {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum LCDBitmapDrawMode {
-    kDrawModeCopy = 0,
-    kDrawModeWhiteTransparent = 1,
-    kDrawModeBlackTransparent = 2,
-    kDrawModeFillWhite = 3,
-    kDrawModeFillBlack = 4,
-    kDrawModeXOR = 5,
-    kDrawModeNXOR = 6,
-    kDrawModeInverted = 7,
+    Copy = 0,
+    WhiteTransparent = 1,
+    BlackTransparent = 2,
+    FillWhite = 3,
+    FillBlack = 4,
+    XOR = 5,
+    NXOR = 6,
+    Inverted = 7,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum LCDBitmapFlip {
-    kBitmapUnflipped = 0,
-    kBitmapFlippedX = 1,
-    kBitmapFlippedY = 2,
-    kBitmapFlippedXY = 3,
+    Unflipped = 0,
+    FlippedX = 1,
+    FlippedY = 2,
+    FlippedXY = 3,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum LCDSolidColor {
-    kColorBlack = 0,
-    kColorWhite = 1,
-    kColorClear = 2,
-    kColorXOR = 3,
+    Black = 0,
+    White = 1,
+    Clear = 2,
+    XOR = 3,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum LCDLineCapStyle {
-    kLineCapStyleButt = 0,
-    kLineCapStyleSquare = 1,
-    kLineCapStyleRound = 2,
+    Butt = 0,
+    Square = 1,
+    Round = 2,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum LCDFontLanguage {
-    kLCDFontLanguageEnglish = 0,
-    kLCDFontLanguageJapanese = 1,
-    kLCDFontLanguageUnknown = 2,
+    English = 0,
+    Japanese = 1,
+    Unknown = 2,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum PDStringEncoding {
-    kASCIIEncoding = 0,
-    kUTF8Encoding = 1,
-    k16BitLEEncoding = 2,
+    ASCII = 0,
+    UTF8 = 1,
+    LE16Bit = 2,
 }
 pub type LCDPattern = [u8; 16usize];
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum LCDPolygonFillRule {
-    kPolygonFillNonZero = 0,
-    kPolygonFillEvenOdd = 1,
+    NonZero = 0,
+    EvenOdd = 1,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1328,9 +1328,9 @@ pub struct PDButtons(pub ::core::ffi::c_uint);
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum PDLanguage {
-    kPDLanguageEnglish = 0,
-    kPDLanguageJapanese = 1,
-    kPDLanguageUnknown = 2,
+    English = 0,
+    Japanese = 1,
+    Unknown = 2,
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
@@ -2018,9 +2018,9 @@ pub struct LCDSprite {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum l_valtype {
-    kInt = 0,
-    kFloat = 1,
-    kStr = 2,
+    Int = 0,
+    Float = 1,
+    Str = 2,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -2075,15 +2075,15 @@ impl Default for lua_reg {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum LuaType {
-    kTypeNil = 0,
-    kTypeBool = 1,
-    kTypeInt = 2,
-    kTypeFloat = 3,
-    kTypeString = 4,
-    kTypeTable = 5,
-    kTypeFunction = 6,
-    kTypeThread = 7,
-    kTypeObject = 8,
+    Nil = 0,
+    Bool = 1,
+    Int = 2,
+    Float = 3,
+    String = 4,
+    Table = 5,
+    Function = 6,
+    Thread = 7,
+    Object = 8,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -2642,14 +2642,14 @@ fn bindgen_test_layout_playdate_lua() {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum json_value_type {
-    kJSONNull = 0,
-    kJSONTrue = 1,
-    kJSONFalse = 2,
-    kJSONInteger = 3,
-    kJSONFloat = 4,
-    kJSONString = 5,
-    kJSONArray = 6,
-    kJSONTable = 7,
+    Null = 0,
+    True = 1,
+    False = 2,
+    Integer = 3,
+    Float = 4,
+    String = 5,
+    Array = 6,
+    Table = 7,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -3737,10 +3737,10 @@ fn bindgen_test_layout_playdate_file() {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum SpriteCollisionResponseType {
-    kCollisionTypeSlide = 0,
-    kCollisionTypeFreeze = 1,
-    kCollisionTypeOverlap = 2,
-    kCollisionTypeBounce = 3,
+    Slide = 0,
+    Freeze = 1,
+    Overlap = 2,
+    Bounce = 3,
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
@@ -5842,14 +5842,14 @@ fn bindgen_test_layout_playdate_sound_signal() {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum LFOType {
-    kLFOTypeSquare = 0,
-    kLFOTypeTriangle = 1,
-    kLFOTypeSine = 2,
-    kLFOTypeSampleAndHold = 3,
-    kLFOTypeSawtoothUp = 4,
-    kLFOTypeSawtoothDown = 5,
-    kLFOTypeArpeggiator = 6,
-    kLFOTypeFunction = 7,
+    Square = 0,
+    Triangle = 1,
+    Sine = 2,
+    SampleAndHold = 3,
+    SawtoothUp = 4,
+    SawtoothDown = 5,
+    Arpeggiator = 6,
+    Function = 7,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -6222,14 +6222,14 @@ fn bindgen_test_layout_playdate_sound_envelope() {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum SoundWaveform {
-    kWaveformSquare = 0,
-    kWaveformTriangle = 1,
-    kWaveformSine = 2,
-    kWaveformNoise = 3,
-    kWaveformSawtooth = 4,
-    kWaveformPOPhase = 5,
-    kWaveformPODigital = 6,
-    kWaveformPOVosim = 7,
+    Square = 0,
+    Triangle = 1,
+    Sine = 2,
+    Noise = 3,
+    Sawtooth = 4,
+    POPhase = 5,
+    PODigital = 6,
+    POVosim = 7,
 }
 pub type synthRenderFunc = ::core::option::Option<
     unsafe extern "C" fn(
@@ -7484,13 +7484,13 @@ pub struct TwoPoleFilter {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum TwoPoleFilterType {
-    kFilterTypeLowPass = 0,
-    kFilterTypeHighPass = 1,
-    kFilterTypeBandPass = 2,
-    kFilterTypeNotch = 3,
-    kFilterTypePEQ = 4,
-    kFilterTypeLowShelf = 5,
-    kFilterTypeHighShelf = 6,
+    LowPass = 0,
+    HighPass = 1,
+    BandPass = 2,
+    Notch = 3,
+    PEQ = 4,
+    LowShelf = 5,
+    HighShelf = 6,
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
@@ -9618,16 +9618,16 @@ impl Default for PlaydateAPI {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum PDSystemEvent {
-    kEventInit = 0,
-    kEventInitLua = 1,
-    kEventLock = 2,
-    kEventUnlock = 3,
-    kEventPause = 4,
-    kEventResume = 5,
-    kEventTerminate = 6,
-    kEventKeyPressed = 7,
-    kEventKeyReleased = 8,
-    kEventLowPower = 9,
+    Init = 0,
+    InitLua = 1,
+    Lock = 2,
+    Unlock = 3,
+    Pause = 4,
+    Resume = 5,
+    Terminate = 6,
+    KeyPressed = 7,
+    KeyReleased = 8,
+    LowPower = 9,
 }
 extern "C" {
     pub fn eventHandler(

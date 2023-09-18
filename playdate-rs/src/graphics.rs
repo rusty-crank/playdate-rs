@@ -9,8 +9,10 @@ use alloc::ffi::CString;
 use crate::{math::SideOffsets, util::Ref};
 
 pub use sys::{
-    LCDBitmapDrawMode, LCDBitmapFlip, LCDColor, LCDFontData, LCDLineCapStyle, LCDPattern,
-    LCDPolygonFillRule, LCDSolidColor, LCDSolidColor as Color, LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
+    LCDBitmapDrawMode as BitmapDrawMode, LCDBitmapFlip as BitmapFlip, LCDColor as ColorOrPattern,
+    LCDFontData as FontData, LCDLineCapStyle as LineCapStyle, LCDPattern as Pattern,
+    LCDPolygonFillRule as PolygonFillRule, LCDSolidColor as Color, LCD_COLUMNS, LCD_ROWS,
+    LCD_ROWSIZE,
 };
 
 use crate::{error::Error, PLAYDATE};
@@ -31,14 +33,14 @@ impl PlaydateGraphics {
     // pub video: *const playdate_video,
 
     /// Clears the entire display, filling it with color.
-    pub fn clear(&self, color: impl Into<LCDColor>) {
+    pub fn clear(&self, color: impl Into<ColorOrPattern>) {
         unsafe {
             ((*self.handle).clear.unwrap())(color.into());
         }
     }
 
     /// Sets the background color shown when the display is offset or for clearing dirty areas in the sprite system.
-    pub fn set_background_color(&self, color: LCDSolidColor) {
+    pub fn set_background_color(&self, color: Color) {
         unsafe {
             ((*self.handle).setBackgroundColor.unwrap())(color);
         }
@@ -52,7 +54,7 @@ impl PlaydateGraphics {
     }
 
     /// Sets the mode used for drawing bitmaps. Note that text drawing uses bitmaps, so this affects how fonts are displayed as well.
-    pub fn set_draw_mode(&self, mode: LCDBitmapDrawMode) {
+    pub fn set_draw_mode(&self, mode: BitmapDrawMode) {
         unsafe {
             ((*self.handle).setDrawMode.unwrap())(mode);
         }
@@ -81,7 +83,7 @@ impl PlaydateGraphics {
     }
 
     /// Sets the end cap style used in the line drawing functions.
-    pub fn set_line_cap_style(&self, end_cap_style: LCDLineCapStyle) {
+    pub fn set_line_cap_style(&self, end_cap_style: LineCapStyle) {
         unsafe {
             ((*self.handle).setLineCapStyle.unwrap())(end_cap_style);
         }
@@ -116,14 +118,14 @@ impl PlaydateGraphics {
     }
 
     /// Draws the bitmap with its upper-left corner at location x, y, using the given flip orientation.
-    pub fn draw_bitmap(&self, bitmap: impl AsRef<Bitmap>, pos: Vec2<i32>, flip: LCDBitmapFlip) {
+    pub fn draw_bitmap(&self, bitmap: impl AsRef<Bitmap>, pos: Vec2<i32>, flip: BitmapFlip) {
         unsafe {
             ((*self.handle).drawBitmap.unwrap())(bitmap.as_ref().handle, pos.x, pos.y, flip);
         }
     }
 
     /// Draws the bitmap with its upper-left corner at location x, y tiled inside a width by height rectangle.
-    pub fn tile_bitmap(&self, bitmap: impl AsRef<Bitmap>, rect: Rect<i32>, flip: LCDBitmapFlip) {
+    pub fn tile_bitmap(&self, bitmap: impl AsRef<Bitmap>, rect: Rect<i32>, flip: BitmapFlip) {
         unsafe {
             ((*self.handle).tileBitmap.unwrap())(
                 bitmap.as_ref().handle,
@@ -139,15 +141,13 @@ impl PlaydateGraphics {
     /// Draws a line from x1, y1 to x2, y2 with a stroke width of width.
     pub fn draw_line(
         &self,
-        x1: i32,
-        y1: i32,
-        x2: i32,
-        y2: i32,
+        start: Vec2<i32>,
+        end: Vec2<i32>,
         width: i32,
-        color: impl Into<LCDColor>,
+        color: impl Into<ColorOrPattern>,
     ) {
         unsafe {
-            ((*self.handle).drawLine.unwrap())(x1, y1, x2, y2, width, color.into());
+            ((*self.handle).drawLine.unwrap())(start.x, start.y, end.x, end.y, width, color.into());
         }
     }
 
@@ -155,24 +155,29 @@ impl PlaydateGraphics {
     #[allow(clippy::too_many_arguments)]
     pub fn fill_triangle(
         &self,
-        x1: i32,
-        y1: i32,
-        x2: i32,
-        y2: i32,
-        x3: i32,
-        y3: i32,
-        color: impl Into<LCDColor>,
+        pos1: Vec2<i32>,
+        pos2: Vec2<i32>,
+        pos3: Vec2<i32>,
+        color: impl Into<ColorOrPattern>,
     ) {
         unsafe {
-            ((*self.handle).fillTriangle.unwrap())(x1, y1, x2, y2, x3, y3, color.into());
+            ((*self.handle).fillTriangle.unwrap())(
+                pos1.x,
+                pos1.y,
+                pos2.x,
+                pos2.y,
+                pos3.x,
+                pos3.y,
+                color.into(),
+            );
         }
     }
 
     /// Draws a pixel at x, y.
-    pub fn draw_pixel(&self, pos: Vec2<i32>, color: LCDSolidColor) {
+    pub fn draw_pixel(&self, pos: Vec2<i32>, color: Color) {
         let fb = self.get_frame();
         let byte_ptr = unsafe { fb.add((pos.y * LCD_ROWSIZE as i32 + (pos.x >> 3)) as usize) };
-        if color == LCDSolidColor::kColorBlack {
+        if color == Color::Black {
             unsafe { *byte_ptr &= !(1 << (7 - (pos.x & 7))) };
         } else {
             unsafe { *byte_ptr |= 1 << (7 - (pos.x & 7)) };
@@ -180,7 +185,7 @@ impl PlaydateGraphics {
     }
 
     /// Draws a width by height rect at x, y.
-    pub fn draw_rect(&self, rect: Rect<i32>, color: impl Into<LCDColor>) {
+    pub fn draw_rect(&self, rect: Rect<i32>, color: impl Into<ColorOrPattern>) {
         unsafe {
             ((*self.handle).drawRect.unwrap())(
                 rect.x,
@@ -193,7 +198,7 @@ impl PlaydateGraphics {
     }
 
     /// Draws a filled width by height rect at x, y.
-    pub fn fill_rect(&self, rect: Rect<i32>, color: impl Into<LCDColor>) {
+    pub fn fill_rect(&self, rect: Rect<i32>, color: impl Into<ColorOrPattern>) {
         unsafe {
             ((*self.handle).fillRect.unwrap())(
                 rect.x,
@@ -213,7 +218,7 @@ impl PlaydateGraphics {
         line_width: i32,
         start_angle: f32,
         end_angle: f32,
-        color: impl Into<LCDColor>,
+        color: impl Into<ColorOrPattern>,
     ) {
         unsafe {
             ((*self.handle).drawEllipse.unwrap())(
@@ -236,7 +241,7 @@ impl PlaydateGraphics {
         rect: Rect<i32>,
         start_angle: f32,
         end_angle: f32,
-        color: impl Into<LCDColor>,
+        color: impl Into<ColorOrPattern>,
     ) {
         unsafe {
             ((*self.handle).fillEllipse.unwrap())(
@@ -269,18 +274,17 @@ impl PlaydateGraphics {
         let ptr = text.as_ref().as_ptr() as *const c_void;
         let len = text.as_ref().chars().count();
         unsafe {
-            ((*self.handle).drawText.unwrap())(
-                ptr,
-                len,
-                sys::PDStringEncoding::kUTF8Encoding,
-                pos.x,
-                pos.y,
-            )
+            ((*self.handle).drawText.unwrap())(ptr, len, sys::PDStringEncoding::UTF8, pos.x, pos.y)
         }
     }
 
     /// Allocates and returns a new width by height LCDBitmap filled with bgcolor.
-    pub fn new_bitmap(&self, width: i32, height: i32, bgcolor: impl Into<LCDColor>) -> Bitmap {
+    pub fn new_bitmap(
+        &self,
+        width: i32,
+        height: i32,
+        bgcolor: impl Into<ColorOrPattern>,
+    ) -> Bitmap {
         Bitmap::from(unsafe { ((*self.handle).newBitmap.unwrap())(width, height, bgcolor.into()) })
     }
 
@@ -385,8 +389,8 @@ impl PlaydateGraphics {
         &self,
         n_points: i32,
         coords: impl AsRef<[i32]>,
-        color: impl Into<LCDColor>,
-        fillrule: LCDPolygonFillRule,
+        color: impl Into<ColorOrPattern>,
+        fillrule: PolygonFillRule,
     ) {
         unsafe {
             let mut coords = coords.as_ref().to_vec();
@@ -466,7 +470,7 @@ impl Bitmap {
     }
 
     /// Allocates and returns a new width by height Bitmap filled with bgcolor.
-    pub fn new(size: Size<u32>, bgcolor: impl Into<LCDColor>) -> Self {
+    pub fn new(size: Size<u32>, bgcolor: impl Into<ColorOrPattern>) -> Self {
         Self::from(unsafe {
             ((*PLAYDATE.graphics.handle).newBitmap.unwrap())(
                 size.width as _,
@@ -478,13 +482,13 @@ impl Bitmap {
 
     /// Open an image as a bitmap.
     pub fn open(size: Size<u32>, path: impl AsRef<str>) -> Result<Self, Error> {
-        let bitmap = Self::new(size, LCDSolidColor::kColorClear);
+        let bitmap = Self::new(size, Color::Clear);
         bitmap.load(path)?;
         Ok(bitmap)
     }
 
     /// Clears bitmap, filling with the given bgcolor.
-    pub fn clear(&self, bgcolor: impl Into<LCDColor>) {
+    pub fn clear(&self, bgcolor: impl Into<ColorOrPattern>) {
         unsafe { ((*PLAYDATE.graphics.handle).clearBitmap.unwrap())(self.handle, bgcolor.into()) }
     }
 
@@ -511,11 +515,11 @@ impl Bitmap {
         &self,
         x1: i32,
         y1: i32,
-        flip1: LCDBitmapFlip,
+        flip1: BitmapFlip,
         other: impl AsRef<Bitmap>,
         x2: i32,
         y2: i32,
-        flip2: LCDBitmapFlip,
+        flip2: BitmapFlip,
         rect: SideOffsets<i32>,
     ) -> bool {
         unsafe {
@@ -584,7 +588,7 @@ impl Bitmap {
 
     /// Get color as an 8 x 8 pattern using the given bitmap. x, y indicates the top left corner of the 8 x 8 pattern.
     pub fn get_color_pattern(&self, pos: Vec2<i32>) -> ColorPatternData {
-        let mut color = LCDColor::default();
+        let mut color = ColorOrPattern::default();
         unsafe {
             ((*PLAYDATE.graphics.handle).setColorToPattern.unwrap())(
                 &mut color,
@@ -633,8 +637,8 @@ impl Clone for Bitmap {
 }
 
 pub enum ColorPatternData {
-    Solid(LCDSolidColor),
-    Pattern(LCDPattern),
+    Solid(Color),
+    Pattern(Pattern),
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -770,7 +774,7 @@ impl Font {
                 self.handle,
                 ptr,
                 len,
-                sys::PDStringEncoding::kUTF8Encoding,
+                sys::PDStringEncoding::UTF8,
                 tracking,
             ) as _
         }

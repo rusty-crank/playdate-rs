@@ -17,10 +17,10 @@ impl LCDColor {
     /// Convert the LCDColor to a LCDSolidColor
     pub fn as_solid_color(&self) -> Option<LCDSolidColor> {
         match self.0 {
-            0 => Some(LCDSolidColor::kColorBlack),
-            1 => Some(LCDSolidColor::kColorWhite),
-            2 => Some(LCDSolidColor::kColorClear),
-            3 => Some(LCDSolidColor::kColorXOR),
+            0 => Some(LCDSolidColor::Black),
+            1 => Some(LCDSolidColor::White),
+            2 => Some(LCDSolidColor::Clear),
+            3 => Some(LCDSolidColor::XOR),
             _ => None,
         }
     }
