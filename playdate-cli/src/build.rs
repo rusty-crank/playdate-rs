@@ -158,6 +158,9 @@ impl Build {
         } else {
             target_dir.push("debug");
         }
+        if self.example.is_some() {
+            target_dir.push("examples");
+        }
         Ok(target_dir)
     }
 
