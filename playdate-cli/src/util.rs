@@ -31,7 +31,12 @@ impl CommandExt for Command {
             if !env.is_empty() {
                 env = format!("{} ", env);
             }
-            format!("{}{} {}", env, self.get_program().to_str().unwrap(), args)
+            format!(
+                "{}{} {}",
+                env,
+                self.get_program().to_str().unwrap().replace(' ', "\\ "),
+                args
+            )
         };
         if log_enabled!(log::Level::Debug) {
             debug!("➔  {}", cmd);
