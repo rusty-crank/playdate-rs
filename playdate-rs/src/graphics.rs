@@ -708,15 +708,8 @@ impl BitmapTable {
         })
     }
 
-    pub fn open(
-        count: usize,
-        width: u32,
-        height: u32,
-        path: impl AsRef<str>,
-    ) -> Result<Self, Error> {
-        let mut table = Self::new(count, width, height);
-        table.load(path)?;
-        Ok(table)
+    pub fn open(path: impl AsRef<str>) -> Result<Self, Error> {
+        PLAYDATE.graphics.load_bitmap_table(path)
     }
 
     /// Returns the idx bitmap in table, If idx is out of bounds, the function returns NULL.
