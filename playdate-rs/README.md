@@ -60,5 +60,5 @@ Example: [examples/hello-world/Cargo.toml](examples/hello-world/Cargo.toml).
 
 * [x] Linux / macOS simulator build
 * [x] Cortex-M7F build
+* [x] Run on real playdate device
 * [ ] Support all public PlaydateSDK C-API
-* [ ] Run on real playdate device
