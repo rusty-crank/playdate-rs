@@ -1,11 +1,11 @@
 use core::ffi::{c_char, c_void, CStr};
 
 use alloc::{ffi::CString, vec::Vec};
-use sys::PDButtons;
 pub use sys::{
     LCDFontData as FontData, PDDateTime as DateTime, PDLanguage as Language,
-    PDPeripherals as Peripherals, PDSystemEvent as SystemEvent,
+    PDSystemEvent as SystemEvent,
 };
+use sys::{PDButtons, PDPeripherals};
 
 use crate::{graphics::Bitmap, math::Vec2, PLAYDATE};
 
@@ -88,7 +88,7 @@ impl PlaydateSystem {
     /// By default, the accelerometer is disabled to save (a small amount of) power. To use a peripheral, it must first be enabled via this function. Accelerometer data is not available until the next update cycle after it’s enabled.
     pub fn set_peripherals_enabled(&self, mask: Peripherals) {
         unsafe {
-            (*self.handle).setPeripheralsEnabled.unwrap()(mask);
+            (*self.handle).setPeripheralsEnabled.unwrap()(PDPeripherals(mask.bits() as _));
         }
     }
 
@@ -388,4 +388,14 @@ pub enum Buttons {
     Down = 1 << 3,
     B = 1 << 4,
     A = 1 << 5,
+}
+
+#[bitmask_enum::bitmask(u16)]
+pub enum Peripherals {
+    Accelerometer = 1 << 0,
+}
+
+impl Peripherals {
+    pub const NONE: Self = Peripherals::none();
+    pub const ALL: Self = Peripherals::all();
 }
