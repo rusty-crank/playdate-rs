@@ -3,6 +3,8 @@ use std::{
     process::Command,
 };
 
+use anyhow::Ok;
+
 pub trait CommandExt {
     fn check(&mut self, log: bool) -> anyhow::Result<()>;
 }
@@ -70,6 +72,21 @@ pub fn get_playdate_sdk_path() -> anyhow::Result<PathBuf> {
         )
     }
     Ok(playdate_sdk_path)
+}
+
+pub fn get_playdate_simulator() -> anyhow::Result<PathBuf> {
+    let playdate_sdk_path = crate::util::get_playdate_sdk_path()?;
+    let simulator = if cfg!(target_os = "macos") {
+        playdate_sdk_path
+            .join("bin")
+            .join("Playdate Simulator.app")
+            .join("Contents")
+            .join("MacOS")
+            .join("Playdate Simulator")
+    } else {
+        playdate_sdk_path.join("bin").join("PlaydateSimulator")
+    };
+    Ok(simulator)
 }
 
 #[cfg(target_os = "macos")]

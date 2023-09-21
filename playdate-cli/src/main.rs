@@ -3,9 +3,7 @@ extern crate log;
 
 use clap::Parser;
 
-#[macro_use]
-mod util;
-
+use playdate_cli::util;
 mod build;
 mod init;
 mod new;

@@ -11,17 +11,7 @@ pub struct Run {
 
 impl Run {
     fn run_simulator(&self, build_info: BuildInfo) -> anyhow::Result<()> {
-        let playdate_sdk_path = crate::util::get_playdate_sdk_path()?;
-        let simulator = if cfg!(target_os = "macos") {
-            playdate_sdk_path
-                .join("bin")
-                .join("Playdate Simulator.app")
-                .join("Contents")
-                .join("MacOS")
-                .join("Playdate Simulator")
-        } else {
-            playdate_sdk_path.join("bin").join("PlaydateSimulator")
-        };
+        let simulator = crate::util::get_playdate_simulator()?;
         info!("Running {}", build_info.name);
         Command::new(simulator).arg(build_info.pdx).check(true)?;
         Ok(())
