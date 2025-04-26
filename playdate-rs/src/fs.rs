@@ -2,95 +2,30 @@ use alloc::borrow::Cow;
 use alloc::ffi::CString;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::ffi::c_void;
 use core::ops::Div;
 
+pub use no_std_io::io::{self, Read, Seek, Write};
 pub use sys::{FileOptions, FileStat, SEEK_CUR, SEEK_END, SEEK_SET};
 
-use no_std_io::io::{self};
-
-pub use no_std_io::io::{Read, Seek, Write};
-
-pub struct PlaydateFileSystem {
-    handle: *const sys::playdate_file,
-}
-
-impl PlaydateFileSystem {
-    pub(crate) fn new(handle: *const sys::playdate_file) -> Self {
-        Self { handle }
-    }
-
-    /// Returns human-readable text describing the most recent error (usually indicated by a -1 return from a filesystem function).
-    fn get_error(&self) -> Option<io::Error> {
-        let c_string = unsafe { (*self.handle).geterr.unwrap()() };
-        if c_string.is_null() {
-            None
-        } else {
-            let c_str = unsafe { ::core::ffi::CStr::from_ptr(c_string) };
-            Some(io::Error::new(
-                io::ErrorKind::Other,
-                c_str.to_str().unwrap(),
-            ))
-        }
-    }
-
-    /// Reads up to len bytes from the file into the buffer buf. Returns the number of bytes read (0 indicating end of file), or -1 in case of error.
-    fn read(&self, file: *mut sys::SDFile, buf: &mut [u8]) -> io::Result<usize> {
-        let result = unsafe {
-            (*self.handle).read.unwrap()(file, buf.as_mut_ptr() as *mut _, buf.len() as u32)
-        };
-        if result >= 0 {
-            Ok(result as usize)
-        } else {
-            Err(self.get_error().unwrap())
-        }
-    }
-
-    /// Writes the buffer of bytes buf to the file. Returns the number of bytes written, or -1 in case of error.
-    fn write(&self, file: *mut sys::SDFile, buf: &[u8]) -> io::Result<usize> {
-        let result = unsafe {
-            (*self.handle).write.unwrap()(file, buf.as_ptr() as *const _, buf.len() as u32)
-        };
-        if result >= 0 {
-            Ok(result as usize)
-        } else {
-            Err(self.get_error().unwrap())
-        }
-    }
-
-    /// Flushes the output buffer of file immediately. Returns the number of bytes written, or -1 in case of error.
-    fn flush(&self, file: *mut sys::SDFile) -> io::Result<()> {
-        let result = unsafe { (*self.handle).flush.unwrap()(file) };
-        if result == 0 {
-            Ok(())
-        } else {
-            Err(self.get_error().unwrap())
-        }
-    }
-
-    /// Returns the current read/write offset in the given file handle, or -1 on error.
-    fn tell(&self, file: *mut sys::SDFile) -> io::Result<usize> {
-        let result = unsafe { (*self.handle).tell.unwrap()(file) };
-        if result >= 0 {
-            Ok(result as usize)
-        } else {
-            Err(self.get_error().unwrap())
-        }
-    }
-
-    /// Sets the read/write offset in the given file handle to pos, relative to the whence macro. SEEK_SET is relative to the beginning of the file, SEEK_CUR is relative to the current position of the file pointer, and SEEK_END is relative to the end of the file. Returns 0 on success, -1 on error.
-    fn seek(&self, file: *mut sys::SDFile, pos: usize, whence: i32) -> io::Result<()> {
-        let result = unsafe { (*self.handle).seek.unwrap()(file, pos as i32, whence) };
-        if result == 0 {
-            Ok(())
-        } else {
-            Err(self.get_error().unwrap())
-        }
-    }
-}
-
-use core::ffi::c_void;
-
 use crate::PLAYDATE;
+
+fn handle() -> &'static sys::playdate_file {
+    unsafe { &*(*PLAYDATE.raw_api).file }
+}
+
+fn get_error() -> Option<io::Error> {
+    let c_string = unsafe { handle().geterr.unwrap()() };
+    if c_string.is_null() {
+        None
+    } else {
+        let c_str = unsafe { ::core::ffi::CStr::from_ptr(c_string) };
+        Some(io::Error::new(
+            io::ErrorKind::Other,
+            c_str.to_str().unwrap(),
+        ))
+    }
+}
 
 pub struct File {
     pub(crate) handle: *mut sys::SDFile,
@@ -103,16 +38,21 @@ impl File {
 
     /// Returns the current read/write offset in the given file handle, or -1 on error.
     pub fn tell(&self) -> io::Result<usize> {
-        PLAYDATE.file.tell(self.handle)
+        let result = unsafe { handle().tell.unwrap()(self.handle) };
+        if result >= 0 {
+            Ok(result as usize)
+        } else {
+            Err(get_error().unwrap())
+        }
     }
 
     /// Open a new file
     pub fn open(name: impl AsPath, mode: FileOptions) -> io::Result<Self> {
         let name = name.as_str();
         let c_string = CString::new(name.as_ref()).unwrap();
-        let file = unsafe { (*PLAYDATE.file.handle).open.unwrap()(c_string.as_ptr(), mode) };
+        let file = unsafe { handle().open.unwrap()(c_string.as_ptr(), mode) };
         if file.is_null() {
-            Err(PLAYDATE.file.get_error().unwrap())
+            Err(get_error().unwrap())
         } else {
             Ok(File::new(file))
         }
@@ -128,26 +68,35 @@ impl File {
 
 impl Read for File {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let Ok(size) = PLAYDATE.file.read(self.handle, buf) else {
-            return Err(io::Error::new(io::ErrorKind::Other, "file read error"));
+        let result = unsafe {
+            handle().read.unwrap()(self.handle, buf.as_mut_ptr() as *mut _, buf.len() as u32)
         };
-        Ok(size)
+        if result >= 0 {
+            Ok(result as usize)
+        } else {
+            Err(get_error().unwrap())
+        }
     }
 }
 
 impl Write for File {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let Ok(size) = PLAYDATE.file.write(self.handle, buf) else {
-            return Err(io::Error::new(io::ErrorKind::Other, "file write error"));
+        let result = unsafe {
+            handle().write.unwrap()(self.handle, buf.as_ptr() as *const _, buf.len() as u32)
         };
-        Ok(size)
+        if result >= 0 {
+            Ok(result as usize)
+        } else {
+            Err(get_error().unwrap())
+        }
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        if PLAYDATE.file.flush(self.handle).is_err() {
-            Err(io::Error::new(io::ErrorKind::Other, "file flush error"))
-        } else {
+        let result = unsafe { handle().flush.unwrap()(self.handle) };
+        if result == 0 {
             Ok(())
+        } else {
+            Err(get_error().unwrap())
         }
     }
 }
@@ -164,17 +113,18 @@ impl Seek for File {
             io::SeekFrom::End(pos) => pos as usize,
             io::SeekFrom::Current(pos) => pos as usize,
         };
-        if PLAYDATE.file.seek(self.handle, pos, whence as _).is_err() {
-            Err(io::Error::new(io::ErrorKind::Other, "file seek error"))
+        let result = unsafe { handle().seek.unwrap()(self.handle, pos as i32, whence as _) };
+        if result == 0 {
+            Ok(pos as _)
         } else {
-            Ok(pos as u64)
+            Err(get_error().unwrap())
         }
     }
 }
 
 impl Drop for File {
     fn drop(&mut self) {
-        let result = unsafe { (*PLAYDATE.file.handle).close.unwrap()(self.handle) };
+        let result = unsafe { handle().close.unwrap()(self.handle) };
         assert!(result == 0, "Failed to close file");
     }
 }
@@ -407,11 +357,11 @@ pub fn copy(from: impl AsPath, to: impl AsPath) -> io::Result<()> {
 pub fn create_dir(path: impl AsPath) -> io::Result<()> {
     let path = path.as_str();
     let c_string = CString::new(path.as_ref()).unwrap();
-    let result = unsafe { (*PLAYDATE.file.handle).mkdir.unwrap()(c_string.as_ptr()) };
+    let result = unsafe { handle().mkdir.unwrap()(c_string.as_ptr()) };
     if result != 0 {
         Ok(())
     } else {
-        Err(PLAYDATE.file.get_error().unwrap())
+        Err(get_error().unwrap())
     }
 }
 
@@ -429,11 +379,11 @@ pub fn stat(path: impl AsPath) -> Result<FileStat, io::Error> {
     let path = path.as_str();
     let c_string = CString::new(path.as_ref()).unwrap();
     let mut stat = FileStat::default();
-    let result = unsafe { (*PLAYDATE.file.handle).stat.unwrap()(c_string.as_ptr(), &mut stat) };
+    let result = unsafe { handle().stat.unwrap()(c_string.as_ptr(), &mut stat) };
     if result == 0 {
         Ok(stat)
     } else {
-        Err(PLAYDATE.file.get_error().unwrap())
+        Err(get_error().unwrap())
     }
 }
 
@@ -464,7 +414,7 @@ pub fn read_dir(path: impl AsPath) -> io::Result<Vec<String>> {
     let mut callback_dyn: *mut dyn FnMut(&str) = &mut callback;
     let callback_dyn_ptr: *mut *mut dyn FnMut(&str) = &mut callback_dyn;
     let result = unsafe {
-        (*PLAYDATE.file.handle).listfiles.unwrap()(
+        handle().listfiles.unwrap()(
             c_string.as_ptr(),
             Some(callback_wrapper),
             callback_dyn_ptr as *mut _,
@@ -474,7 +424,7 @@ pub fn read_dir(path: impl AsPath) -> io::Result<Vec<String>> {
     if result == 0 {
         Ok(files)
     } else {
-        Err(PLAYDATE.file.get_error().unwrap())
+        Err(get_error().unwrap())
     }
 }
 
@@ -482,11 +432,11 @@ pub fn read_dir(path: impl AsPath) -> io::Result<Vec<String>> {
 pub fn remove_dir(path: impl AsPath) -> io::Result<()> {
     let path = path.as_str();
     let c_string = CString::new(path.as_ref()).unwrap();
-    let result = unsafe { (*PLAYDATE.file.handle).unlink.unwrap()(c_string.as_ptr(), 0) };
+    let result = unsafe { handle().unlink.unwrap()(c_string.as_ptr(), 0) };
     if result == 0 {
         Ok(())
     } else {
-        Err(PLAYDATE.file.get_error().unwrap())
+        Err(get_error().unwrap())
     }
 }
 
@@ -494,22 +444,22 @@ pub fn remove_dir(path: impl AsPath) -> io::Result<()> {
 pub fn remove_dir_all(path: impl AsPath) -> io::Result<()> {
     let path = path.as_str();
     let c_string = CString::new(path.as_ref()).unwrap();
-    let result = unsafe { (*PLAYDATE.file.handle).unlink.unwrap()(c_string.as_ptr(), 1) };
+    let result = unsafe { handle().unlink.unwrap()(c_string.as_ptr(), 1) };
     if result == 0 {
         Ok(())
     } else {
-        Err(PLAYDATE.file.get_error().unwrap())
+        Err(get_error().unwrap())
     }
 }
 
 pub fn remove_file(path: impl AsPath) -> io::Result<()> {
     let path = path.as_str();
     let c_string = CString::new(path.as_ref()).unwrap();
-    let result = unsafe { (*PLAYDATE.file.handle).unlink.unwrap()(c_string.as_ptr(), 0) };
+    let result = unsafe { handle().unlink.unwrap()(c_string.as_ptr(), 0) };
     if result == 0 {
         Ok(())
     } else {
-        Err(PLAYDATE.file.get_error().unwrap())
+        Err(get_error().unwrap())
     }
 }
 
@@ -518,13 +468,11 @@ pub fn rename(from: impl AsPath, to: impl AsPath) -> io::Result<()> {
     let to = to.as_str();
     let from_c_string = CString::new(from.as_ref()).unwrap();
     let to_c_string = CString::new(to.as_ref()).unwrap();
-    let result = unsafe {
-        (*PLAYDATE.file.handle).rename.unwrap()(from_c_string.as_ptr(), to_c_string.as_ptr())
-    };
+    let result = unsafe { handle().rename.unwrap()(from_c_string.as_ptr(), to_c_string.as_ptr()) };
     if result == 0 {
         Ok(())
     } else {
-        Err(PLAYDATE.file.get_error().unwrap())
+        Err(get_error().unwrap())
     }
 }
 

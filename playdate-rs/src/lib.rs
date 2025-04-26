@@ -35,8 +35,6 @@ pub struct PlaydateAPI {
     raw_api: *mut sys::PlaydateAPI,
     /// System interaction
     pub system: system::PlaydateSystem,
-    /// Filesystem operations
-    pub(crate) file: fs::PlaydateFileSystem,
     /// Graphics operations and drawing functions
     pub graphics: graphics::PlaydateGraphics,
     /// Sprite and global sprite display list operations
@@ -62,7 +60,6 @@ impl PlaydateAPI {
         Self {
             raw_api: playdate,
             system: system::PlaydateSystem::new(playdate_ref.system),
-            file: fs::PlaydateFileSystem::new(playdate_ref.file),
             graphics: graphics::PlaydateGraphics::new(playdate_ref.graphics),
             sprite: sprite::PlaydateSprite::new(playdate_ref.sprite),
             display: display::PlaydateDisplay::new(playdate_ref.display),
