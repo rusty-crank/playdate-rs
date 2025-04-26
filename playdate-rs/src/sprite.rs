@@ -242,6 +242,19 @@ impl Sprite {
         Vec2::new(x, y)
     }
 
+    /// Sets the sprite’s drawing center as a fraction (ranging from 0.0 to 1.0) of the height and width. Default is 0.5, 0.5 (the center of the sprite). This means that when you call sprite→moveTo(sprite, x, y), the center of your sprite will be positioned at x, y. If you want x and y to represent the upper left corner of your sprite, specify the center as 0, 0.
+    pub fn set_center(&self, pos: Vec2<f32>) {
+        unsafe { (*PLAYDATE.sprite.handle).setCenter.unwrap()(self.handle, pos.x, pos.y) }
+    }
+
+    /// Sets the values in outx and outy to the sprite’s drawing center as a fraction (ranging from 0.0 to 1.0) of the height and width.
+    pub fn get_center(&self) -> Vec2<f32> {
+        let mut x = 0.0;
+        let mut y = 0.0;
+        unsafe { (*PLAYDATE.sprite.handle).getCenter.unwrap()(self.handle, &mut x, &mut y) }
+        Vec2::new(x, y)
+    }
+
     /// Sets the bounds of the given sprite with bounds. This is the position of the sprite rectangle’s center.
     pub fn set_bounds(&self, bounds: Rect<f32>) {
         unsafe { (*PLAYDATE.sprite.handle).setBounds.unwrap()(self.handle, bounds.into()) }

@@ -306,6 +306,65 @@ impl PlaydateSystem {
     pub fn clear_icache(&self) {
         unsafe { (*self.handle).clearICache.unwrap()() }
     }
+
+    /// (2.4) As an alternative to polling for button presses using getButtonState(), this function allows a callback function to be set. The function is called for each button up/down event (possibly multiple events on the same button) that occurred during the previous update cycle. At the default 30 FPS, a queue size of 5 should be adequate. At lower frame rates/longer frame times, the queue size should be extended until all button presses are caught. The function should return 0 on success or a non-zero value to signal an error.
+    #[allow(static_mut_refs)]
+    pub fn set_button_callback(
+        &self,
+        callback: Option<Box<dyn Fn(Buttons, i32, u32)>>,
+        queue_size: usize,
+    ) {
+        static mut CALLBACK: Option<Box<dyn Fn(Buttons, i32, u32)>> = None;
+        extern "C" fn callback_impl(
+            buttons: PDButtons,
+            down: i32,
+            when: u32,
+            _userdata: *mut core::ffi::c_void,
+        ) -> i32 {
+            let callback = unsafe { CALLBACK.as_ref().unwrap() };
+            callback(Buttons::from(buttons.0 as u8), down, when);
+            0
+        }
+        unsafe {
+            let callback_exists = callback.is_some();
+            CALLBACK = callback;
+            ((*self.handle).setButtonCallback.unwrap())(
+                if callback_exists {
+                    Some(callback_impl)
+                } else {
+                    None
+                },
+                core::ptr::null_mut(),
+                queue_size as _,
+            );
+        }
+    }
+
+    /// (2.4) Provides a callback to receive messages sent to the device over the serial port using the msg command. If no device is connected, you can send these messages to a game in the simulator by entering !msg <message> in the Lua console.
+    #[allow(static_mut_refs)]
+    pub fn set_serial_message_callback(&self, callback: Option<Box<dyn Fn(&[u8])>>) {
+        static mut CALLBACK: Option<Box<dyn Fn(&[u8])>> = None;
+        extern "C" fn callback_impl(data: *const c_char) {
+            let callback = unsafe { CALLBACK.as_ref().unwrap() };
+            let c_str: &CStr = unsafe { CStr::from_ptr(data) };
+            let s: &[u8] = c_str.to_bytes();
+            callback(s);
+        }
+        unsafe {
+            let callback_exists = callback.is_some();
+            CALLBACK = callback;
+            ((*self.handle).setSerialMessageCallback.unwrap())(if callback_exists {
+                Some(callback_impl)
+            } else {
+                None
+            });
+        }
+    }
+
+    /// (???) Pauses execution for the given number of milliseconds.
+    pub fn delay(&self, ms: usize) {
+        unsafe { (*self.handle).delay.unwrap()(ms as _) }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug)]

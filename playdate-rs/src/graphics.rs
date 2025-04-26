@@ -3,7 +3,10 @@ use core::{
     marker::PhantomData,
 };
 
-use crate::math::{Rect, Size, Vec2};
+use crate::{
+    fs::File,
+    math::{Rect, Size, Vec2},
+};
 use alloc::ffi::CString;
 
 use crate::{math::SideOffsets, util::Ref};
@@ -11,7 +14,8 @@ use crate::{math::SideOffsets, util::Ref};
 pub use sys::{
     LCDBitmapDrawMode as BitmapDrawMode, LCDBitmapFlip as BitmapFlip, LCDColor as ColorOrPattern,
     LCDLineCapStyle as LineCapStyle, LCDPattern as Pattern, LCDPolygonFillRule as PolygonFillRule,
-    LCDSolidColor as Color, LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
+    LCDSolidColor as Color, PDTextAlignment as TextAlign, PDTextWrappingMode as TextWrap,
+    LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
 };
 
 use crate::{error::Error, PLAYDATE};
@@ -53,10 +57,8 @@ impl PlaydateGraphics {
     }
 
     /// Sets the mode used for drawing bitmaps. Note that text drawing uses bitmaps, so this affects how fonts are displayed as well.
-    pub fn set_draw_mode(&self, mode: BitmapDrawMode) {
-        unsafe {
-            ((*self.handle).setDrawMode.unwrap())(mode);
-        }
+    pub fn set_draw_mode(&self, mode: BitmapDrawMode) -> BitmapDrawMode {
+        unsafe { ((*self.handle).setDrawMode.unwrap())(mode) }
     }
 
     /// Offsets the origin point for all drawing calls to x, y (can be negative).
@@ -100,6 +102,11 @@ impl PlaydateGraphics {
         unsafe {
             ((*self.handle).setTextTracking.unwrap())(tracking);
         }
+    }
+
+    /// Gets the tracking used when drawing text.
+    pub fn get_text_tracking(&self) -> i32 {
+        unsafe { ((*self.handle).getTextTracking.unwrap())() }
     }
 
     /// Push a new drawing context for drawing into the given bitmap. If target is nil, the drawing functions will use the display framebuffer.
@@ -274,6 +281,31 @@ impl PlaydateGraphics {
         let len = text.as_ref().chars().count();
         unsafe {
             ((*self.handle).drawText.unwrap())(ptr, len, sys::PDStringEncoding::UTF8, pos.x, pos.y)
+        }
+    }
+
+    /// Draws the text in the given rectangle using the provided options. If no font has been set with setFont, the default system font Asheville Sans 14 Light is used. See the above note about the len argument.
+    pub fn draw_text_in_rect(
+        &self,
+        text: impl AsRef<str>,
+        rect: Rect<i32>,
+        wrap: TextWrap,
+        align: TextAlign,
+    ) {
+        let ptr = text.as_ref().as_ptr() as *const c_void;
+        let len = text.as_ref().chars().count();
+        unsafe {
+            ((*self.handle).drawTextInRect.unwrap())(
+                ptr,
+                len,
+                sys::PDStringEncoding::UTF8,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+                wrap,
+                align,
+            )
         }
     }
 
@@ -561,6 +593,11 @@ impl Bitmap {
         data
     }
 
+    /// Gets the color of the pixel at (x,y) in the given bitmap. If the coordinate is outside the bounds of the bitmap, or if the bitmap has a mask and the pixel is marked transparent, the function returns kColorClear; otherwise the return value is kColorWhite or kColorBlack.
+    pub fn get_pixel(&self, pos: Vec2<i32>) -> Color {
+        unsafe { ((*PLAYDATE.graphics.handle).getBitmapPixel.unwrap())(self.handle, pos.x, pos.y) }
+    }
+
     /// Loads the image at path into the previously allocated bitmap.
     pub fn load(&self, path: impl AsRef<str>) -> Result<(), Error> {
         let c_string = CString::new(path.as_ref()).unwrap();
@@ -690,6 +727,12 @@ pub struct BitmapTable {
     handle: *mut sys::LCDBitmapTable,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub struct BitmapTableInfo {
+    pub count: usize,
+    pub cellswide: usize,
+}
+
 unsafe impl Send for BitmapTable {}
 unsafe impl Sync for BitmapTable {}
 
@@ -706,6 +749,22 @@ impl BitmapTable {
                 height as _,
             )
         })
+    }
+
+    pub fn get_info(&self) -> BitmapTableInfo {
+        let mut count = 0;
+        let mut cellswide = 0;
+        unsafe {
+            ((*PLAYDATE.graphics.handle).getBitmapTableInfo.unwrap())(
+                self.handle,
+                &mut count,
+                &mut cellswide,
+            )
+        };
+        BitmapTableInfo {
+            count: count as _,
+            cellswide: cellswide as _,
+        }
     }
 
     pub fn open(path: impl AsRef<str>) -> Result<Self, Error> {
@@ -838,5 +897,194 @@ impl FontGlyph {
     /// Returns the kerning adjustment between characters c1 and c2 as specified by the font.
     pub fn get_kerning(&self, c1: u32, c2: u32) -> i32 {
         unsafe { ((*PLAYDATE.graphics.handle).getGlyphKerning.unwrap())(self.handle, c1, c2) }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct TileMap {
+    handle: *mut sys::LCDTileMap,
+    image_table: Option<BitmapTable>,
+}
+
+impl TileMap {
+    pub fn new() -> Self {
+        Self {
+            handle: unsafe { ((*(*PLAYDATE.graphics.handle).tilemap).newTilemap.unwrap())() },
+            image_table: None,
+        }
+    }
+
+    /// Sets the image table to use for the tilemap’s tiles.
+    pub fn set_image_table(&mut self, table: BitmapTable) {
+        let handle = table.handle;
+        self.image_table = Some(table);
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).tilemap)
+                .setImageTable
+                .unwrap())(self.handle, handle)
+        }
+    }
+
+    /// Returns the LCDBitmapTable used for the tilemap’s tiles.
+    pub fn get_image_table(&self) -> Option<&BitmapTable> {
+        if let Some(ref table) = self.image_table {
+            Some(table)
+        } else {
+            None
+        }
+    }
+
+    /// Sets the tilemap’s width and height, in number of tiles.
+    pub fn set_size(&mut self, tiles: Size<u32>) {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).tilemap).setSize.unwrap())(
+                self.handle,
+                tiles.width as _,
+                tiles.height as _,
+            )
+        }
+    }
+
+    /// Returns the size of the tile map, in tiles.
+    pub fn get_size(&self) -> Size<u32> {
+        let mut size = Size::default();
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).tilemap).getSize.unwrap())(
+                self.handle,
+                &mut size.width,
+                &mut size.height,
+            )
+        }
+        Size {
+            width: size.width as _,
+            height: size.height as _,
+        }
+    }
+
+    /// Returns the size of the tilemap in pixels; that is, the size of the tile image multiplied by the number of rows and columns in the tilemap.
+    pub fn get_pixel_size(&self) -> Size<u32> {
+        let mut size = Size::default();
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).tilemap).getPixelSize.unwrap())(
+                self.handle,
+                &mut size.width,
+                &mut size.height,
+            )
+        }
+        size
+    }
+
+    /// Sets the tilemap’s width to rowwidth and height to count/rowwidth (count must be evenly divisible by rowwidth), then sets the tiles' indexes to the given list.
+    pub fn set_tiles(&mut self, indexes: &[u16], row_width: i32) {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).tilemap).setTiles.unwrap())(
+                self.handle,
+                indexes.as_ptr() as *const u16 as *mut u16,
+                indexes.len() as _,
+                row_width,
+            )
+        }
+    }
+
+    /// Sets the index of the tile at tilemap position (x, y). index is the (0-based) index of the cell in the tilemap’s image table.
+    pub fn set_tile_at_position(&mut self, pos: Vec2<u32>, idx: usize) {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).tilemap)
+                .setTileAtPosition
+                .unwrap())(self.handle, pos.x as _, pos.y as _, idx as _)
+        }
+    }
+
+    /// Returns the image index of the tile at the given x and y coordinate. If x or y is out of bounds, returns -1.
+    pub fn get_tile_at_position(&self, pos: Vec2<u32>) -> Option<usize> {
+        let v = unsafe {
+            ((*(*PLAYDATE.graphics.handle).tilemap)
+                .getTileAtPosition
+                .unwrap())(self.handle, pos.x as _, pos.y as _)
+        };
+        if v == -1 {
+            None
+        } else {
+            Some(v as _)
+        }
+    }
+
+    /// Draws the tile map at coordinate (x, y).
+    pub fn draw_at_point(&self, pos: Vec2<f32>) {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).tilemap).drawAtPoint.unwrap())(self.handle, pos.x, pos.y)
+        }
+    }
+}
+
+impl Drop for TileMap {
+    fn drop(&mut self) {
+        unsafe { ((*(*PLAYDATE.graphics.handle).tilemap).freeTilemap.unwrap())(self.handle) }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct VideoStreamPlayer {
+    handle: *mut sys::LCDStreamPlayer,
+    image_table: Option<BitmapTable>,
+}
+
+impl VideoStreamPlayer {
+    pub fn new() -> Self {
+        Self {
+            handle: unsafe {
+                ((*(*PLAYDATE.graphics.handle).videostream)
+                    .newPlayer
+                    .unwrap())()
+            },
+            image_table: None,
+        }
+    }
+
+    pub fn set_buffer_size(&mut self, video: usize, audio: usize) {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).videostream)
+                .setBufferSize
+                .unwrap())(self.handle, video as _, audio as _)
+        }
+    }
+
+    pub fn set_file(&self, file: File) {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).videostream).setFile.unwrap())(self.handle, file.handle)
+        }
+    }
+
+    // pub fn set_http_connection(&self, connection: HttpConnection) {
+    // }
+
+    pub fn get_bytes_read(&self) -> usize {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).videostream)
+                .getBytesRead
+                .unwrap())(self.handle) as _
+        }
+    }
+
+    pub fn get_buffered_frame_count(&self) -> usize {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).videostream)
+                .getBufferedFrameCount
+                .unwrap())(self.handle) as _
+        }
+    }
+
+    pub fn update(&self) -> bool {
+        unsafe { ((*(*PLAYDATE.graphics.handle).videostream).update.unwrap())(self.handle) }
+    }
+}
+
+impl Drop for VideoStreamPlayer {
+    fn drop(&mut self) {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).videostream)
+                .freePlayer
+                .unwrap())(self.handle)
+        }
     }
 }

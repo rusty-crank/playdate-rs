@@ -190,7 +190,7 @@ use core::ffi::c_void;
 use crate::PLAYDATE;
 
 pub struct File {
-    handle: *mut sys::SDFile,
+    pub(crate) handle: *mut sys::SDFile,
 }
 
 impl File {

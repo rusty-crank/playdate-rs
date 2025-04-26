@@ -55,6 +55,16 @@ impl PlaydateDisplay {
     pub fn set_offset(&self, delta: Vec2<i32>) {
         unsafe { (*self.handle).setOffset.unwrap()(delta.x, delta.y) }
     }
+
+    /// (2.7) Returns the current nominal display refresh rate. This is the frame rate the device is targeting, and does not account for lag due to (for example) code running too slow. To get the real time frame rate, use playdate→display→getFPS().
+    pub fn get_refresh_rate(&self) -> f32 {
+        unsafe { (*self.handle).getRefreshRate.unwrap()() }
+    }
+
+    /// (2.7) Returns the measured, actual refresh rate in frames per second. This value may be different from the specified refresh rate (see playdate→display→getRefreshRate()) by a little or a lot depending upon how much calculation is being done per frame.
+    pub fn get_fps(&self) -> f32 {
+        unsafe { (*self.handle).getFPS.unwrap()() }
+    }
 }
 
 pub const DISPLAY_WIDTH: u32 = 400;

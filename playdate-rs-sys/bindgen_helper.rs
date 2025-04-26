@@ -62,6 +62,10 @@ impl bindgen::callbacks::ParseCallbacks for EnumRenameParseCallbacks {
             "kWaveform",
             "kFilterType",
             "kEvent",
+            "kAlign",
+            "kWrap",
+            "kAccess",
+            "kMicInput",
         ];
         for prefix in &prefixes {
             if let Some(x) = original_variant_name.strip_prefix(prefix) {
