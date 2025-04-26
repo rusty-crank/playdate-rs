@@ -90,16 +90,16 @@ pub const AUDIO_FRAMES_PER_CYCLE: u32 = 512;
 pub const NOTE_C4: u32 = 60;
 pub type SDFile = ::core::ffi::c_void;
 impl FileOptions {
-    pub const kFileRead: FileOptions = FileOptions(1);
+    pub const Read: FileOptions = FileOptions(1);
 }
 impl FileOptions {
-    pub const kFileReadData: FileOptions = FileOptions(2);
+    pub const ReadData: FileOptions = FileOptions(2);
 }
 impl FileOptions {
-    pub const kFileWrite: FileOptions = FileOptions(4);
+    pub const Write: FileOptions = FileOptions(4);
 }
 impl FileOptions {
-    pub const kFileAppend: FileOptions = FileOptions(8);
+    pub const Append: FileOptions = FileOptions(8);
 }
 impl ::core::ops::BitOr<FileOptions> for FileOptions {
     type Output = Self;
@@ -572,16 +572,16 @@ pub enum LCDPolygonFillRule {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum PDTextWrappingMode {
-    kWrapClip = 0,
-    kWrapCharacter = 1,
-    kWrapWord = 2,
+    Clip = 0,
+    Character = 1,
+    Word = 2,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum PDTextAlignment {
-    kAlignTextLeft = 0,
-    kAlignTextCenter = 1,
-    kAlignTextRight = 2,
+    TextLeft = 0,
+    TextCenter = 1,
+    TextRight = 2,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2241,9 +2241,9 @@ pub type AccessRequestCallback =
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum accessReply {
-    kAccessAsk = 0,
-    kAccessDeny = 1,
-    kAccessAllow = 2,
+    Ask = 0,
+    Deny = 1,
+    Allow = 2,
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
@@ -9539,9 +9539,9 @@ pub type RecordCallback = ::core::option::Option<
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum MicSource {
-    kMicInputAutodetect = 0,
-    kMicInputInternal = 1,
-    kMicInputHeadset = 2,
+    Autodetect = 0,
+    Internal = 1,
+    Headset = 2,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -10416,11 +10416,11 @@ pub enum PDNetErr {
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum WifiStatus {
     #[doc = "!< Not connected to an AP"]
-    kWifiNotConnected = 0,
+    NotConnected = 0,
     #[doc = "!< Device is connected to an AP"]
-    kWifiConnected = 1,
+    Connected = 1,
     #[doc = "!< A connection has been attempted and no configured AP was available"]
-    kWifiNotAvailable = 2,
+    NotAvailable = 2,
 }
 pub type HTTPConnectionCallback =
     ::core::option::Option<unsafe extern "C" fn(connection: *mut HTTPConnection)>;

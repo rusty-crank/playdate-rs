@@ -36,7 +36,7 @@ pub struct PlaydateAPI {
     /// System interaction
     pub system: system::PlaydateSystem,
     /// Filesystem operations
-    pub file: fs::PlaydateFileSystem,
+    pub(crate) file: fs::PlaydateFileSystem,
     /// Graphics operations and drawing functions
     pub graphics: graphics::PlaydateGraphics,
     /// Sprite and global sprite display list operations
