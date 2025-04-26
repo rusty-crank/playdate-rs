@@ -26,7 +26,7 @@ pub use video::{VideoPlayer, VideoStreamPlayer};
 
 pub struct PlaydateGraphics {
     handle: *const sys::playdate_graphics,
-    pub video: video::PlaydateVideo,
+    pub(crate) video: video::PlaydateVideo,
 }
 
 impl PlaydateGraphics {

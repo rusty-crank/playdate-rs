@@ -12,11 +12,6 @@ impl PlaydateVideo {
     pub(crate) fn new(handle: *const sys::playdate_video) -> Self {
         Self { handle }
     }
-
-    /// Sets the rendering destination for the video player to the screen.
-    pub fn use_screen_context(&self, player: &VideoPlayer) {
-        unsafe { (*self.handle).useScreenContext.unwrap()(player.handle) }
-    }
 }
 
 #[derive(PartialEq, Debug, Clone, Default)]
@@ -59,6 +54,11 @@ impl VideoPlayer {
         } else {
             Err(Error::Unknown(self.get_error().unwrap()))
         }
+    }
+
+    /// Sets the rendering destination for the video player to the screen.
+    pub fn use_screen_context(&self) {
+        unsafe { (*PLAYDATE.graphics.video.handle).useScreenContext.unwrap()(self.handle) }
     }
 
     /// Gets the rendering destination for the video player. If no rendering context has been setallocates a context bitmap with the same dimensions as the vieo will be allocated.
