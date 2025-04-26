@@ -50,14 +50,9 @@ pub fn create_dir(path: impl AsPath) -> io::Result<()> {
     }
 }
 
+// /// Creates a new directory at the provided path, and all parent directories as needed.
 // pub fn create_dir_all(path: impl AsPath) -> io::Result<()> {
-//     let c_string = CString::new(path.as_ref()).unwrap();
-//     let result = unsafe { (*PLAYDATE.file.handle).mkdirall.unwrap()(c_string.as_ptr()) };
-//     if result != 0 {
-//         Ok(())
-//     } else {
-//         Err(PLAYDATE.file.get_error().unwrap())
-//     }
+//     unimplemented!()
 // }
 
 /// Read file system metadata.
