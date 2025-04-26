@@ -219,7 +219,7 @@ struct SpriteData {
 }
 
 impl Sprite {
-    pub(crate) fn from(handle: *mut sys::LCDSprite) -> Self {
+    fn from(handle: *mut sys::LCDSprite) -> Self {
         Self { handle }
     }
 

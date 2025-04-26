@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::{error::Error, fs::File};
 
 use alloc::{borrow::ToOwned, ffi::CString, string::String};
 
@@ -111,5 +111,69 @@ impl VideoPlayer {
 impl Drop for VideoPlayer {
     fn drop(&mut self) {
         unsafe { (*PLAYDATE.graphics.video.handle).freePlayer.unwrap()(self.handle) }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct VideoStreamPlayer {
+    handle: *mut sys::LCDStreamPlayer,
+}
+
+impl VideoStreamPlayer {
+    pub fn new() -> Self {
+        Self {
+            handle: unsafe {
+                ((*(*PLAYDATE.graphics.handle).videostream)
+                    .newPlayer
+                    .unwrap())()
+            },
+        }
+    }
+
+    pub fn set_buffer_size(&mut self, video: usize, audio: usize) {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).videostream)
+                .setBufferSize
+                .unwrap())(self.handle, video as _, audio as _)
+        }
+    }
+
+    pub fn set_file(&self, file: File) {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).videostream).setFile.unwrap())(self.handle, file.handle)
+        }
+    }
+
+    // pub fn set_http_connection(&self, connection: HttpConnection) {
+    // }
+
+    pub fn get_bytes_read(&self) -> usize {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).videostream)
+                .getBytesRead
+                .unwrap())(self.handle) as _
+        }
+    }
+
+    pub fn get_buffered_frame_count(&self) -> usize {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).videostream)
+                .getBufferedFrameCount
+                .unwrap())(self.handle) as _
+        }
+    }
+
+    pub fn update(&self) -> bool {
+        unsafe { ((*(*PLAYDATE.graphics.handle).videostream).update.unwrap())(self.handle) }
+    }
+}
+
+impl Drop for VideoStreamPlayer {
+    fn drop(&mut self) {
+        unsafe {
+            ((*(*PLAYDATE.graphics.handle).videostream)
+                .freePlayer
+                .unwrap())(self.handle)
+        }
     }
 }

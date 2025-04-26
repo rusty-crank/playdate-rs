@@ -110,7 +110,7 @@ impl PlaydateFileSystem {
     }
 
     /// Opens a handle for the file at path. The kFileRead mode opens a file in the game pdx, while kFileReadData searches the game’s data folder; to search the data folder first then fall back on the game pdx, use the bitwise combination kFileRead|kFileReadData.kFileWrite and kFileAppend always write to the data folder. The function returns NULL if a file at path cannot be opened, and playdate->file->geterr() will describe the error. The filesystem has a limit of 64 simultaneous open files.
-    pub fn open(&self, name: impl AsRef<str>, mode: FileOptions) -> io::Result<File> {
+    pub(crate) fn open(&self, name: impl AsRef<str>, mode: FileOptions) -> io::Result<File> {
         let c_string = CString::new(name.as_ref()).unwrap();
         let file = unsafe { (*self.handle).open.unwrap()(c_string.as_ptr(), mode) };
         if file.is_null() {

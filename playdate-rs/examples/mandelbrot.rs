@@ -8,7 +8,7 @@ use core::ops::{Add, Mul};
 
 use alloc::format;
 use playdate_rs::display::{DISPLAY_HEIGHT, DISPLAY_WIDTH};
-use playdate_rs::graphics::Color;
+use playdate_rs::graphics::{Color, Font};
 use playdate_rs::math::Vec2;
 use playdate_rs::system::Buttons;
 use playdate_rs::{app, println, App, PLAYDATE};
@@ -163,10 +163,7 @@ impl App for Mandelbrot {
     }
 
     fn init(&mut self) {
-        let font = PLAYDATE
-            .graphics
-            .load_font("/System/Fonts/Roobert-10-Bold.pft")
-            .unwrap();
+        let font = Font::load("/System/Fonts/Roobert-10-Bold.pft").unwrap();
         PLAYDATE.graphics.set_font(&font);
         self.draw_frame();
     }

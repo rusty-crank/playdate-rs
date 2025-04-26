@@ -24,7 +24,6 @@ pub mod sound;
 pub mod sprite;
 pub mod system;
 pub mod util;
-pub mod video;
 
 use core::{cell::UnsafeCell, ops::Deref};
 
