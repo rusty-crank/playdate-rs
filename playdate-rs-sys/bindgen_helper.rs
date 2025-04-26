@@ -77,22 +77,25 @@ pub fn generate(device: bool, out_dir: impl AsRef<Path>, arm_gcc_path: Option<&s
 
     let inc = |file: &str| format!("{}/C_API/{}", playdate_sdk_path, file);
 
+    let manifest_path = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let wrapper = format!("{}/wrapper.h", manifest_path);
+
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
     // the resulting bindings.
     let mut builder = bindgen::Builder::default()
         // The input header we would like to generate
         // bindings for.
-        .header("wrapper.h")
+        .header(wrapper)
         // Header include path and macros
         .clang_arg(format!("-I{}/C_API", playdate_sdk_path))
         .clang_arg("-DTARGET_EXTENSION=1");
     if device {
         builder = builder
-            .clang_arg("-DTARGET_SIMULATOR=1")
+            .clang_arg("-DTARGET_PLAYDATE=1")
             .clang_arg(format!("-I{}/include", arm_gcc_path.unwrap()));
     } else {
-        builder = builder.clang_arg("-DTARGET_PLAYDATE=1");
+        builder = builder.clang_arg("-DTARGET_SIMULATOR=1");
     }
     let bindings = builder
         // Include playdate headers only

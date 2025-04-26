@@ -73,7 +73,10 @@ impl SoundSource {
         SOUND_SOURCE_FINISH_CALLBACKS
             .lock()
             .insert(SoundSourcePtr(self.handle), callback);
-        extern "C" fn callback_fn(source: *mut sys::SoundSource) {
+        extern "C" fn callback_fn(
+            source: *mut sys::SoundSource,
+            _userdata: *mut core::ffi::c_void,
+        ) {
             let source = SoundSource::new_ref(source);
             let callback = SOUND_SOURCE_FINISH_CALLBACKS
                 .lock()
@@ -85,6 +88,7 @@ impl SoundSource {
             (*PLAYDATE.sound.source.handle).setFinishCallback.unwrap()(
                 self.handle,
                 Some(callback_fn),
+                core::ptr::null_mut(),
             )
         };
     }

@@ -3,6 +3,7 @@ use core::alloc::Layout;
 
 use crate::PLAYDATE;
 
+#[allow(unused)]
 struct PlaydateHeapAllocator;
 
 unsafe impl GlobalAlloc for PlaydateHeapAllocator {

@@ -5,6 +5,7 @@ use alloc::string::String;
 use crate::PLAYDATE;
 
 #[doc(hidden)]
+#[allow(static_mut_refs)]
 #[cold]
 pub fn _println(args: fmt::Arguments<'_>) {
     let logger = unsafe { &mut LOGGER };

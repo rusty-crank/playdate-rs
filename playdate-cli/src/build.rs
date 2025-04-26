@@ -227,6 +227,7 @@ impl Build {
 
 pub struct BuildInfo {
     pub name: String,
+    #[allow(unused)]
     pub binary: PathBuf,
     pub pdx: PathBuf,
 }

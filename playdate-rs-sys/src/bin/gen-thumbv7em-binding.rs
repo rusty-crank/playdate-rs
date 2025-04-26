@@ -16,7 +16,10 @@ fn main() {
         panic!("ERROR: arm-none-eabi-gcc installation path is not valid!");
     }
 
-    let out_path = PathBuf::from("src").join("thumbv7em_bindings.rs");
+    let manifest_path = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let out_path = PathBuf::from(manifest_path)
+        .join("src")
+        .join("thumbv7em_bindings.rs");
     dbg!(out_path.clone());
     bindgen_helper::generate(true, out_path, Some(&arm_gcc_path));
 }

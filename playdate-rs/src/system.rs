@@ -397,5 +397,5 @@ pub enum Peripherals {
 
 impl Peripherals {
     pub const NONE: Self = Peripherals::none();
-    pub const ALL: Self = Peripherals::all();
+    pub const ALL: Self = Peripherals::all_bits();
 }

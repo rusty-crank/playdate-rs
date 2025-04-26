@@ -182,7 +182,10 @@ impl FilePlayer {
         len: i32,
         finish_callback: Option<impl Send + FnOnce(&Self) + 'static>,
     ) {
-        unsafe extern "C" fn callback_fn(source: *mut sys::SoundSource) {
+        unsafe extern "C" fn callback_fn(
+            source: *mut sys::SoundSource,
+            _userdata: *mut core::ffi::c_void,
+        ) {
             let player = FilePlayer::new_ref(source as *mut sys::FilePlayer);
             let callback = FADE_VOLUME_FINISH_CALLBACKS
                 .lock()
@@ -203,6 +206,7 @@ impl FilePlayer {
                     right,
                     len,
                     Some(callback_fn),
+                    core::ptr::null_mut(),
                 )
             }
         } else {
@@ -213,6 +217,7 @@ impl FilePlayer {
                     right,
                     len,
                     None,
+                    core::ptr::null_mut(),
                 )
             }
         };
