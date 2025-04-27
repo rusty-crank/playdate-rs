@@ -90,6 +90,10 @@ impl PlaydateAPI {
     pub fn spawn(&self, future: impl 'static + Future<Output = ()>) {
         EXECUTOR.spawn(future);
     }
+
+    pub fn sleep(&self, ms: usize) -> impl Future<Output = ()> {
+        EXECUTOR.sleep(ms)
+    }
 }
 
 pub static PLAYDATE: Playdate = Playdate {
@@ -199,13 +203,8 @@ unsafe extern "C" fn handle_frame_update(_: *mut core::ffi::c_void) -> i32 {
 
 #[macro_export]
 macro_rules! spawn {
-    (move: $($body:tt)*) => {
-        $crate::PLAYDATE.spawn(async move {
-            $($body)*
-        });
-    };
     ($($body:tt)*) => {
-        $crate::PLAYDATE.spawn(async {
+        $crate::PLAYDATE.spawn(async move {
             $($body)*
         });
     };

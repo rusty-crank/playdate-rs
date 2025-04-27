@@ -84,6 +84,12 @@ impl Executor {
             prev_time,
         }
     }
+
+    pub fn sleep(&self, ms: usize) -> impl Future<Output = ()> {
+        TimerFuture {
+            target: PLAYDATE.system.get_current_time_milliseconds() + ms,
+        }
+    }
 }
 
 struct Task {
@@ -114,6 +120,24 @@ impl Future for NextFrameFuture {
             let curr_time = PLAYDATE.system.get_current_time_milliseconds();
             let delta = (curr_time - self.prev_time) as f32 / 1000.0;
             Poll::Ready(delta)
+        } else {
+            EXECUTOR.frame_wakers.lock().push(_cx.waker().clone());
+            Poll::Pending
+        }
+    }
+}
+
+pub struct TimerFuture {
+    target: usize,
+}
+
+impl Future for TimerFuture {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let curr_time = PLAYDATE.system.get_current_time_milliseconds();
+        if curr_time >= self.target {
+            Poll::Ready(())
         } else {
             EXECUTOR.frame_wakers.lock().push(_cx.waker().clone());
             Poll::Pending

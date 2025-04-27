@@ -44,3 +44,7 @@ crate-type = ["cdylib", "staticlib"]
 [[example]]
 name = "menu"
 crate-type = ["cdylib", "staticlib"]
+
+[[example]]
+name = "timer"
+crate-type = ["cdylib", "staticlib"]

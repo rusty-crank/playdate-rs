@@ -42,7 +42,7 @@ async fn main() {
     let output: Arc<RefCell<Vec<Coffee>>> = Default::default();
     let output_clone = output.clone();
 
-    spawn! { move:
+    spawn! {
         let response = http::get("https://api.sampleapis.com/coffee/hot", None).await;
         match response {
             Ok(resp) => {
