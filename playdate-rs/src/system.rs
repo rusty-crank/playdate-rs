@@ -515,6 +515,5 @@ impl EventManager {
             let fut = handler(arg);
             EXECUTOR.spawn(fut);
         }
-        EXECUTOR.run();
     }
 }

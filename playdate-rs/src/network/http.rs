@@ -1,3 +1,5 @@
+use core::future::Future;
+
 use alloc::ffi::CString;
 
 use crate::error::Error;
@@ -8,25 +10,27 @@ use alloc::vec::Vec;
 use no_std_io::io::ErrorKind;
 use sys::{accessReply as AccessReply, PDNetErr as NetworkError};
 
+use crate::util::callback_to_async::CallbackFuture;
+
 use super::http_handle;
 
 /// Before connecting to a server, permission must be given by the user. Unlike in Lua, we don’t have a way to pause the runtime to present the modal dialog, so this function must be explicitly called before calling http→newConnection(). server can be a parent domain of the connections opened, or NULL to request access to any HTTP server. purpose is an optional string displayed in the permissions dialog to explain why the program is requesting access. After the user responds to the request, requestCallback is called with the given userdata argument
-#[allow(static_mut_refs)]
 pub fn request_access(
     server: Option<String>,
     port: u16,
     usessl: bool,
     porpose: impl AsRef<str>,
-    callback: Box<dyn FnOnce(bool)>,
-) -> AccessReply {
-    static mut CALLBACK: Option<Box<dyn FnOnce(bool)>> = None;
-    unsafe {
-        CALLBACK = Some(callback);
-    }
-    unsafe extern "C" fn callback_impl(allowed: bool, _: *mut core::ffi::c_void) {
-        if let Some(cb) = CALLBACK.take() {
-            cb(allowed);
-        }
+) -> impl Future<Output = AccessReply> {
+    let future = CallbackFuture::<AccessReply>::new();
+    unsafe extern "C" fn callback_impl(allowed: bool, data: *mut core::ffi::c_void) {
+        CallbackFuture::<AccessReply>::resolve(
+            data,
+            if allowed {
+                AccessReply::Allow
+            } else {
+                AccessReply::Deny
+            },
+        );
     }
     let server_c_string = server.as_ref().map(|s| CString::new(s.as_str()).unwrap());
     let server_ptr = server_c_string
@@ -42,10 +46,15 @@ pub fn request_access(
             usessl,
             porpose_ptr,
             Some(callback_impl),
-            core::ptr::null_mut(),
+            future.get_handle(),
         )
     };
-    result
+    if result == AccessReply::Ask {
+        future
+    } else {
+        future.set_result(result);
+        future
+    }
 }
 
 struct Callbacks {

@@ -86,6 +86,10 @@ impl PlaydateAPI {
     pub fn next_frame(&self) -> impl Future<Output = f32> {
         EXECUTOR.next_frame()
     }
+
+    pub fn spawn(&self, future: impl 'static + Future<Output = ()>) {
+        EXECUTOR.spawn(future);
+    }
 }
 
 pub static PLAYDATE: Playdate = Playdate {
@@ -319,4 +323,13 @@ pub fn __playdate_event_handler<F: 'static + Future<Output = ()>>(
 unsafe extern "C" fn handle_frame_update(_: *mut core::ffi::c_void) -> i32 {
     EXECUTOR.signal_next_frame();
     1
+}
+
+#[macro_export]
+macro_rules! spawn {
+    ($($body:tt)*) => {
+        $crate::PLAYDATE.spawn(async {
+            $($body)*
+        });
+    };
 }

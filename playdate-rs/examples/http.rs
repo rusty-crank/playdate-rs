@@ -4,6 +4,7 @@
 extern crate playdate_rs;
 
 use playdate_rs::graphics::{Bitmap, Color};
+use playdate_rs::network::http;
 use playdate_rs::{main, println, PLAYDATE};
 
 #[main]
@@ -12,6 +13,8 @@ async fn main() {
     let mut rotation = 0f32;
 
     println!("Hello, World!");
+
+    let _reply = http::request_access(None, 443, true, "I need access to the internet").await;
 
     loop {
         let delta = PLAYDATE.next_frame().await;

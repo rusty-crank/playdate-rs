@@ -34,8 +34,17 @@ impl Executor {
         }
     }
 
+    fn poll_next_task(&self) -> Option<Arc<Task>> {
+        let mut ready_queue = self.ready_queue.lock();
+        if ready_queue.is_empty() {
+            None
+        } else {
+            Some(ready_queue.pop_front().unwrap())
+        }
+    }
+
     pub fn run(&self) {
-        while let Some(task) = self.ready_queue.lock().pop_front() {
+        while let Some(task) = self.poll_next_task() {
             let mut future_slot = task.future.lock();
             if let Some(mut future) = future_slot.take() {
                 let waker = waker_ref(&task);
