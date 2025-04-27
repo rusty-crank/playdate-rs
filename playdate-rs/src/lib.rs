@@ -17,6 +17,7 @@ pub mod display;
 pub mod error;
 pub mod fs;
 pub mod graphics;
+pub mod network;
 pub mod lua;
 mod memory;
 pub mod scoreboards;

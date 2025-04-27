@@ -68,6 +68,7 @@ impl bindgen::callbacks::ParseCallbacks for EnumRenameParseCallbacks {
             "kMicInput",
             "kFile",
             "kWifi",
+            "NET_",
         ];
         for prefix in &prefixes {
             if let Some(x) = original_variant_name.strip_prefix(prefix) {
