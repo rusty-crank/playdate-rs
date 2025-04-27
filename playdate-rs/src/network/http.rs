@@ -1,9 +1,14 @@
-use core::future::Future;
+use alloc::sync::Arc;
+use core::{cell::RefCell, future::Future};
 
 use alloc::ffi::CString;
+use url::Url;
 
+use crate::alloc::string::ToString;
 use crate::error::Error;
 use alloc::boxed::Box;
+use alloc::collections::BTreeMap;
+use alloc::format;
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -58,11 +63,11 @@ pub fn request_access(
 }
 
 struct Callbacks {
-    header_received: Option<Box<dyn FnOnce(&str, &str)>>,
-    headers_read: Option<Box<dyn FnOnce()>>,
-    response: Option<Box<dyn FnOnce()>>,
-    request_complete: Option<Box<dyn FnOnce()>>,
-    connection_closed: Option<Box<dyn FnOnce()>>,
+    header_received: Option<Box<dyn FnMut(&str, &str)>>,
+    headers_read: Option<Box<dyn FnMut()>>,
+    response: Option<Box<dyn FnMut()>>,
+    request_complete: Option<Box<dyn FnMut()>>,
+    connection_closed: Option<Box<dyn FnMut()>>,
 }
 
 pub struct HTTPConnection {
@@ -117,29 +122,41 @@ impl HTTPConnection {
         unsafe { http_handle().setByteRange.unwrap()(self.handle, start as _, end as _) };
     }
 
+    fn build_headers(
+        headers: Option<Vec<(&str, &str)>>,
+    ) -> (Option<CString>, usize, *const core::ffi::c_char) {
+        let headers = headers
+            .as_ref()
+            .map(|h| {
+                h.iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect::<Vec<_>>()
+            })
+            .map(|h| h.join("\r\n"));
+        let c_string = headers.as_ref().map(|s| CString::new(s.as_str()).unwrap());
+        let len = c_string.as_ref().map(|s| s.as_bytes().len()).unwrap_or(0);
+        let ptr = c_string
+            .as_ref()
+            .map(|s| s.as_ptr())
+            .unwrap_or(core::ptr::null());
+        (c_string, len, ptr)
+    }
+
     /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled) and sends a request with the given method and path, additional headers if specified, and the provided data.
     pub fn query(
         &mut self,
         method: &str,
         path: &str,
-        headers: Option<impl AsRef<str>>,
-        body: Option<impl AsRef<str>>,
+        headers: Option<Vec<(&str, &str)>>,
+        body: Option<&str>,
     ) -> Result<(), Error> {
         self.closed = false;
         let method_c_string = CString::new(method).unwrap();
         let method_ptr = method_c_string.as_ptr();
         let path_c_string = CString::new(path).unwrap();
         let path_ptr = path_c_string.as_ptr();
-        let headers_c_string = headers.as_ref().map(|s| CString::new(s.as_ref()).unwrap());
-        let headers_len = headers_c_string
-            .as_ref()
-            .map(|s| s.as_bytes().len())
-            .unwrap_or(0);
-        let headers_ptr = headers_c_string
-            .as_ref()
-            .map(|s| s.as_ptr())
-            .unwrap_or(core::ptr::null());
-        let body_c_string = body.as_ref().map(|s| CString::new(s.as_ref()).unwrap());
+        let (_headers, headers_len, headers_ptr) = Self::build_headers(headers);
+        let body_c_string = body.as_ref().map(|s| CString::new(*s).unwrap());
         let body_len = body_c_string
             .as_ref()
             .map(|s| s.as_bytes().len())
@@ -167,19 +184,11 @@ impl HTTPConnection {
     }
 
     /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled) and sends a GET request with the given path and additional headers if specified.
-    pub fn get(&mut self, path: &str, headers: Option<&str>) -> Result<(), Error> {
+    pub fn get(&mut self, path: &str, headers: Option<Vec<(&str, &str)>>) -> Result<(), Error> {
         self.closed = false;
         let path_c_string = CString::new(path).unwrap();
         let path_ptr = path_c_string.as_ptr();
-        let headers_c_string = headers.as_ref().map(|s| CString::new(*s).unwrap());
-        let headers_len = headers_c_string
-            .as_ref()
-            .map(|s| s.as_bytes().len())
-            .unwrap_or(0);
-        let headers_ptr = headers_c_string
-            .as_ref()
-            .map(|s| s.as_ptr())
-            .unwrap_or(core::ptr::null());
+        let (_headers, headers_len, headers_ptr) = Self::build_headers(headers);
         let err =
             unsafe { http_handle().get.unwrap()(self.handle, path_ptr, headers_ptr, headers_len) };
         if err == NetworkError::OK {
@@ -193,21 +202,13 @@ impl HTTPConnection {
     pub fn post(
         &mut self,
         path: &str,
-        headers: Option<&str>,
+        headers: Option<Vec<(&str, &str)>>,
         body: Option<&str>,
     ) -> Result<(), Error> {
         self.closed = false;
         let path_c_string = CString::new(path).unwrap();
         let path_ptr = path_c_string.as_ptr();
-        let headers_c_string = headers.as_ref().map(|s| CString::new(*s).unwrap());
-        let headers_len = headers_c_string
-            .as_ref()
-            .map(|s| s.as_bytes().len())
-            .unwrap_or(0);
-        let headers_ptr = headers_c_string
-            .as_ref()
-            .map(|s| s.as_ptr())
-            .unwrap_or(core::ptr::null());
+        let (_headers, headers_len, headers_ptr) = Self::build_headers(headers);
         let body_c_string = body.as_ref().map(|s| CString::new(*s).unwrap());
         let body_len = body_c_string
             .as_ref()
@@ -220,7 +221,7 @@ impl HTTPConnection {
         let err = unsafe {
             http_handle().post.unwrap()(
                 self.handle,
-                path_ptr,
+                path_ptr as _,
                 headers_ptr,
                 headers_len,
                 body_ptr,
@@ -304,7 +305,7 @@ impl HTTPConnection {
     }
 
     /// Sets a callback to be called when the HTTP parser reads a header line from the connection
-    pub fn set_header_received_callback(&mut self, callback: Box<dyn FnOnce(&str, &str)>) {
+    pub fn set_header_received_callback(&mut self, callback: Box<dyn FnMut(&str, &str)>) {
         self.callbacks.header_received = Some(callback);
         unsafe extern "C" fn callback_impl(
             conn: *mut sys::HTTPConnection,
@@ -318,7 +319,7 @@ impl HTTPConnection {
             let value = unsafe { ::core::ffi::CStr::from_ptr(value) };
             let header = header.to_str().unwrap();
             let value = value.to_str().unwrap();
-            if let Some(cb) = callbacks.header_received.take() {
+            if let Some(cb) = callbacks.header_received.as_mut() {
                 cb(header, value);
             }
         }
@@ -328,13 +329,13 @@ impl HTTPConnection {
     }
 
     /// Sets a function to be called after the connection has parsed the headers from the server response. At this point, getResponseStatus() and getProgress() can be used to query the status and size of the response, and get()/post() can queue another request if connection:setKeepAlive(true) was set and the connection is still open.
-    pub fn set_headers_read_callback(&mut self, callback: Box<dyn FnOnce()>) {
+    pub fn set_headers_read_callback(&mut self, callback: Box<dyn FnMut()>) {
         self.callbacks.headers_read = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
             let callbacks_ptr =
                 unsafe { http_handle().getUserdata.unwrap()(conn) } as *mut Callbacks;
             let callbacks = unsafe { &mut *callbacks_ptr };
-            if let Some(cb) = callbacks.headers_read.take() {
+            if let Some(cb) = callbacks.headers_read.as_mut() {
                 cb();
             }
         }
@@ -343,13 +344,13 @@ impl HTTPConnection {
 
     /// Sets a function to be called when data is available for reading.
     #[allow(static_mut_refs)]
-    pub fn set_response_callback(&mut self, callback: Box<dyn FnOnce()>) {
+    pub fn set_response_callback(&mut self, callback: Box<dyn FnMut()>) {
         self.callbacks.response = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
             let callbacks_ptr =
                 unsafe { http_handle().getUserdata.unwrap()(conn) } as *mut Callbacks;
             let callbacks = unsafe { &mut *callbacks_ptr };
-            if let Some(cb) = callbacks.response.take() {
+            if let Some(cb) = callbacks.response.as_mut() {
                 cb();
             }
         }
@@ -357,13 +358,13 @@ impl HTTPConnection {
     }
 
     /// Sets a function to be called when all data for the request has been received (if the response contained a Content-Length header and the size is known) or the request times out.
-    pub fn set_request_complete_callback(&mut self, callback: Box<dyn FnOnce()>) {
+    pub fn set_request_complete_callback(&mut self, callback: Box<dyn FnMut()>) {
         self.callbacks.request_complete = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
             let callbacks_ptr =
                 unsafe { http_handle().getUserdata.unwrap()(conn) } as *mut Callbacks;
             let callbacks = unsafe { &mut *callbacks_ptr };
-            if let Some(cb) = callbacks.request_complete.take() {
+            if let Some(cb) = callbacks.request_complete.as_mut() {
                 cb();
             }
         }
@@ -373,13 +374,13 @@ impl HTTPConnection {
     }
 
     /// Sets a function to be called when the server has closed the connection.
-    pub fn set_connection_closed_callback(&mut self, callback: Box<dyn FnOnce()>) {
+    pub fn set_connection_closed_callback(&mut self, callback: Box<dyn FnMut()>) {
         self.callbacks.connection_closed = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
             let callbacks_ptr =
                 unsafe { http_handle().getUserdata.unwrap()(conn) } as *mut Callbacks;
             let callbacks = unsafe { &mut *callbacks_ptr };
-            if let Some(cb) = callbacks.connection_closed.take() {
+            if let Some(cb) = callbacks.connection_closed.as_mut() {
                 cb();
             }
         }
@@ -401,4 +402,188 @@ impl Drop for HTTPConnection {
         }
         unsafe { http_handle().release.unwrap()(self.handle) };
     }
+}
+
+pub struct Response {
+    pub url: Url,
+    pub status_code: usize,
+    pub headers: BTreeMap<String, String>,
+    data: Vec<u8>,
+}
+
+impl Response {
+    pub fn is_ok(&self) -> bool {
+        self.status_code >= 200 && self.status_code < 300
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+
+    pub fn header(&self, key: &str) -> Option<&str> {
+        self.headers.get(key).map(|s| s.as_str())
+    }
+
+    pub fn json<T: serde::de::DeserializeOwned>(&self) -> Result<T, Error> {
+        let data = self.data();
+        let result = serde_json::from_slice(data);
+        match result {
+            Ok(value) => Ok(value),
+            Err(_) => Err(ErrorKind::InvalidData.into()),
+        }
+    }
+}
+
+fn create_connection(
+    url: impl AsRef<str>,
+) -> Result<
+    (
+        HTTPConnection,
+        Url,
+        Arc<RefCell<BTreeMap<String, String>>>,
+        CallbackFuture<()>,
+    ),
+    Error,
+> {
+    let url_s = url.as_ref();
+    let url = match Url::parse(url_s) {
+        Ok(url) => url,
+        Err(_) => return Err(ErrorKind::InvalidInput.into()),
+    };
+    let host = url.host_str().unwrap_or("");
+    let usessl = url.scheme() == "https";
+    let port = url.port().unwrap_or(if usessl { 443 } else { 80 });
+    let mut conn = HTTPConnection::new(host, port, usessl).unwrap();
+    let future = CallbackFuture::<()>::new();
+    let handle = future.get_handle();
+    let headers: Arc<RefCell<BTreeMap<String, String>>> = Default::default();
+    let headers2 = headers.clone();
+    conn.set_headers_read_callback(Box::new(|| {
+        // Had to set this callback to get the headers to be read
+    }));
+    conn.set_header_received_callback(Box::new(move |k, v| {
+        headers2.borrow_mut().insert(k.to_string(), v.to_string());
+    }));
+    conn.set_request_complete_callback(Box::new(move || {
+        CallbackFuture::<()>::resolve(handle, ());
+    }));
+    conn.set_timeout(10000);
+    Ok((conn, url, headers, future))
+}
+
+pub async fn query<Body: serde::Serialize>(
+    url: impl AsRef<str>,
+    method: &str,
+    headers: Option<Vec<(&str, &str)>>,
+    body: Option<&Body>,
+) -> Result<Response, Error> {
+    let (mut conn, url, res_headers, future) = create_connection(url)?;
+    let body = body.map(|b| serde_json::to_string(b).unwrap());
+    conn.query(method, url.path(), headers, body.as_deref())?;
+    future.await;
+    let buf = conn.read_all()?;
+    let status_code = conn.get_response_code();
+    let mut headers = res_headers.borrow_mut();
+    Ok(Response {
+        url,
+        data: buf,
+        headers: core::mem::take::<BTreeMap<String, String>>(&mut headers),
+        status_code,
+    })
+}
+
+pub async fn get(
+    url: impl AsRef<str>,
+    headers: Option<Vec<(&str, &str)>>,
+) -> Result<Response, Error> {
+    let (mut conn, url, res_headers, future) = create_connection(url)?;
+    conn.get(url.path(), headers)?;
+    future.await;
+    let buf = conn.read_all()?;
+    let status_code = conn.get_response_code();
+    let mut headers = res_headers.borrow_mut();
+    Ok(Response {
+        url,
+        data: buf,
+        headers: core::mem::take::<BTreeMap<String, String>>(&mut headers),
+        status_code,
+    })
+}
+
+pub async fn post<Body: serde::Serialize>(
+    url: impl AsRef<str>,
+    headers: Option<Vec<(&str, &str)>>,
+    body: Option<&Body>,
+) -> Result<Response, Error> {
+    let (mut conn, url, res_headers, future) = create_connection(url)?;
+    let body = body.map(|b| serde_json::to_string(b).unwrap());
+    conn.post(url.path(), headers, body.as_deref())?;
+    future.await;
+    let buf = conn.read_all()?;
+    let status_code = conn.get_response_code();
+    let mut headers = res_headers.borrow_mut();
+    Ok(Response {
+        url,
+        data: buf,
+        headers: core::mem::take::<BTreeMap<String, String>>(&mut headers),
+        status_code,
+    })
+}
+
+pub async fn delete(
+    url: impl AsRef<str>,
+    headers: Option<Vec<(&str, &str)>>,
+) -> Result<Response, Error> {
+    let (mut conn, url, res_headers, future) = create_connection(url)?;
+    conn.query("DELETE", url.path(), headers, None)?;
+    future.await;
+    let buf = conn.read_all()?;
+    let status_code = conn.get_response_code();
+    let mut headers = res_headers.borrow_mut();
+    Ok(Response {
+        url,
+        data: buf,
+        headers: core::mem::take::<BTreeMap<String, String>>(&mut headers),
+        status_code,
+    })
+}
+
+pub async fn put<Body: serde::Serialize>(
+    url: impl AsRef<str>,
+    headers: Option<Vec<(&str, &str)>>,
+    body: Option<&Body>,
+) -> Result<Response, Error> {
+    let (mut conn, url, res_headers, future) = create_connection(url)?;
+    let body = body.map(|b| serde_json::to_string(b).unwrap());
+    conn.query("PUT", url.path(), headers, body.as_deref())?;
+    future.await;
+    let buf = conn.read_all()?;
+    let status_code = conn.get_response_code();
+    let mut headers = res_headers.borrow_mut();
+    Ok(Response {
+        url,
+        data: buf,
+        headers: core::mem::take::<BTreeMap<String, String>>(&mut headers),
+        status_code,
+    })
+}
+
+pub async fn patch<Body: serde::Serialize>(
+    url: impl AsRef<str>,
+    headers: Option<Vec<(&str, &str)>>,
+    body: Option<&Body>,
+) -> Result<Response, Error> {
+    let (mut conn, url, res_headers, future) = create_connection(url)?;
+    let body = body.map(|b| serde_json::to_string(b).unwrap());
+    conn.query("PATCH", url.path(), headers, body.as_deref())?;
+    future.await;
+    let buf = conn.read_all()?;
+    let status_code = conn.get_response_code();
+    let mut headers = res_headers.borrow_mut();
+    Ok(Response {
+        url,
+        data: buf,
+        headers: core::mem::take::<BTreeMap<String, String>>(&mut headers),
+        status_code,
+    })
 }

@@ -36,6 +36,9 @@ impl Logger {
 impl Write for Logger {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         self.buf.push_str(s);
+        if self.buf.len() > 128 {
+            self.flush();
+        }
         Ok(())
     }
 }

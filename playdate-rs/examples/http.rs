@@ -16,6 +16,22 @@ async fn main() {
 
     let _reply = http::request_access(None, 443, true, "I need access to the internet").await;
 
+    PLAYDATE.spawn(async {
+        let response = http::get("https://api.sampleapis.com/coffee/hot", None).await;
+        match response {
+            Ok(resp) => {
+                println!("Response: {:?}", resp.status_code);
+                println!("Headers: {:?}", resp.headers);
+                let data = resp.data();
+                let data_to_string = core::str::from_utf8(data).unwrap_or("Invalid UTF-8");
+                println!("Body: {:?}", data_to_string);
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+            }
+        }
+    });
+
     loop {
         let delta = PLAYDATE.next_frame().await;
         // Clear screen

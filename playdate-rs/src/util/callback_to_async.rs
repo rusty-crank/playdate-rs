@@ -1,10 +1,10 @@
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use core::{
     future::Future,
     pin::Pin,
     task::{Context, Poll},
 };
-use std::sync::Arc;
 
 struct CallbackFutureSharedState<T> {
     result: Option<T>,
@@ -43,7 +43,7 @@ impl<T> CallbackFuture<T> {
         }
         state.result = Some(result);
         if let Some(waker) = state.waker.take() {
-            std::mem::drop(state);
+            core::mem::drop(state);
             waker.wake();
         }
     }

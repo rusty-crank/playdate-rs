@@ -24,6 +24,9 @@ rand = { version = "0.8.5", features = ["small_rng"], default-features = false }
 futures-task = { version = "0.3.31", features = [
     "alloc",
 ], default-features = false }
+url = { version = "2.5.4", default-features = false }
+serde = { version = "1.0", default-features = false }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 
 [[example]]
 name = "hello_world"
