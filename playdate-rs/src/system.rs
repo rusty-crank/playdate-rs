@@ -1,6 +1,6 @@
 use core::ffi::{c_char, c_void, CStr};
 
-use alloc::{ffi::CString, vec::Vec};
+use alloc::{boxed::Box, ffi::CString, vec::Vec};
 pub use sys::{
     LCDFontData as FontData, PDDateTime as DateTime, PDLanguage as Language,
     PDSystemEvent as SystemEvent,

@@ -7,6 +7,8 @@ pub use crate::sys::WifiStatus;
 pub mod http;
 pub mod tcp;
 
+use alloc::boxed::Box;
+
 fn http_handle() -> &'static sys::playdate_http {
     unsafe { &*(*(*PLAYDATE.raw_api).network).http }
 }

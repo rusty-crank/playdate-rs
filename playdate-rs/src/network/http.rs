@@ -1,6 +1,10 @@
 use alloc::ffi::CString;
 
 use crate::error::Error;
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
 use no_std_io::io::ErrorKind;
 use sys::{accessReply as AccessReply, PDNetErr as NetworkError};
 

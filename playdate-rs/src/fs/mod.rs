@@ -4,6 +4,7 @@ mod path;
 pub use file::{File, FileOptions, FileStat, SEEK_CUR, SEEK_END, SEEK_SET};
 pub use path::{AsPath, DirEntry, Path};
 
+use crate::alloc::string::ToString;
 use crate::PLAYDATE;
 use alloc::ffi::CString;
 use alloc::string::String;
@@ -89,11 +90,19 @@ pub fn read_dir(path: impl AsPath) -> io::Result<Vec<String>> {
         files.push(filename.to_string());
     };
     let c_string = CString::new(path.as_ref()).unwrap();
-    extern "C" fn callback_wrapper(filename: *const i8, callback: *mut c_void) {
+    unsafe extern "C" fn callback_wrapper_impl(filename: *const u8, callback: *mut c_void) {
         let callback = callback as *mut *mut dyn FnMut(&str);
         let callback = unsafe { &mut **callback };
-        let filename = unsafe { ::core::ffi::CStr::from_ptr(filename) };
+        let filename = unsafe { ::core::ffi::CStr::from_ptr(filename as _) };
         callback(filename.to_str().unwrap());
+    }
+    #[cfg(target_arch = "arm")]
+    unsafe extern "C" fn callback_wrapper(filename: *const u8, callback: *mut c_void) {
+        callback_wrapper_impl(filename, callback);
+    }
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+    extern "C" fn callback_wrapper(filename: *const i8, callback: *mut c_void) {
+        unsafe { callback_wrapper_impl(filename as *const u8, callback) };
     }
     let mut callback_dyn: *mut dyn FnMut(&str) = &mut callback;
     let callback_dyn_ptr: *mut *mut dyn FnMut(&str) = &mut callback_dyn;

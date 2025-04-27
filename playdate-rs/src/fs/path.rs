@@ -5,6 +5,8 @@ use core::ops::Div;
 
 pub use no_std_io::io::{self, Write};
 
+use crate::alloc::string::ToString;
+
 #[derive(PartialEq, Eq, Clone)]
 pub struct Path {
     segments: Vec<String>,

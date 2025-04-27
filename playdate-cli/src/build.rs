@@ -115,14 +115,12 @@ impl Build {
             }
             Ok(t.unwrap().clone())
         } else {
-            let t = package.targets.iter().find(|t| {
-                t.crate_types.contains(&"cdylib".to_owned())
-                    && t.crate_types.contains(&"staticlib".to_owned())
-            });
+            let t = package
+                .targets
+                .iter()
+                .find(|t| t.crate_types.contains(&"staticlib".to_owned()));
             if t.is_none() {
-                anyhow::bail!(
-                    "Current crate has no target with `crate-type = [\"cdylib\", \"staticlib\"]`"
-                );
+                anyhow::bail!("Current crate has no target with `crate-type = [\"staticlib\"]`");
             };
             Ok(t.unwrap().clone())
         }

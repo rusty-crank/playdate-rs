@@ -3,8 +3,12 @@
 #[macro_use]
 extern crate playdate_rs;
 
+use core::sync::atomic::AtomicU32;
+
 use playdate_rs::graphics::{Bitmap, Color};
 use playdate_rs::{app, println, App, PLAYDATE};
+
+static COUNTER: AtomicU32 = AtomicU32::new(0);
 
 #[app]
 pub struct HelloWorld {
@@ -40,5 +44,6 @@ impl App for HelloWorld {
             .draw_text("Hello, World!", vec2![230, 112]);
         // Draw FPS
         PLAYDATE.system.draw_fps(vec2![0, 0]);
+        COUNTER.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
     }
 }
