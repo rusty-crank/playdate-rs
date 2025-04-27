@@ -1,10 +1,11 @@
 use core::{
+    cell::RefCell,
     ffi::{c_char, c_void, CStr},
     future::Future,
     pin::Pin,
 };
 
-use alloc::{boxed::Box, ffi::CString, vec::Vec};
+use alloc::{boxed::Box, ffi::CString, sync::Arc, vec::Vec};
 pub use sys::{
     LCDFontData as FontData, PDDateTime as DateTime, PDLanguage as Language,
     PDSystemEvent as SystemEvent,
@@ -163,19 +164,18 @@ impl PlaydateSystem {
     /// 3. Unpause your game and call eventHandler() with the kEventResume event.
     ///
     /// Your game can then present an options interface to the player, or take other action, in whatever manner you choose.
-    pub fn add_menu_item(&self, title: impl AsRef<str>, callback: fn()) -> MenuItem {
-        extern "C" fn callback_impl(payload: *mut c_void) {
-            let f: fn() = unsafe { core::mem::transmute(payload) };
-            f();
-        }
-        MenuItem::new(unsafe {
+    pub fn add_menu_item(&self, title: impl AsRef<str>) -> MenuItem {
+        let mut menu_item = MenuItem::new();
+        let handle = unsafe {
             let c_string = CString::new(title.as_ref()).unwrap();
             (*self.handle).addMenuItem.unwrap()(
                 c_string.as_ptr() as *mut c_char,
-                Some(callback_impl),
-                callback as _,
+                Some(MenuItem::callback),
+                menu_item.payload_ptr(),
             )
-        })
+        };
+        menu_item.set_handle(handle);
+        menu_item
     }
 
     /// Adds a new menu item that can be checked or unchecked by the player.
@@ -185,25 +185,19 @@ impl PlaydateSystem {
     /// value should be false for unchecked, true for checked.
     ///
     /// If this menu item is interacted with while the system menu is open, callback will be called when the menu is closed.
-    pub fn add_checkmark_menu_item(
-        &self,
-        title: impl AsRef<str>,
-        value: bool,
-        callback: fn(),
-    ) -> MenuItem {
-        extern "C" fn callback_impl(payload: *mut c_void) {
-            let f: fn() = unsafe { core::mem::transmute(payload) };
-            f();
-        }
-        MenuItem::new(unsafe {
+    pub fn add_checkmark_menu_item(&self, title: impl AsRef<str>, value: bool) -> MenuItem {
+        let mut menu_item = MenuItem::new();
+        let handle = unsafe {
             let c_string = CString::new(title.as_ref()).unwrap();
             (*self.handle).addCheckmarkMenuItem.unwrap()(
                 c_string.as_ptr() as *mut c_char,
                 value as _,
-                Some(callback_impl),
-                callback as _,
+                Some(MenuItem::callback),
+                menu_item.payload_ptr(),
             )
-        })
+        };
+        menu_item.set_handle(handle);
+        menu_item
     }
 
     /// Adds a new menu item that allows the player to cycle through a set of options.
@@ -219,13 +213,9 @@ impl PlaydateSystem {
         &self,
         title: impl AsRef<str>,
         option_titles: &[&str],
-        callback: fn(),
     ) -> MenuItem {
-        extern "C" fn callback_impl(payload: *mut c_void) {
-            let f: fn() = unsafe { core::mem::transmute(payload) };
-            f();
-        }
-        MenuItem::new(unsafe {
+        let mut menu_item = MenuItem::new();
+        let handle = unsafe {
             let c_string = CString::new(title.as_ref()).unwrap();
             let title_cstrings = option_titles
                 .iter()
@@ -239,10 +229,12 @@ impl PlaydateSystem {
                 c_string.as_ptr() as *mut c_char,
                 title_ptrs.as_mut_ptr(),
                 option_titles.len() as _,
-                Some(callback_impl),
-                callback as _,
+                Some(MenuItem::callback),
+                menu_item.payload_ptr(),
             )
-        })
+        };
+        menu_item.set_handle(handle);
+        menu_item
     }
 
     /// Removes all custom menu items from the system menu.
@@ -371,17 +363,48 @@ impl PlaydateSystem {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+struct MenuItemPayload {
+    handle: RefCell<*mut sys::PDMenuItem>,
+    handler: RefCell<Option<Box<dyn FnMut() -> Pin<Box<dyn Future<Output = ()>>>>>>,
+}
+
 pub struct MenuItem {
     handle: *mut sys::PDMenuItem,
+    payload: Arc<MenuItemPayload>,
 }
 
 unsafe impl Send for MenuItem {}
 unsafe impl Sync for MenuItem {}
 
 impl MenuItem {
-    fn new(handle: *mut sys::PDMenuItem) -> Self {
-        MenuItem { handle }
+    fn new() -> Self {
+        MenuItem {
+            handle: core::ptr::null_mut(),
+            payload: Arc::new(MenuItemPayload {
+                handle: RefCell::new(core::ptr::null_mut()),
+                handler: RefCell::new(None),
+            }),
+        }
+    }
+
+    fn set_handle(&mut self, handle: *mut sys::PDMenuItem) {
+        self.handle = handle;
+        *self.payload.handle.borrow_mut() = handle;
+    }
+
+    fn payload_ptr(&self) -> *mut c_void {
+        let payload: &MenuItemPayload = self.payload.as_ref();
+        let payload_ptr: *mut MenuItemPayload = payload as *const _ as *mut _;
+        payload_ptr as *mut c_void
+    }
+
+    extern "C" fn callback(payload: *mut c_void) {
+        let payload: &MenuItemPayload = unsafe { &*(payload as *const MenuItemPayload) };
+        let mut handler = payload.handler.borrow_mut();
+        if let Some(ref mut f) = *handler {
+            let fut = f();
+            EXECUTOR.spawn(fut);
+        }
     }
 
     /// Gets the integer value of the menu item.
@@ -417,16 +440,11 @@ impl MenuItem {
         }
     }
 
-    /// Gets the userdata value associated with this menu item.
-    #[allow(unused)]
-    pub(crate) fn get_userdata(&self) -> *mut c_void {
-        unsafe { (*PLAYDATE.system.handle).getMenuItemUserdata.unwrap()(self.handle) }
-    }
-
-    /// Sets the userdata value associated with this menu item.
-    #[allow(unused)]
-    pub(crate) fn set_userdata(&self, userdata: *mut c_void) {
-        unsafe { (*PLAYDATE.system.handle).setMenuItemUserdata.unwrap()(self.handle, userdata) }
+    pub fn set_handler<F: 'static + Future<Output = ()>>(
+        &mut self,
+        mut handler: impl 'static + FnMut() -> F,
+    ) {
+        *self.payload.handler.borrow_mut() = Some(Box::new(move || Box::pin(handler())));
     }
 }
 
