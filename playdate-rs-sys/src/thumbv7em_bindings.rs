@@ -579,9 +579,9 @@ pub enum PDTextWrappingMode {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum PDTextAlignment {
-    TextLeft = 0,
-    TextCenter = 1,
-    TextRight = 2,
+    Left = 0,
+    Center = 1,
+    Right = 2,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]

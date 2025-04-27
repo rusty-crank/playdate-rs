@@ -62,7 +62,7 @@ impl bindgen::callbacks::ParseCallbacks for EnumRenameParseCallbacks {
             "kWaveform",
             "kFilterType",
             "kEvent",
-            "kAlign",
+            "kAlignText",
             "kWrap",
             "kAccess",
             "kMicInput",

@@ -420,16 +420,25 @@ impl Response {
         &self.data
     }
 
+    pub fn string(&self) -> Result<&str, Error> {
+        let data = self.data();
+        let result = core::str::from_utf8(data);
+        match result {
+            Ok(value) => Ok(value),
+            Err(_) => Err(ErrorKind::InvalidData.into()),
+        }
+    }
+
     pub fn header(&self, key: &str) -> Option<&str> {
         self.headers.get(key).map(|s| s.as_str())
     }
 
     pub fn json<T: serde::de::DeserializeOwned>(&self) -> Result<T, Error> {
-        let data = self.data();
-        let result = serde_json::from_slice(data);
+        let data = self.string()?;
+        let result = serde_json::from_str(data);
         match result {
             Ok(value) => Ok(value),
-            Err(_) => Err(ErrorKind::InvalidData.into()),
+            Err(_e) => Err(ErrorKind::InvalidData.into()),
         }
     }
 }
@@ -467,7 +476,6 @@ fn create_connection(
     conn.set_request_complete_callback(Box::new(move || {
         CallbackFuture::<()>::resolve(handle, ());
     }));
-    conn.set_timeout(10000);
     Ok((conn, url, headers, future))
 }
 

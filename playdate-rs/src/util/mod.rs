@@ -1,3 +1,4 @@
+pub mod icons;
 pub mod rand;
 mod ref_;
 

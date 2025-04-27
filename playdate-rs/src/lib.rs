@@ -199,6 +199,11 @@ unsafe extern "C" fn handle_frame_update(_: *mut core::ffi::c_void) -> i32 {
 
 #[macro_export]
 macro_rules! spawn {
+    (move: $($body:tt)*) => {
+        $crate::PLAYDATE.spawn(async move {
+            $($body)*
+        });
+    };
     ($($body:tt)*) => {
         $crate::PLAYDATE.spawn(async {
             $($body)*

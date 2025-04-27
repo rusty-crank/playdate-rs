@@ -27,6 +27,7 @@ futures-task = { version = "0.3.31", features = [
 url = { version = "2.5.4", default-features = false }
 serde = { version = "1.0", default-features = false }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+serde_derive = { version = "1.0.219", default-features = false }
 
 [[example]]
 name = "hello_world"
