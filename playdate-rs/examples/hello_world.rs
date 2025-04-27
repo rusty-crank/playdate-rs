@@ -4,7 +4,7 @@
 extern crate playdate_rs;
 
 use playdate_rs::graphics::{Bitmap, Color};
-use playdate_rs::{main, println, PLAYDATE};
+use playdate_rs::PLAYDATE;
 
 #[main]
 async fn main() {

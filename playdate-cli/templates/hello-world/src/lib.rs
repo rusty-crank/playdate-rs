@@ -4,36 +4,29 @@
 extern crate playdate_rs;
 
 use playdate_rs::graphics::{Bitmap, Color};
-use playdate_rs::{app, println, App, PLAYDATE};
+use playdate_rs::PLAYDATE;
 
-#[app]
-pub struct HelloWorld {
-    image: Bitmap,
-    rotation: f32,
-}
+#[main]
+async fn main() {
+    let image = Bitmap::open("rust").unwrap();
+    let mut rotation = 0f32;
 
-impl App for HelloWorld {
-    fn new() -> Self {
-        println!("Hello, World!");
-        Self {
-            image: PLAYDATE.graphics.load_bitmap("rust").unwrap(),
-            rotation: 0f32,
-        }
-    }
+    println!("Hello, World!");
 
-    fn update(&mut self, delta: f32) {
+    loop {
+        let delta = PLAYDATE.next_frame().await;
         // Clear screen
         PLAYDATE.graphics.clear(Color::White);
         // Draw image
         PLAYDATE.graphics.draw_rotated_bitmap(
-            &self.image,
+            &image,
             vec2![130, 120],
-            self.rotation,
+            rotation,
             vec2![0.5, 0.5],
             vec2![1.0, 1.0],
         );
         // Rotate image
-        self.rotation += delta * 90.0;
+        rotation += delta * 90.0;
         // Draw text
         PLAYDATE
             .graphics

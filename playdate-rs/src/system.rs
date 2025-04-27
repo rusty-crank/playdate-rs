@@ -1,8 +1,6 @@
 use core::{
     cell::RefCell,
     ffi::{c_char, c_void, CStr},
-    future::Future,
-    pin::Pin,
 };
 
 use alloc::{boxed::Box, ffi::CString, sync::Arc, vec::Vec};
@@ -12,7 +10,7 @@ pub use sys::{
 };
 use sys::{PDButtons, PDPeripherals};
 
-use crate::{async_runtime::EXECUTOR, graphics::Bitmap, math::Vec2, PLAYDATE};
+use crate::{graphics::Bitmap, math::Vec2, PLAYDATE};
 
 pub struct PlaydateSystem {
     handle: *const sys::playdate_sys,
@@ -307,17 +305,17 @@ impl PlaydateSystem {
     #[allow(static_mut_refs)]
     pub fn set_button_callback(
         &self,
-        callback: Option<Box<dyn Fn(Buttons, i32, u32)>>,
+        callback: Option<Box<dyn FnMut(Buttons, i32, u32)>>,
         queue_size: usize,
     ) {
-        static mut CALLBACK: Option<Box<dyn Fn(Buttons, i32, u32)>> = None;
+        static mut CALLBACK: Option<Box<dyn FnMut(Buttons, i32, u32)>> = None;
         extern "C" fn callback_impl(
             buttons: PDButtons,
             down: i32,
             when: u32,
             _userdata: *mut core::ffi::c_void,
         ) -> i32 {
-            let callback = unsafe { CALLBACK.as_ref().unwrap() };
+            let callback = unsafe { CALLBACK.as_mut().unwrap() };
             callback(Buttons::from(buttons.0 as u8), down, when);
             0
         }
@@ -338,10 +336,10 @@ impl PlaydateSystem {
 
     /// (2.4) Provides a callback to receive messages sent to the device over the serial port using the msg command. If no device is connected, you can send these messages to a game in the simulator by entering !msg <message> in the Lua console.
     #[allow(static_mut_refs)]
-    pub fn set_serial_message_callback(&self, callback: Option<Box<dyn Fn(&[u8])>>) {
-        static mut CALLBACK: Option<Box<dyn Fn(&[u8])>> = None;
+    pub fn set_serial_message_callback(&self, callback: Option<Box<dyn FnMut(&[u8])>>) {
+        static mut CALLBACK: Option<Box<dyn FnMut(&[u8])>> = None;
         extern "C" fn callback_impl(data: *const c_char) {
-            let callback = unsafe { CALLBACK.as_ref().unwrap() };
+            let callback = unsafe { CALLBACK.as_mut().unwrap() };
             let c_str: &CStr = unsafe { CStr::from_ptr(data) };
             let s: &[u8] = c_str.to_bytes();
             callback(s);
@@ -365,7 +363,7 @@ impl PlaydateSystem {
 
 struct MenuItemPayload {
     handle: RefCell<*mut sys::PDMenuItem>,
-    handler: RefCell<Option<Box<dyn FnMut() -> Pin<Box<dyn Future<Output = ()>>>>>>,
+    handler: RefCell<Option<Box<dyn FnMut() -> ()>>>,
 }
 
 pub struct MenuItem {
@@ -402,8 +400,7 @@ impl MenuItem {
         let payload: &MenuItemPayload = unsafe { &*(payload as *const MenuItemPayload) };
         let mut handler = payload.handler.borrow_mut();
         if let Some(ref mut f) = *handler {
-            let fut = f();
-            EXECUTOR.spawn(fut);
+            f();
         }
     }
 
@@ -440,11 +437,8 @@ impl MenuItem {
         }
     }
 
-    pub fn set_handler<F: 'static + Future<Output = ()>>(
-        &mut self,
-        mut handler: impl 'static + FnMut() -> F,
-    ) {
-        *self.payload.handler.borrow_mut() = Some(Box::new(move || Box::pin(handler())));
+    pub fn set_handler(&mut self, handler: impl 'static + FnMut() -> ()) {
+        *self.payload.handler.borrow_mut() = Some(Box::new(handler));
     }
 }
 
@@ -481,7 +475,7 @@ impl Peripherals {
     pub const ALL: Self = Peripherals::all_bits();
 }
 
-type EventHandler = Box<dyn FnMut(u32) -> Pin<Box<dyn Future<Output = ()>>>>;
+type EventHandler = Box<dyn FnMut(u32) -> ()>;
 
 pub struct EventManager {
     handlers: [spin::Mutex<Vec<EventHandler>>; Self::NUM_EVENT_TYPES],
@@ -489,7 +483,7 @@ pub struct EventManager {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CallbackHandle {
-    ptr: *const dyn FnMut(u32) -> Pin<Box<dyn Future<Output = ()>>>,
+    ptr: *const dyn FnMut(u32) -> (),
 }
 
 impl EventManager {
@@ -501,17 +495,14 @@ impl EventManager {
         }
     }
 
-    pub fn on<F: 'static + Future<Output = ()>>(
+    pub fn on(
         &self,
         event: SystemEvent,
-        mut handler: impl 'static + FnMut(u32) -> F,
+        handler: impl 'static + FnMut(u32) -> (),
     ) -> CallbackHandle {
-        let handler: EventHandler = Box::new(move |arg| {
-            let fut = handler(arg);
-            Box::pin(fut)
-        });
+        let handler: EventHandler = Box::new(handler);
         let handle = CallbackHandle {
-            ptr: handler.as_ref() as *const dyn FnMut(u32) -> Pin<Box<dyn Future<Output = ()>>>,
+            ptr: handler.as_ref() as *const dyn FnMut(u32) -> (),
         };
         self.handlers[event as usize].lock().push(handler);
         handle
@@ -519,9 +510,7 @@ impl EventManager {
 
     #[allow(ambiguous_wide_pointer_comparisons)]
     pub fn off(&self, event: SystemEvent, handle: CallbackHandle) {
-        let retain = |h: &EventHandler| {
-            h.as_ref() as *const dyn FnMut(u32) -> Pin<Box<dyn Future<Output = ()>>> != handle.ptr
-        };
+        let retain = |h: &EventHandler| h.as_ref() as *const dyn FnMut(u32) -> () != handle.ptr;
         let mut handlers = self.handlers[event as usize].lock();
         handlers.retain(retain);
     }
@@ -530,8 +519,7 @@ impl EventManager {
         let mut handlers = self.handlers[event as usize].lock();
         for handler in handlers.iter_mut() {
             let handler = handler.as_mut();
-            let fut = handler(arg);
-            EXECUTOR.spawn(fut);
+            handler(arg);
         }
     }
 }

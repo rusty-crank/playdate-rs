@@ -10,7 +10,7 @@ use alloc::sync::Arc;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use playdate_rs::graphics::Color;
-use playdate_rs::{main, println, PLAYDATE};
+use playdate_rs::PLAYDATE;
 
 #[main]
 async fn main() {
@@ -26,7 +26,6 @@ async fn main() {
     let counter_clone = counter.clone();
     item3.set_handler(move || {
         counter_clone.fetch_add(1, Ordering::SeqCst);
-        async {}
     });
 
     loop {

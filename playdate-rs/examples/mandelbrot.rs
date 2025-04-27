@@ -11,7 +11,7 @@ use playdate_rs::display::{DISPLAY_HEIGHT, DISPLAY_WIDTH};
 use playdate_rs::graphics::{Color, Font};
 use playdate_rs::math::Vec2;
 use playdate_rs::system::Buttons;
-use playdate_rs::{app, println, App, PLAYDATE};
+use playdate_rs::PLAYDATE;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Complex {
@@ -81,13 +81,26 @@ fn f(c: Complex, max_iter: i32) -> bool {
     false
 }
 
-#[app]
 pub struct Mandelbrot {
     center: Complex,
     scale: f32,
 }
 
 impl Mandelbrot {
+    fn new() -> Self {
+        println!("Hello, Mandelbrot!");
+        Self {
+            center: Complex::new(-0.5, 0.0),
+            scale: 0.01,
+        }
+    }
+
+    fn init(&mut self) {
+        let font = Font::load("/System/Fonts/Roobert-10-Bold.pft").unwrap();
+        PLAYDATE.graphics.set_font(&font);
+        self.draw_frame();
+    }
+
     fn get_iter(&self) -> i32 {
         match self.scale {
             s if s > 0.01 => 16,
@@ -151,22 +164,6 @@ impl Mandelbrot {
             vec2![top_left_x + 2, DISPLAY_HEIGHT as i32 - row_height],
         );
     }
-}
-
-impl App for Mandelbrot {
-    fn new() -> Self {
-        println!("Hello, Mandelbrot!");
-        Self {
-            center: Complex::new(-0.5, 0.0),
-            scale: 0.01,
-        }
-    }
-
-    fn init(&mut self) {
-        let font = Font::load("/System/Fonts/Roobert-10-Bold.pft").unwrap();
-        PLAYDATE.graphics.set_font(&font);
-        self.draw_frame();
-    }
 
     fn update(&mut self, _delta: f32) {
         let button_state = PLAYDATE.system.get_button_state();
@@ -204,5 +201,17 @@ impl App for Mandelbrot {
         self.draw_meta();
         // Draw FPS
         PLAYDATE.system.draw_fps(vec2![0, 0]);
+    }
+}
+
+#[main]
+async fn main() {
+    let mut app = Mandelbrot::new();
+
+    app.init();
+
+    loop {
+        let delta = PLAYDATE.next_frame().await;
+        app.update(delta);
     }
 }
