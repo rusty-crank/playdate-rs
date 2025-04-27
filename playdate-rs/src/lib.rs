@@ -1,4 +1,5 @@
 #![cfg_attr(all(target_arch = "arm", target_os = "none"), no_std)]
+#![feature(arbitrary_self_types)]
 
 extern crate alloc;
 pub extern crate num_traits;
@@ -17,20 +18,25 @@ pub mod display;
 pub mod error;
 pub mod fs;
 pub mod graphics;
-pub mod network;
 pub mod lua;
 mod memory;
+pub mod network;
 pub mod scoreboards;
 pub mod sound;
 pub mod sprite;
 pub mod system;
 pub mod util;
 
-use core::{cell::UnsafeCell, ops::Deref};
+#[doc(hidden)]
+pub mod async_runtime;
+
+use core::{cell::UnsafeCell, future::Future, ops::Deref};
 
 use alloc::{boxed::Box, format};
+use async_runtime::EXECUTOR;
 pub use no_std_io::io;
-pub use playdate_rs_macros::app;
+pub use playdate_rs_macros::{app, main};
+use system::EventManager;
 
 pub struct PlaydateAPI {
     raw_api: *mut sys::PlaydateAPI,
@@ -50,6 +56,7 @@ pub struct PlaydateAPI {
     pub lua: lua::Lua,
     // The playdate JSON lib is not supported. Please use serde instead:
     // pub json: *const playdate_json,
+    pub events: EventManager,
 }
 
 unsafe impl Sync for PlaydateAPI {}
@@ -67,12 +74,17 @@ impl PlaydateAPI {
             sound: sound::PlaydateSound::new(playdate_ref.sound),
             scoreboards: scoreboards::PlaydateScoreboards::new(playdate_ref.scoreboards),
             lua: lua::Lua::new(playdate_ref.lua),
+            events: EventManager::new(),
         }
     }
 
     /// Returns a raw pointer to the raw playdate-rs-sys API.
     pub fn get_raw_api(&self) -> *mut sys::PlaydateAPI {
         self.raw_api
+    }
+
+    pub fn next_frame(&self) -> impl Future<Output = f32> {
+        EXECUTOR.next_frame()
     }
 }
 
@@ -227,4 +239,84 @@ macro_rules! register_playdate_app {
             unimplemented!();
         }
     };
+}
+
+#[macro_export]
+macro_rules! register_playdate_app2 {
+    ($main: ident) => {
+        mod __playdate_api {
+            #[no_mangle]
+            unsafe extern "C" fn eventHandler(
+                pd: *mut ::core::ffi::c_void,
+                event: $crate::system::SystemEvent,
+                arg: u32,
+            ) {
+                $crate::__playdate_event_handler(pd, event, arg, super::$main);
+            }
+        }
+
+        #[cfg(all(target_arch = "arm", target_os = "none"))]
+        #[panic_handler]
+        #[doc(hidden)]
+        fn __panic_handler(info: &core::panic::PanicInfo) -> ! {
+            $crate::__playdate_handle_panic(info);
+        }
+
+        #[cfg(all(target_arch = "arm", target_os = "none"))]
+        #[no_mangle]
+        pub extern "C" fn _sbrk() {}
+
+        #[cfg(all(target_arch = "arm", target_os = "none"))]
+        #[no_mangle]
+        extern "C" fn _exit() {}
+
+        #[cfg(all(target_arch = "arm", target_os = "none"))]
+        #[no_mangle]
+        extern "C" fn _kill() {}
+
+        #[cfg(all(target_arch = "arm", target_os = "none"))]
+        #[no_mangle]
+        extern "C" fn _getpid() {}
+
+        #[cfg(all(target_arch = "arm", target_os = "none"))]
+        #[no_mangle]
+        extern "C" fn __exidx_start() {
+            unimplemented!();
+        }
+
+        #[cfg(all(target_arch = "arm", target_os = "none"))]
+        #[no_mangle]
+        extern "C" fn __exidx_end() {
+            unimplemented!();
+        }
+    };
+}
+
+#[doc(hidden)]
+pub fn __playdate_event_handler<F: 'static + Future<Output = ()>>(
+    pd: *mut ::core::ffi::c_void,
+    event: system::SystemEvent,
+    arg: u32,
+    main: fn() -> F,
+) {
+    let pd = pd as *mut sys::PlaydateAPI;
+    if event == system::SystemEvent::Init {
+        // Initialize playdate singleton
+        unsafe {
+            *PLAYDATE._p.get() = Some(PlaydateAPI::new(pd));
+        }
+        // Register frame update callback
+        PLAYDATE
+            .system
+            .set_update_callback(Some(handle_frame_update));
+        // Run the main function
+        EXECUTOR.spawn(main());
+        EXECUTOR.run();
+    }
+    PLAYDATE.events.signal(event, arg);
+}
+
+unsafe extern "C" fn handle_frame_update(_: *mut core::ffi::c_void) -> i32 {
+    EXECUTOR.signal_next_frame();
+    1
 }

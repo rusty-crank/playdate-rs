@@ -280,7 +280,7 @@ impl BitmapTable {
     }
 
     /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
-    pub fn load(path: impl AsRef<str>) -> Result<BitmapTable, Error> {
+    pub fn open(path: impl AsRef<str>) -> Result<BitmapTable, Error> {
         unsafe {
             let c_string = CString::new(path.as_ref()).unwrap();
             let mut err = core::ptr::null();
@@ -324,7 +324,7 @@ impl BitmapTable {
     }
 
     /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
-    pub fn load_from_file(&mut self, path: impl AsRef<str>) -> Result<(), Error> {
+    pub fn load(&mut self, path: impl AsRef<str>) -> Result<(), Error> {
         let c_string = CString::new(path.as_ref()).unwrap();
         let mut err: *const c_char = core::ptr::null();
         unsafe {

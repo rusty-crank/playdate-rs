@@ -1,4 +1,8 @@
-use core::ffi::{c_char, c_void, CStr};
+use core::{
+    ffi::{c_char, c_void, CStr},
+    future::Future,
+    pin::Pin,
+};
 
 use alloc::{boxed::Box, ffi::CString, vec::Vec};
 pub use sys::{
@@ -7,7 +11,7 @@ pub use sys::{
 };
 use sys::{PDButtons, PDPeripherals};
 
-use crate::{graphics::Bitmap, math::Vec2, PLAYDATE};
+use crate::{async_runtime::EXECUTOR, graphics::Bitmap, math::Vec2, PLAYDATE};
 
 pub struct PlaydateSystem {
     handle: *const sys::playdate_sys,
@@ -457,4 +461,60 @@ pub enum Peripherals {
 impl Peripherals {
     pub const NONE: Self = Peripherals::none();
     pub const ALL: Self = Peripherals::all_bits();
+}
+
+type EventHandler = Box<dyn FnMut(u32) -> Pin<Box<dyn Future<Output = ()>>>>;
+
+pub struct EventManager {
+    handlers: [spin::Mutex<Vec<EventHandler>>; Self::NUM_EVENT_TYPES],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CallbackHandle {
+    ptr: *const dyn FnMut(u32) -> Pin<Box<dyn Future<Output = ()>>>,
+}
+
+impl EventManager {
+    pub(crate) const NUM_EVENT_TYPES: usize = 12;
+
+    pub(crate) fn new() -> Self {
+        Self {
+            handlers: [const { spin::Mutex::new(Vec::new()) }; Self::NUM_EVENT_TYPES],
+        }
+    }
+
+    pub fn on<F: 'static + Future<Output = ()>>(
+        &self,
+        event: SystemEvent,
+        mut handler: impl 'static + FnMut(u32) -> F,
+    ) -> CallbackHandle {
+        let handler: EventHandler = Box::new(move |arg| {
+            let fut = handler(arg);
+            Box::pin(fut)
+        });
+        let handle = CallbackHandle {
+            ptr: handler.as_ref() as *const dyn FnMut(u32) -> Pin<Box<dyn Future<Output = ()>>>,
+        };
+        self.handlers[event as usize].lock().push(handler);
+        handle
+    }
+
+    #[allow(ambiguous_wide_pointer_comparisons)]
+    pub fn off(&self, event: SystemEvent, handle: CallbackHandle) {
+        let retain = |h: &EventHandler| {
+            h.as_ref() as *const dyn FnMut(u32) -> Pin<Box<dyn Future<Output = ()>>> != handle.ptr
+        };
+        let mut handlers = self.handlers[event as usize].lock();
+        handlers.retain(retain);
+    }
+
+    pub(crate) fn signal(&self, event: SystemEvent, arg: u32) {
+        let mut handlers = self.handlers[event as usize].lock();
+        for handler in handlers.iter_mut() {
+            let handler = handler.as_mut();
+            let fut = handler(arg);
+            EXECUTOR.spawn(fut);
+        }
+        EXECUTOR.run();
+    }
 }

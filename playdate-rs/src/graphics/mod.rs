@@ -1,7 +1,6 @@
-use core::ffi::{c_char, c_void};
+use core::ffi::c_void;
 
 use crate::math::{Rect, Vec2};
-use alloc::ffi::CString;
 
 use crate::util::Ref;
 
@@ -11,8 +10,6 @@ pub use sys::{
     LCDSolidColor as Color, PDTextAlignment as TextAlign, PDTextWrappingMode as TextWrap,
     LCD_COLUMNS, LCD_ROWS, LCD_ROWSIZE,
 };
-
-use crate::error::Error;
 
 mod bitmap;
 mod font;
@@ -319,21 +316,6 @@ impl PlaydateGraphics {
         bgcolor: impl Into<ColorOrPattern>,
     ) -> Bitmap {
         Bitmap::from(unsafe { ((*self.handle).newBitmap.unwrap())(width, height, bgcolor.into()) })
-    }
-
-    /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
-    pub fn load_bitmap(&self, path: impl AsRef<str>) -> Result<Bitmap, Error> {
-        unsafe {
-            let c_string = CString::new(path.as_ref()).unwrap();
-            let mut err: *const c_char = core::ptr::null();
-            let ptr = ((*self.handle).loadBitmap.unwrap())(c_string.as_ptr() as _, &mut err);
-            if !err.is_null() {
-                let err = CString::from_raw(err as *mut c_char);
-                let err = err.into_string().unwrap();
-                return Err(Error::FailedToLoadBitMapFromFile(err));
-            }
-            Ok(Bitmap::from(ptr))
-        }
     }
 
     /// Returns the current display frame buffer. Rows are 32-bit aligned, so the row stride is 52 bytes, with the extra 2 bytes per row ignored. Bytes are MSB-ordered; i.e., the pixel in column 0 is the 0x80 bit of the first byte of the row.
