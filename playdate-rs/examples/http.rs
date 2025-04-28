@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 
 use playdate_rs::graphics::{Color, Font};
 use playdate_rs::graphics::{TextAlign, TextWrap};
-use playdate_rs::network::http;
+use playdate_rs::network::http::{self, Headers};
 use playdate_rs::system::Buttons;
 use playdate_rs::util::icons::FontIcons;
 use playdate_rs::PLAYDATE;
@@ -43,18 +43,11 @@ async fn main() {
     let output_clone = output.clone();
 
     spawn! {
-        let response = http::get("https://api.sampleapis.com/coffee/hot", None).await;
-        match response {
-            Ok(resp) => {
-                println!("Status Code: {:?}", resp.status_code);
-                println!("Headers: {:?}", resp.headers);
-                let coffee_list = resp.json::<Vec<Coffee>>().unwrap();
-                *output_clone.borrow_mut() = coffee_list;
-            }
-            Err(err) => {
-                println!("Error: {:?}", err);
-            }
-        }
+        let mut res = http::get("https://api.sampleapis.com/coffee/hot", &Headers::default()).await.unwrap();
+        println!("Status Code: {:?}", res.status_code());
+        println!("Headers: {:?}", res.headers());
+        let coffee_list = res.json::<Vec<Coffee>>().await.unwrap();
+        *output_clone.borrow_mut() = coffee_list;
     };
 
     let font = Font::load("/System/Fonts/Roobert-10-Bold.pft").unwrap();

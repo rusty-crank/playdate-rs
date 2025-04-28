@@ -12,6 +12,7 @@ use alloc::format;
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
+use core::ops::{Deref, DerefMut};
 use no_std_io::io::ErrorKind;
 use sys::{accessReply as AccessReply, PDNetErr as NetworkError};
 
@@ -70,16 +71,43 @@ struct Callbacks {
     connection_closed: Option<Box<dyn FnOnce()>>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HTTPMethod {
+    GET,
+    POST,
+    PUT,
+    DELETE,
+    PATCH,
+}
+
+impl HTTPMethod {
+    fn as_str(&self) -> &'static str {
+        match self {
+            HTTPMethod::GET => "GET",
+            HTTPMethod::POST => "POST",
+            HTTPMethod::PUT => "PUT",
+            HTTPMethod::DELETE => "DELETE",
+            HTTPMethod::PATCH => "PATCH",
+        }
+    }
+}
+
 pub struct HTTPConnection {
     pub(crate) handle: *mut sys::HTTPConnection,
     closed: bool,
     callbacks: Box<Callbacks>,
+    url: Url,
 }
 
 impl HTTPConnection {
     /// Returns an HTTPConnection object for connecting to the given server, or NULL if permission has been denied or not yet granted. If port is 0, the connection will use port 80 if usessl is false, otherwise 443. No connection is attempted until get() or post() are called.
-    pub fn new(server: impl AsRef<str>, port: u16, usessl: bool) -> Result<Self, Error> {
-        let server_c_string = CString::new(server.as_ref()).unwrap();
+    pub fn new(url: impl TryInto<Url>) -> Result<Self, Error> {
+        let url = url.try_into().map_err(|_| ErrorKind::InvalidInput)?;
+        let host = url.host_str().unwrap_or("");
+        let usessl = url.scheme() == "https";
+        let port = url.port().unwrap_or(if usessl { 443 } else { 80 });
+
+        let server_c_string = CString::new(host).unwrap();
         let server_ptr = server_c_string.as_ptr();
         let handle = unsafe { http_handle().newConnection.unwrap()(server_ptr, port as _, usessl) };
         if handle.is_null() {
@@ -95,17 +123,13 @@ impl HTTPConnection {
         let callbacks_ptr = &*callbacks as *const Callbacks as *mut Callbacks;
         unsafe { http_handle().setUserdata.unwrap()(handle, callbacks_ptr as _) };
         let connection = Self {
+            url: url.clone(),
             handle,
             closed: true,
             callbacks,
         };
         Ok(connection)
     }
-
-    // Adds 1 to the connection’s retain count, so that it won’t be freed when it scopes out of another context. This is used primarily so we can pass a connection created in Lua into C and not have to worry about the Lua wrapper’s lifespan.
-    // pub fn retain(&mut self) {
-    //     unsafe { http_handle().retain.unwrap()(self.handle) };
-    // }
 
     /// Sets the length of time (in milliseconds) to wait for the connection to the server to be made.
     pub fn set_timeout(&mut self, ms: usize) {
@@ -122,41 +146,44 @@ impl HTTPConnection {
         unsafe { http_handle().setByteRange.unwrap()(self.handle, start as _, end as _) };
     }
 
-    fn build_headers(
-        headers: Option<Vec<(&str, &str)>>,
-    ) -> (Option<CString>, usize, *const core::ffi::c_char) {
+    fn build_headers(headers: &Headers) -> (CString, usize, *const core::ffi::c_char) {
         let headers = headers
-            .as_ref()
-            .map(|h| {
-                h.iter()
-                    .map(|(k, v)| format!("{}: {}", k, v))
-                    .collect::<Vec<_>>()
-            })
-            .map(|h| h.join("\r\n"));
-        let c_string = headers.as_ref().map(|s| CString::new(s.as_str()).unwrap());
-        let len = c_string.as_ref().map(|s| s.as_bytes().len()).unwrap_or(0);
-        let ptr = c_string
-            .as_ref()
-            .map(|s| s.as_ptr())
-            .unwrap_or(core::ptr::null());
+            .headers
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k, v))
+            .collect::<Vec<_>>()
+            .join("\r\n");
+        let c_string = CString::new(headers.as_str()).unwrap();
+        let len = c_string.as_bytes().len();
+        let ptr = c_string.as_ptr();
         (c_string, len, ptr)
     }
 
-    /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled) and sends a request with the given method and path, additional headers if specified, and the provided data.
-    pub fn query(
+    async fn query<B: serde::Serialize>(
         &mut self,
-        method: &str,
+        method: HTTPMethod,
         path: &str,
-        headers: Option<Vec<(&str, &str)>>,
-        body: Option<&str>,
-    ) -> Result<(), Error> {
+        headers: &Headers,
+        body: Option<&B>,
+    ) -> Result<Headers, Error> {
+        // Prepare callbacks
+        let future = CallbackFuture::<()>::new();
+        let handle = future.get_handle();
+        self.set_headers_read_callback(Box::new(move || {
+            CallbackFuture::<()>::resolve(handle, ());
+        }));
+        let res_headers: Arc<RefCell<Headers>> = Default::default();
+        let res_headers2 = res_headers.clone();
+        self.set_header_received_callback(Box::new(move |k, v| {
+            res_headers2.borrow_mut().insert(k, v);
+        }));
+        // Prepare request arguments
         self.closed = false;
-        let method_c_string = CString::new(method).unwrap();
-        let method_ptr = method_c_string.as_ptr();
         let path_c_string = CString::new(path).unwrap();
         let path_ptr = path_c_string.as_ptr();
         let (_headers, headers_len, headers_ptr) = Self::build_headers(headers);
-        let body_c_string = body.as_ref().map(|s| CString::new(*s).unwrap());
+        let body = body.as_ref().map(|b| serde_json::to_string(b).unwrap());
+        let body_c_string = body.as_ref().map(|s| CString::new(s.as_str()).unwrap());
         let body_len = body_c_string
             .as_ref()
             .map(|s| s.as_bytes().len())
@@ -165,74 +192,126 @@ impl HTTPConnection {
             .as_ref()
             .map(|s| s.as_ptr())
             .unwrap_or(core::ptr::null());
+        // Send request
         let err = unsafe {
-            http_handle().query.unwrap()(
-                self.handle,
-                method_ptr,
-                path_ptr,
-                headers_ptr,
-                headers_len,
-                body_ptr,
-                body_len,
-            )
+            match method {
+                HTTPMethod::GET => {
+                    http_handle().get.unwrap()(self.handle, path_ptr, headers_ptr, headers_len)
+                }
+                HTTPMethod::POST => http_handle().post.unwrap()(
+                    self.handle,
+                    path_ptr,
+                    headers_ptr,
+                    headers_len,
+                    body_ptr,
+                    body_len,
+                ),
+                m => {
+                    let method_c_string = CString::new(m.as_str()).unwrap();
+                    let method_ptr = method_c_string.as_ptr();
+                    http_handle().query.unwrap()(
+                        self.handle,
+                        method_ptr,
+                        path_ptr,
+                        headers_ptr,
+                        headers_len,
+                        body_ptr,
+                        body_len,
+                    )
+                }
+            }
         };
-        if err == NetworkError::OK {
-            Ok(())
-        } else {
-            Err(Error::NetworkError(err))
+        if err != NetworkError::OK {
+            return Err(Error::NetworkError(err));
         }
+        // Wait for headers to be read
+        future.await;
+        // Return headers
+        let mut headers = res_headers.borrow_mut();
+        Ok(std::mem::take(&mut *headers))
     }
 
     /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled) and sends a GET request with the given path and additional headers if specified.
-    pub fn get(&mut self, path: &str, headers: Option<Vec<(&str, &str)>>) -> Result<(), Error> {
-        self.closed = false;
-        let path_c_string = CString::new(path).unwrap();
-        let path_ptr = path_c_string.as_ptr();
-        let (_headers, headers_len, headers_ptr) = Self::build_headers(headers);
-        let err =
-            unsafe { http_handle().get.unwrap()(self.handle, path_ptr, headers_ptr, headers_len) };
-        if err == NetworkError::OK {
-            Ok(())
-        } else {
-            Err(Error::NetworkError(err))
-        }
+    pub async fn get(
+        &mut self,
+        path: impl AsRef<str>,
+        headers: &Headers,
+    ) -> Result<HTTPResponse, Error> {
+        let headers = self
+            .query::<()>(HTTPMethod::GET, path.as_ref(), headers, None)
+            .await?;
+        Ok(HTTPResponse::from_ref(self, headers))
     }
 
-    /// Equivalent to calling playdate→network→http→query() with method equal to POST.
-    pub fn post(
+    /// Sends a POST request to the server with the given path, additional headers if specified, and the provided data.
+    ///
+    /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled).
+    pub async fn post<B: serde::Serialize>(
         &mut self,
-        path: &str,
-        headers: Option<Vec<(&str, &str)>>,
-        body: Option<&str>,
-    ) -> Result<(), Error> {
-        self.closed = false;
-        let path_c_string = CString::new(path).unwrap();
-        let path_ptr = path_c_string.as_ptr();
-        let (_headers, headers_len, headers_ptr) = Self::build_headers(headers);
-        let body_c_string = body.as_ref().map(|s| CString::new(*s).unwrap());
-        let body_len = body_c_string
-            .as_ref()
-            .map(|s| s.as_bytes().len())
-            .unwrap_or(0);
-        let body_ptr = body_c_string
-            .as_ref()
-            .map(|s| s.as_ptr())
-            .unwrap_or(core::ptr::null());
-        let err = unsafe {
-            http_handle().post.unwrap()(
-                self.handle,
-                path_ptr as _,
-                headers_ptr,
-                headers_len,
-                body_ptr,
-                body_len,
+        path: impl AsRef<str>,
+        options: &HTTPOptions<B>,
+    ) -> Result<HTTPResponse, Error> {
+        let headers = self
+            .query(
+                HTTPMethod::POST,
+                path.as_ref(),
+                &options.headers,
+                options.body.as_ref(),
             )
-        };
-        if err == NetworkError::OK {
-            Ok(())
-        } else {
-            Err(Error::NetworkError(err))
-        }
+            .await?;
+        Ok(HTTPResponse::from_ref(self, headers))
+    }
+
+    /// Sends a PUT request to the server with the given path, additional headers if specified, and the provided data.
+    ///
+    /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled).
+    pub async fn put<B: serde::Serialize>(
+        &mut self,
+        path: impl AsRef<str>,
+        options: &HTTPOptions<B>,
+    ) -> Result<HTTPResponse, Error> {
+        let headers = self
+            .query(
+                HTTPMethod::PUT,
+                path.as_ref(),
+                &options.headers,
+                options.body.as_ref(),
+            )
+            .await?;
+        Ok(HTTPResponse::from_ref(self, headers))
+    }
+
+    /// Sends a PATCH request to the server with the given path, additional headers if specified, and the provided data.
+    ///
+    /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled).
+    pub async fn patch<B: serde::Serialize>(
+        &mut self,
+        path: impl AsRef<str>,
+        options: &HTTPOptions<B>,
+    ) -> Result<HTTPResponse, Error> {
+        let headers = self
+            .query(
+                HTTPMethod::PATCH,
+                path.as_ref(),
+                &options.headers,
+                options.body.as_ref(),
+            )
+            .await?;
+        Ok(HTTPResponse::from_ref(self, headers))
+    }
+
+    /// Sends a DELETE request to the server with the given path and additional headers if specified.
+    ///
+    /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled).
+    pub async fn delete<B: serde::Serialize>(
+        &mut self,
+        path: impl AsRef<str>,
+        headers: &Headers,
+    ) -> Result<HTTPResponse, Error> {
+        let headers = self
+            .query::<()>(HTTPMethod::DELETE, path.as_ref(), &headers, None)
+            .await?;
+        Ok(HTTPResponse::from_ref(self, headers))
     }
 
     /// Returns the last error on the connection
@@ -246,7 +325,7 @@ impl HTTPConnection {
     }
 
     /// Returns the number of bytes already read from the connection and the total bytes the server plans to send, if known.
-    pub fn get_progress(&self) -> ReadProgress {
+    fn get_progress(&self) -> ReadProgress {
         let mut received = 0;
         let mut total = 0;
         unsafe {
@@ -259,13 +338,13 @@ impl HTTPConnection {
     }
 
     /// Returns the HTTP status response code, if the request response headers have been received and parsed.
-    pub fn get_response_code(&self) -> usize {
+    fn get_response_code(&self) -> usize {
         let code = unsafe { http_handle().getResponseStatus.unwrap()(self.handle) };
         code as _
     }
 
     /// Returns the number of bytes currently available for reading from the connection.
-    pub fn get_bytes_available(&self) -> usize {
+    fn get_bytes_available(&self) -> usize {
         let bytes = unsafe { http_handle().getBytesAvailable.unwrap()(self.handle) };
         bytes as _
     }
@@ -281,7 +360,7 @@ impl HTTPConnection {
     }
 
     /// On success, returns up to length bytes (limited by the size of the read buffer) from the connection. If length is more than the number of bytes available the function will wait for more data up to the length of time set by setReadTimeout() (default one second).
-    pub fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         let result = unsafe {
             http_handle().read.unwrap()(self.handle, buf.as_mut_ptr() as *mut _, buf.len() as u32)
         };
@@ -292,20 +371,15 @@ impl HTTPConnection {
         }
     }
 
-    pub fn read_all(&mut self) -> Result<Vec<u8>, Error> {
+    fn read_all(&mut self) -> Result<Vec<u8>, Error> {
         let mut buf = vec![0; self.get_bytes_available()];
         let read = self.read(&mut buf)?;
         assert!(read == buf.len());
         Ok(buf)
     }
 
-    pub fn read_to_string(&mut self) -> Result<String, Error> {
-        let buf = self.read_all()?;
-        String::from_utf8(buf).map_err(|_| ErrorKind::InvalidData.into())
-    }
-
     /// Sets a callback to be called when the HTTP parser reads a header line from the connection
-    pub fn set_header_received_callback(&mut self, callback: Box<dyn FnMut(&str, &str)>) {
+    fn set_header_received_callback(&mut self, callback: Box<dyn FnMut(&str, &str)>) {
         self.callbacks.header_received = Some(callback);
         unsafe extern "C" fn callback_impl(
             conn: *mut sys::HTTPConnection,
@@ -329,7 +403,7 @@ impl HTTPConnection {
     }
 
     /// Sets a function to be called after the connection has parsed the headers from the server response. At this point, getResponseStatus() and getProgress() can be used to query the status and size of the response, and get()/post() can queue another request if connection:setKeepAlive(true) was set and the connection is still open.
-    pub fn set_headers_read_callback(&mut self, callback: Box<dyn FnMut()>) {
+    fn set_headers_read_callback(&mut self, callback: Box<dyn FnMut()>) {
         self.callbacks.headers_read = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
             let callbacks_ptr =
@@ -343,8 +417,8 @@ impl HTTPConnection {
     }
 
     /// Sets a function to be called when data is available for reading.
-    #[allow(static_mut_refs)]
-    pub fn set_response_callback(&mut self, callback: Box<dyn FnMut()>) {
+    #[allow(unused)]
+    fn set_response_callback(&mut self, callback: Box<dyn FnMut()>) {
         self.callbacks.response = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
             let callbacks_ptr =
@@ -358,7 +432,8 @@ impl HTTPConnection {
     }
 
     /// Sets a function to be called when all data for the request has been received (if the response contained a Content-Length header and the size is known) or the request times out.
-    pub fn set_request_complete_callback(&mut self, callback: Box<dyn FnMut()>) {
+    #[allow(unused)]
+    fn set_request_complete_callback(&mut self, callback: Box<dyn FnMut()>) {
         self.callbacks.request_complete = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
             let callbacks_ptr =
@@ -374,7 +449,8 @@ impl HTTPConnection {
     }
 
     /// Sets a function to be called when the server has closed the connection.
-    pub fn set_connection_closed_callback(&mut self, callback: Box<dyn FnOnce()>) {
+    #[allow(unused)]
+    fn set_connection_closed_callback(&mut self, callback: Box<dyn FnOnce()>) {
         self.callbacks.connection_closed = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
             let callbacks_ptr =
@@ -404,24 +480,93 @@ impl Drop for HTTPConnection {
     }
 }
 
-pub struct Response {
-    pub url: Url,
-    pub status_code: usize,
-    pub headers: BTreeMap<String, String>,
-    data: Vec<u8>,
+enum RefMutOrOwned<'a, T> {
+    Ref(&'a mut T),
+    Owned(T),
 }
 
-impl Response {
+impl Deref for RefMutOrOwned<'_, HTTPConnection> {
+    type Target = HTTPConnection;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            RefMutOrOwned::Ref(conn) => conn,
+            RefMutOrOwned::Owned(conn) => conn,
+        }
+    }
+}
+
+impl DerefMut for RefMutOrOwned<'_, HTTPConnection> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            RefMutOrOwned::Ref(conn) => conn,
+            RefMutOrOwned::Owned(conn) => conn,
+        }
+    }
+}
+
+pub struct HTTPResponse<'a> {
+    conn: RefMutOrOwned<'a, HTTPConnection>,
+    status_code: usize,
+    headers: Headers,
+    data: Vec<u8>,
+    data_read: bool,
+}
+
+impl<'a> HTTPResponse<'a> {
+    fn from_ref(conn: &'a mut HTTPConnection, res_headers: Headers) -> Self {
+        let status_code = conn.get_response_code();
+        Self {
+            conn: RefMutOrOwned::Ref(conn),
+            data: vec![],
+            headers: res_headers,
+            status_code,
+            data_read: false,
+        }
+    }
+    fn from_owned(conn: HTTPConnection, res_headers: Headers) -> Self {
+        let status_code = conn.get_response_code();
+        Self {
+            conn: RefMutOrOwned::Owned(conn),
+            data: vec![],
+            headers: res_headers,
+            status_code,
+            data_read: false,
+        }
+    }
+
+    pub fn url(&self) -> &Url {
+        &self.conn.url
+    }
+
+    pub fn status_code(&self) -> usize {
+        self.status_code
+    }
+
     pub fn is_ok(&self) -> bool {
         self.status_code >= 200 && self.status_code < 300
     }
 
-    pub fn data(&self) -> &[u8] {
-        &self.data
+    fn read_all(&mut self) -> Result<(), Error> {
+        if self.data_read {
+            return Ok(());
+        }
+        let buf = self.conn.read_all()?;
+        self.data = buf;
+        self.data_read = true;
+        Ok(())
     }
 
-    pub fn string(&self) -> Result<&str, Error> {
-        let data = self.data();
+    pub fn data(&mut self) -> impl Future<Output = Result<&[u8], Error>> {
+        let result = match self.read_all() {
+            Ok(()) => Ok(self.data.as_slice()),
+            Err(e) => Err(e),
+        };
+        async move { result }
+    }
+
+    pub async fn string(&mut self) -> Result<&str, Error> {
+        let data = self.data().await?;
         let result = core::str::from_utf8(data);
         match result {
             Ok(value) => Ok(value),
@@ -429,169 +574,109 @@ impl Response {
         }
     }
 
-    pub fn header(&self, key: &str) -> Option<&str> {
-        self.headers.get(key).map(|s| s.as_str())
+    pub fn headers(&self) -> &Headers {
+        &self.headers
     }
 
-    pub fn json<T: serde::de::DeserializeOwned>(&self) -> Result<T, Error> {
-        let data = self.string()?;
+    pub fn get_header(&self, key: &str) -> Option<&str> {
+        self.headers.get(key)
+    }
+
+    pub async fn json<T: serde::de::DeserializeOwned>(&mut self) -> Result<T, Error> {
+        let data = self.string().await?;
         let result = serde_json::from_str(data);
         match result {
             Ok(value) => Ok(value),
             Err(_e) => Err(ErrorKind::InvalidData.into()),
         }
     }
+
+    pub fn read_progress(&self) -> ReadProgress {
+        self.conn.get_progress()
+    }
+
+    pub fn bytes_available(&self) -> usize {
+        self.conn.get_bytes_available()
+    }
 }
 
-fn create_connection(
-    url: impl AsRef<str>,
-) -> Result<
-    (
-        HTTPConnection,
-        Url,
-        Arc<RefCell<BTreeMap<String, String>>>,
-        CallbackFuture<()>,
-    ),
-    Error,
-> {
-    let url_s = url.as_ref();
-    let url = match Url::parse(url_s) {
-        Ok(url) => url,
-        Err(_) => return Err(ErrorKind::InvalidInput.into()),
+#[derive(Default, Clone)]
+pub struct Headers {
+    headers: BTreeMap<String, String>,
+}
+
+impl core::fmt::Debug for Headers {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", self.headers)?;
+        Ok(())
+    }
+}
+
+impl Headers {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn with(mut self, key: &str, value: &str) -> Self {
+        self.insert(key, value);
+        self
+    }
+
+    pub fn insert(&mut self, key: &str, value: &str) {
+        self.headers.insert(key.to_string(), value.to_string());
+    }
+
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.headers.get(key).map(|s| s.as_str())
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct HTTPOptions<Body: serde::Serialize = ()> {
+    pub headers: Headers,
+    pub body: Option<Body>,
+}
+
+impl<Body: serde::Serialize> HTTPOptions<Body> {
+    pub fn new() -> Self {
+        Self {
+            headers: Headers::new(),
+            body: None,
+        }
+    }
+}
+
+pub async fn get<'a>(url: impl TryInto<Url>, headers: &Headers) -> Result<HTTPResponse<'a>, Error> {
+    let mut conn = HTTPConnection::new(url)?;
+    let path = conn.url.path().to_string();
+    let headers = conn
+        .query::<()>(HTTPMethod::GET, path.as_ref(), headers, None)
+        .await?;
+    Ok(HTTPResponse::from_owned(conn, headers))
+}
+
+macro_rules! impl_http_method {
+    ($name:ident, $method:ident) => {
+        pub async fn $name<'a, Body: serde::Serialize>(
+            url: impl TryInto<Url>,
+            options: &HTTPOptions<Body>,
+        ) -> Result<HTTPResponse<'a>, Error> {
+            let mut conn = HTTPConnection::new(url)?;
+            let path = conn.url.path().to_string();
+            let headers = conn
+                .query(
+                    HTTPMethod::$method,
+                    path.as_ref(),
+                    &options.headers,
+                    options.body.as_ref(),
+                )
+                .await?;
+            Ok(HTTPResponse::from_owned(conn, headers))
+        }
     };
-    let host = url.host_str().unwrap_or("");
-    let usessl = url.scheme() == "https";
-    let port = url.port().unwrap_or(if usessl { 443 } else { 80 });
-    let mut conn = HTTPConnection::new(host, port, usessl).unwrap();
-    let future = CallbackFuture::<()>::new();
-    let handle = future.get_handle();
-    let headers: Arc<RefCell<BTreeMap<String, String>>> = Default::default();
-    let headers2 = headers.clone();
-    conn.set_headers_read_callback(Box::new(|| {
-        // Had to set this callback to get the headers to be read
-    }));
-    conn.set_header_received_callback(Box::new(move |k, v| {
-        headers2.borrow_mut().insert(k.to_string(), v.to_string());
-    }));
-    conn.set_request_complete_callback(Box::new(move || {
-        CallbackFuture::<()>::resolve(handle, ());
-    }));
-    Ok((conn, url, headers, future))
 }
 
-pub async fn query<Body: serde::Serialize>(
-    url: impl AsRef<str>,
-    method: &str,
-    headers: Option<Vec<(&str, &str)>>,
-    body: Option<&Body>,
-) -> Result<Response, Error> {
-    let (mut conn, url, res_headers, future) = create_connection(url)?;
-    let body = body.map(|b| serde_json::to_string(b).unwrap());
-    conn.query(method, url.path(), headers, body.as_deref())?;
-    future.await;
-    let buf = conn.read_all()?;
-    let status_code = conn.get_response_code();
-    let mut headers = res_headers.borrow_mut();
-    Ok(Response {
-        url,
-        data: buf,
-        headers: core::mem::take::<BTreeMap<String, String>>(&mut headers),
-        status_code,
-    })
-}
-
-pub async fn get(
-    url: impl AsRef<str>,
-    headers: Option<Vec<(&str, &str)>>,
-) -> Result<Response, Error> {
-    let (mut conn, url, res_headers, future) = create_connection(url)?;
-    conn.get(url.path(), headers)?;
-    future.await;
-    let buf = conn.read_all()?;
-    let status_code = conn.get_response_code();
-    let mut headers = res_headers.borrow_mut();
-    Ok(Response {
-        url,
-        data: buf,
-        headers: core::mem::take::<BTreeMap<String, String>>(&mut headers),
-        status_code,
-    })
-}
-
-pub async fn post<Body: serde::Serialize>(
-    url: impl AsRef<str>,
-    headers: Option<Vec<(&str, &str)>>,
-    body: Option<&Body>,
-) -> Result<Response, Error> {
-    let (mut conn, url, res_headers, future) = create_connection(url)?;
-    let body = body.map(|b| serde_json::to_string(b).unwrap());
-    conn.post(url.path(), headers, body.as_deref())?;
-    future.await;
-    let buf = conn.read_all()?;
-    let status_code = conn.get_response_code();
-    let mut headers = res_headers.borrow_mut();
-    Ok(Response {
-        url,
-        data: buf,
-        headers: core::mem::take::<BTreeMap<String, String>>(&mut headers),
-        status_code,
-    })
-}
-
-pub async fn delete(
-    url: impl AsRef<str>,
-    headers: Option<Vec<(&str, &str)>>,
-) -> Result<Response, Error> {
-    let (mut conn, url, res_headers, future) = create_connection(url)?;
-    conn.query("DELETE", url.path(), headers, None)?;
-    future.await;
-    let buf = conn.read_all()?;
-    let status_code = conn.get_response_code();
-    let mut headers = res_headers.borrow_mut();
-    Ok(Response {
-        url,
-        data: buf,
-        headers: core::mem::take::<BTreeMap<String, String>>(&mut headers),
-        status_code,
-    })
-}
-
-pub async fn put<Body: serde::Serialize>(
-    url: impl AsRef<str>,
-    headers: Option<Vec<(&str, &str)>>,
-    body: Option<&Body>,
-) -> Result<Response, Error> {
-    let (mut conn, url, res_headers, future) = create_connection(url)?;
-    let body = body.map(|b| serde_json::to_string(b).unwrap());
-    conn.query("PUT", url.path(), headers, body.as_deref())?;
-    future.await;
-    let buf = conn.read_all()?;
-    let status_code = conn.get_response_code();
-    let mut headers = res_headers.borrow_mut();
-    Ok(Response {
-        url,
-        data: buf,
-        headers: core::mem::take::<BTreeMap<String, String>>(&mut headers),
-        status_code,
-    })
-}
-
-pub async fn patch<Body: serde::Serialize>(
-    url: impl AsRef<str>,
-    headers: Option<Vec<(&str, &str)>>,
-    body: Option<&Body>,
-) -> Result<Response, Error> {
-    let (mut conn, url, res_headers, future) = create_connection(url)?;
-    let body = body.map(|b| serde_json::to_string(b).unwrap());
-    conn.query("PATCH", url.path(), headers, body.as_deref())?;
-    future.await;
-    let buf = conn.read_all()?;
-    let status_code = conn.get_response_code();
-    let mut headers = res_headers.borrow_mut();
-    Ok(Response {
-        url,
-        data: buf,
-        headers: core::mem::take::<BTreeMap<String, String>>(&mut headers),
-        status_code,
-    })
-}
+impl_http_method!(post, POST);
+impl_http_method!(put, PUT);
+impl_http_method!(patch, PATCH);
+impl_http_method!(delete, DELETE);
