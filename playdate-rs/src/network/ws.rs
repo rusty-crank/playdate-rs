@@ -24,7 +24,9 @@ impl WebSocket {
         let mut conn = TCPConnection::new(host, ssl)?;
         conn.set_timeout(5000);
         conn.open().await?;
-        Ok(Self { url, conn })
+        let mut ws = Self { url, conn };
+        ws.handshake().await?;
+        Ok(ws)
     }
 
     fn create_ws_key() -> String {
@@ -43,7 +45,7 @@ impl WebSocket {
         key
     }
 
-    pub async fn handshake(&mut self) -> Result<(), Error> {
+    async fn handshake(&mut self) -> Result<(), Error> {
         let key = Self::create_ws_key(); // Example key, should be generated
         let msg = format!(
             "GET {} HTTP/1.1\r\nHost: {}\r\nOrigin: {}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {}\r\nSec-WebSocket-Version: 13\r\n\r\n",

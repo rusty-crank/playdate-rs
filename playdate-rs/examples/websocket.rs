@@ -29,7 +29,6 @@ async fn main() {
     let mut ws = WebSocket::connect("https://echo.websocket.org")
         .await
         .unwrap();
-    ws.handshake().await.unwrap();
 
     let mut count = 0;
     let mut text = format!(
