@@ -1,4 +1,4 @@
-use core::future::Future;
+use core::{ffi::c_void, future::Future};
 
 use alloc::ffi::CString;
 use url::Url;
@@ -55,7 +55,6 @@ pub fn request_access(
 }
 
 struct Callbacks {
-    open_callback: Option<Box<dyn FnOnce(Option<NetworkError>)>>,
     connection_closed: Option<Box<dyn FnOnce()>>,
 }
 
@@ -88,7 +87,6 @@ impl TCPConnection {
             return Err(ErrorKind::PermissionDenied.into());
         }
         let callbacks = Box::new(Callbacks {
-            open_callback: None,
             connection_closed: None,
         });
         let callbacks_ptr = &*callbacks as *const Callbacks as *mut Callbacks;
@@ -117,35 +115,28 @@ impl TCPConnection {
     }
 
     /// Attempts to open the connection to the server. Note that an error may be returned immediately, or in the open callback depending on where it occurs.
-    pub fn open(
-        &mut self,
-        callback: Box<dyn FnOnce(Option<NetworkError>)>,
-    ) -> Result<(), NetworkError> {
-        self.callbacks.open_callback = Some(callback);
+    pub async fn open(&mut self) -> Result<(), NetworkError> {
+        let future = CallbackFuture::<NetworkError>::new();
+        let handle = future.get_handle();
         extern "C" fn callback_impl(
-            conn: *mut sys::TCPConnection,
+            _conn: *mut sys::TCPConnection,
             error: NetworkError,
-            _: *mut core::ffi::c_void,
+            handle: *mut c_void,
         ) {
-            let callbacks_ptr =
-                unsafe { tcp_handle().getUserdata.unwrap()(conn) } as *mut Callbacks;
-            let callbacks = unsafe { &mut *callbacks_ptr };
-            if let Some(cb) = callbacks.open_callback.take() {
-                if error == NetworkError::OK {
-                    cb(None);
-                } else {
-                    cb(Some(error));
-                }
-            }
+            CallbackFuture::<NetworkError>::resolve(handle, error);
         }
-        let result = unsafe {
-            tcp_handle().open.unwrap()(self.handle, Some(callback_impl), core::ptr::null_mut())
-        };
-        if result == NetworkError::OK {
-            Ok(())
-        } else {
-            Err(result)
+        let result =
+            unsafe { tcp_handle().open.unwrap()(self.handle, Some(callback_impl), handle) };
+
+        if result != NetworkError::OK {
+            future.set_result(result);
+            return Err(result);
         }
+        let result = future.await;
+        if result != NetworkError::OK {
+            return Err(result);
+        }
+        Ok(())
     }
 
     /// Sets a callback to be called when the connection is closed.
