@@ -1,6 +1,7 @@
 use core::future::Future;
 
 use alloc::ffi::CString;
+use url::Url;
 
 use crate::{error::Error, util::callback_to_async::CallbackFuture};
 use alloc::boxed::Box;
@@ -66,10 +67,23 @@ pub struct TCPConnection {
 
 impl TCPConnection {
     /// Returns a playdate.network.tcp object for connecting to the given server, or NULL if permission has been denied or not yet granted. No connection is attempted until open() is called.
-    pub fn new(server: impl AsRef<str>, port: u16, usessl: bool) -> Result<Self, Error> {
-        let server_c_string = CString::new(server.as_ref()).unwrap();
+    pub fn new(server: impl TryInto<Url>, ssl: bool) -> Result<Self, Error> {
+        let url: Url = server.try_into().map_err(|_| ErrorKind::InvalidInput)?;
+        if url.path() != "/"
+            || url.host().is_none()
+            || url.scheme() == ""
+            || url.query().is_some()
+            || url.fragment().is_some()
+        {
+            println!("Invalid URL: {:?}", url);
+            return Err(ErrorKind::InvalidInput.into());
+        }
+        let host = url.host_str().unwrap_or("");
+        let port = url.port().unwrap_or(if ssl { 443 } else { 80 });
+
+        let server_c_string = CString::new(host).unwrap();
         let server_ptr = server_c_string.as_ptr();
-        let handle = unsafe { tcp_handle().newConnection.unwrap()(server_ptr, port as _, usessl) };
+        let handle = unsafe { tcp_handle().newConnection.unwrap()(server_ptr, port as _, ssl) };
         if handle.is_null() {
             return Err(ErrorKind::PermissionDenied.into());
         }
@@ -86,11 +100,6 @@ impl TCPConnection {
         };
         Ok(connection)
     }
-
-    // Adds 1 to the connection’s retain count, so that it won’t be freed when it scopes out of another context. This is used primarily so we can pass a connection created in Lua into C and not have to worry about the Lua wrapper’s lifespan.
-    // pub fn retain(&mut self) {
-    //     unsafe { tcp_handle().retain.unwrap()(self.handle) };
-    // }
 
     /// Returns the last error on the connection
     pub fn get_error(&self) -> Option<NetworkError> {

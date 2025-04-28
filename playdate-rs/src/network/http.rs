@@ -96,13 +96,46 @@ pub struct HTTPConnection {
     pub(crate) handle: *mut sys::HTTPConnection,
     closed: bool,
     callbacks: Box<Callbacks>,
-    url: Url,
+    host: Url,
+}
+
+macro_rules! impl_http_method {
+    ($name:ident, $method:ident) => {
+        pub async fn $name<B: serde::Serialize>(
+            &mut self,
+            path: impl AsRef<str>,
+            options: &HTTPOptions<B>,
+        ) -> Result<HTTPResponse, Error> {
+            let url = self
+                .host
+                .join(path.as_ref())
+                .map_err(|_| ErrorKind::InvalidInput)?;
+            let headers = self
+                .query(
+                    HTTPMethod::$method,
+                    path.as_ref(),
+                    &options.headers,
+                    options.body.as_ref(),
+                )
+                .await?;
+            Ok(HTTPResponse::from_ref(self, &url, headers))
+        }
+    };
 }
 
 impl HTTPConnection {
     /// Returns an HTTPConnection object for connecting to the given server, or NULL if permission has been denied or not yet granted. If port is 0, the connection will use port 80 if usessl is false, otherwise 443. No connection is attempted until get() or post() are called.
-    pub fn new(url: impl TryInto<Url>) -> Result<Self, Error> {
-        let url = url.try_into().map_err(|_| ErrorKind::InvalidInput)?;
+    pub fn new(server: impl TryInto<Url>) -> Result<Self, Error> {
+        let url: Url = server.try_into().map_err(|_| ErrorKind::InvalidInput)?;
+        if url.path() != "/"
+            || url.host().is_none()
+            || url.scheme() == ""
+            || url.query().is_some()
+            || url.fragment().is_some()
+        {
+            println!("Invalid URL: {:?}", url);
+            return Err(ErrorKind::InvalidInput.into());
+        }
         let host = url.host_str().unwrap_or("");
         let usessl = url.scheme() == "https";
         let port = url.port().unwrap_or(if usessl { 443 } else { 80 });
@@ -123,10 +156,10 @@ impl HTTPConnection {
         let callbacks_ptr = &*callbacks as *const Callbacks as *mut Callbacks;
         unsafe { http_handle().setUserdata.unwrap()(handle, callbacks_ptr as _) };
         let connection = Self {
-            url: url.clone(),
             handle,
             closed: true,
             callbacks,
+            host: url,
         };
         Ok(connection)
     }
@@ -237,82 +270,20 @@ impl HTTPConnection {
         path: impl AsRef<str>,
         headers: &Headers,
     ) -> Result<HTTPResponse, Error> {
+        let url = self
+            .host
+            .join(path.as_ref())
+            .map_err(|_| ErrorKind::InvalidInput)?;
         let headers = self
             .query::<()>(HTTPMethod::GET, path.as_ref(), headers, None)
             .await?;
-        Ok(HTTPResponse::from_ref(self, headers))
+        Ok(HTTPResponse::from_ref(self, &url, headers))
     }
 
-    /// Sends a POST request to the server with the given path, additional headers if specified, and the provided data.
-    ///
-    /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled).
-    pub async fn post<B: serde::Serialize>(
-        &mut self,
-        path: impl AsRef<str>,
-        options: &HTTPOptions<B>,
-    ) -> Result<HTTPResponse, Error> {
-        let headers = self
-            .query(
-                HTTPMethod::POST,
-                path.as_ref(),
-                &options.headers,
-                options.body.as_ref(),
-            )
-            .await?;
-        Ok(HTTPResponse::from_ref(self, headers))
-    }
-
-    /// Sends a PUT request to the server with the given path, additional headers if specified, and the provided data.
-    ///
-    /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled).
-    pub async fn put<B: serde::Serialize>(
-        &mut self,
-        path: impl AsRef<str>,
-        options: &HTTPOptions<B>,
-    ) -> Result<HTTPResponse, Error> {
-        let headers = self
-            .query(
-                HTTPMethod::PUT,
-                path.as_ref(),
-                &options.headers,
-                options.body.as_ref(),
-            )
-            .await?;
-        Ok(HTTPResponse::from_ref(self, headers))
-    }
-
-    /// Sends a PATCH request to the server with the given path, additional headers if specified, and the provided data.
-    ///
-    /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled).
-    pub async fn patch<B: serde::Serialize>(
-        &mut self,
-        path: impl AsRef<str>,
-        options: &HTTPOptions<B>,
-    ) -> Result<HTTPResponse, Error> {
-        let headers = self
-            .query(
-                HTTPMethod::PATCH,
-                path.as_ref(),
-                &options.headers,
-                options.body.as_ref(),
-            )
-            .await?;
-        Ok(HTTPResponse::from_ref(self, headers))
-    }
-
-    /// Sends a DELETE request to the server with the given path and additional headers if specified.
-    ///
-    /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled).
-    pub async fn delete<B: serde::Serialize>(
-        &mut self,
-        path: impl AsRef<str>,
-        headers: &Headers,
-    ) -> Result<HTTPResponse, Error> {
-        let headers = self
-            .query::<()>(HTTPMethod::DELETE, path.as_ref(), &headers, None)
-            .await?;
-        Ok(HTTPResponse::from_ref(self, headers))
-    }
+    impl_http_method!(post, POST);
+    impl_http_method!(put, PUT);
+    impl_http_method!(patch, PATCH);
+    impl_http_method!(delete, DELETE);
 
     /// Returns the last error on the connection
     pub fn get_error(&self) -> Option<NetworkError> {
@@ -506,6 +477,7 @@ impl DerefMut for RefMutOrOwned<'_, HTTPConnection> {
 }
 
 pub struct HTTPResponse<'a> {
+    url: Url,
     conn: RefMutOrOwned<'a, HTTPConnection>,
     status_code: usize,
     headers: Headers,
@@ -514,29 +486,37 @@ pub struct HTTPResponse<'a> {
 }
 
 impl<'a> HTTPResponse<'a> {
-    fn from_ref(conn: &'a mut HTTPConnection, res_headers: Headers) -> Self {
+    fn from_ref(conn: &'a mut HTTPConnection, path: &Url, res_headers: Headers) -> Self {
         let status_code = conn.get_response_code();
+        let mut url = conn.host.clone();
+        url.set_path(path.path());
+        url.set_query(path.query());
         Self {
             conn: RefMutOrOwned::Ref(conn),
             data: vec![],
             headers: res_headers,
             status_code,
             data_read: false,
+            url,
         }
     }
-    fn from_owned(conn: HTTPConnection, res_headers: Headers) -> Self {
+    fn from_owned(conn: HTTPConnection, path: &Url, res_headers: Headers) -> Self {
         let status_code = conn.get_response_code();
+        let mut url = conn.host.clone();
+        url.set_path(path.path());
+        url.set_query(path.query());
         Self {
             conn: RefMutOrOwned::Owned(conn),
             data: vec![],
             headers: res_headers,
             status_code,
             data_read: false,
+            url,
         }
     }
 
     pub fn url(&self) -> &Url {
-        &self.conn.url
+        &self.url
     }
 
     pub fn status_code(&self) -> usize {
@@ -647,22 +627,30 @@ impl<Body: serde::Serialize> HTTPOptions<Body> {
 }
 
 pub async fn get<'a>(url: impl TryInto<Url>, headers: &Headers) -> Result<HTTPResponse<'a>, Error> {
-    let mut conn = HTTPConnection::new(url)?;
-    let path = conn.url.path().to_string();
+    let url: Url = url.try_into().map_err(|_| ErrorKind::InvalidInput)?;
+    let mut host = url.clone();
+    host.set_path("");
+    host.set_query(None);
+    let mut conn = HTTPConnection::new(host)?;
+    let path = url.path().to_string();
     let headers = conn
         .query::<()>(HTTPMethod::GET, path.as_ref(), headers, None)
         .await?;
-    Ok(HTTPResponse::from_owned(conn, headers))
+    Ok(HTTPResponse::from_owned(conn, &url, headers))
 }
 
-macro_rules! impl_http_method {
+macro_rules! impl_http_method2 {
     ($name:ident, $method:ident) => {
         pub async fn $name<'a, Body: serde::Serialize>(
             url: impl TryInto<Url>,
             options: &HTTPOptions<Body>,
         ) -> Result<HTTPResponse<'a>, Error> {
-            let mut conn = HTTPConnection::new(url)?;
-            let path = conn.url.path().to_string();
+            let url: Url = url.try_into().map_err(|_| ErrorKind::InvalidInput)?;
+            let mut host = url.clone();
+            host.set_path("");
+            host.set_query(None);
+            let mut conn = HTTPConnection::new(host)?;
+            let path = url.path().to_string();
             let headers = conn
                 .query(
                     HTTPMethod::$method,
@@ -671,12 +659,12 @@ macro_rules! impl_http_method {
                     options.body.as_ref(),
                 )
                 .await?;
-            Ok(HTTPResponse::from_owned(conn, headers))
+            Ok(HTTPResponse::from_owned(conn, &url, headers))
         }
     };
 }
 
-impl_http_method!(post, POST);
-impl_http_method!(put, PUT);
-impl_http_method!(patch, PATCH);
-impl_http_method!(delete, DELETE);
+impl_http_method2!(post, POST);
+impl_http_method2!(put, PUT);
+impl_http_method2!(patch, PATCH);
+impl_http_method2!(delete, DELETE);
