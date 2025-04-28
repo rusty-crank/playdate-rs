@@ -1,5 +1,4 @@
 use alloc::boxed::Box;
-use alloc::sync::Arc;
 use core::{
     future::Future,
     pin::Pin,
@@ -12,13 +11,13 @@ struct CallbackFutureSharedState<T> {
 }
 
 pub struct CallbackFuture<T> {
-    state: Arc<spin::Mutex<CallbackFutureSharedState<T>>>,
+    state: Box<spin::Mutex<CallbackFutureSharedState<T>>>,
 }
 
 impl<T> CallbackFuture<T> {
     pub fn new() -> Self {
         Self {
-            state: Arc::new(spin::Mutex::new(CallbackFutureSharedState {
+            state: Box::new(spin::Mutex::new(CallbackFutureSharedState {
                 result: None,
                 waker: None,
             })),
@@ -26,7 +25,8 @@ impl<T> CallbackFuture<T> {
     }
 
     pub fn get_handle(&self) -> *mut core::ffi::c_void {
-        Box::into_raw(Box::new(self.state.clone())) as *mut core::ffi::c_void
+        self.state.as_ref() as *const spin::Mutex<CallbackFutureSharedState<T>>
+            as *mut core::ffi::c_void
     }
 
     pub fn set_result(&self, result: T) {
@@ -35,15 +35,14 @@ impl<T> CallbackFuture<T> {
     }
 
     pub fn resolve(handle: *mut core::ffi::c_void, result: T) {
-        let data = handle as *mut Arc<spin::Mutex<CallbackFutureSharedState<T>>>;
-        let state = unsafe { Box::from_raw(data) };
+        let data = handle as *mut spin::Mutex<CallbackFutureSharedState<T>>;
+        let state = unsafe { &*data };
         let mut state = state.lock();
         if state.result.is_some() {
             return;
         }
         state.result = Some(result);
         if let Some(waker) = state.waker.take() {
-            core::mem::drop(state);
             waker.wake();
         }
     }

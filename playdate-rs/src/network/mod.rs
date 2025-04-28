@@ -6,6 +6,7 @@ pub use crate::sys::WifiStatus;
 
 pub mod http;
 pub mod tcp;
+pub mod ws;
 
 use alloc::boxed::Box;
 

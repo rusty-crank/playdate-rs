@@ -28,6 +28,7 @@ url = { version = "2.5.4", default-features = false }
 serde = { version = "1.0", default-features = false }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 serde_derive = { version = "1.0.219", default-features = false }
+base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
 
 [[example]]
 name = "hello_world"
@@ -47,4 +48,8 @@ crate-type = ["cdylib", "staticlib"]
 
 [[example]]
 name = "timer"
+crate-type = ["cdylib", "staticlib"]
+
+[[example]]
+name = "websocket"
 crate-type = ["cdylib", "staticlib"]

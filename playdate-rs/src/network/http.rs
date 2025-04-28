@@ -261,7 +261,7 @@ impl HTTPConnection {
         future.await;
         // Return headers
         let mut headers = res_headers.borrow_mut();
-        Ok(std::mem::take(&mut *headers))
+        Ok(core::mem::take(&mut *headers))
     }
 
     /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled) and sends a GET request with the given path and additional headers if specified.
@@ -629,7 +629,7 @@ impl<Body: serde::Serialize> HTTPOptions<Body> {
 pub async fn get<'a>(url: impl TryInto<Url>, headers: &Headers) -> Result<HTTPResponse<'a>, Error> {
     let url: Url = url.try_into().map_err(|_| ErrorKind::InvalidInput)?;
     let mut host = url.clone();
-    host.set_path("");
+    host.set_path("/");
     host.set_query(None);
     let mut conn = HTTPConnection::new(host)?;
     let path = url.path().to_string();
@@ -647,7 +647,7 @@ macro_rules! impl_http_method2 {
         ) -> Result<HTTPResponse<'a>, Error> {
             let url: Url = url.try_into().map_err(|_| ErrorKind::InvalidInput)?;
             let mut host = url.clone();
-            host.set_path("");
+            host.set_path("/");
             host.set_query(None);
             let mut conn = HTTPConnection::new(host)?;
             let path = url.path().to_string();

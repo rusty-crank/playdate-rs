@@ -90,6 +90,10 @@ impl Executor {
             target: PLAYDATE.system.get_current_time_milliseconds() + ms,
         }
     }
+
+    pub fn yield_now(&self) -> impl Future<Output = ()> {
+        YieldFuture { yielded: false }
+    }
 }
 
 struct Task {
@@ -139,6 +143,24 @@ impl Future for TimerFuture {
         if curr_time >= self.target {
             Poll::Ready(())
         } else {
+            EXECUTOR.frame_wakers.lock().push(_cx.waker().clone());
+            Poll::Pending
+        }
+    }
+}
+
+pub struct YieldFuture {
+    yielded: bool,
+}
+
+impl Future for YieldFuture {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.yielded {
+            Poll::Ready(())
+        } else {
+            self.yielded = true;
             EXECUTOR.frame_wakers.lock().push(_cx.waker().clone());
             Poll::Pending
         }

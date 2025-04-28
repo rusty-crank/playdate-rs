@@ -94,6 +94,10 @@ impl PlaydateAPI {
     pub fn sleep(&self, ms: usize) -> impl Future<Output = ()> {
         EXECUTOR.sleep(ms)
     }
+
+    pub fn yield_now(&self) -> impl Future<Output = ()> {
+        EXECUTOR.yield_now()
+    }
 }
 
 pub static PLAYDATE: Playdate = Playdate {

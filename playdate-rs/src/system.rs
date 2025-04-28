@@ -27,7 +27,7 @@ impl PlaydateSystem {
     }
 
     /// Calls the log function.
-    pub fn log_to_console(&self, msg: impl AsRef<str>) {
+    pub(crate) fn log_to_console(&self, msg: impl AsRef<str>) {
         unsafe {
             let c_string = CString::new(msg.as_ref()).unwrap();
             (*self.handle).logToConsole.unwrap()(c_string.as_ptr() as *mut c_char);
@@ -35,7 +35,7 @@ impl PlaydateSystem {
     }
 
     /// Calls the log function, outputting an error in red to the console, then pauses execution.
-    pub fn error(&self, msg: impl AsRef<str>) {
+    pub(crate) fn error(&self, msg: impl AsRef<str>) {
         unsafe {
             let c_string = CString::new(msg.as_ref()).unwrap();
             (*self.handle).error.unwrap()(c_string.as_ptr() as *mut c_char);

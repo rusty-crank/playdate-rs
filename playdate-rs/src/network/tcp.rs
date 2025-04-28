@@ -1,6 +1,6 @@
 use core::{ffi::c_void, future::Future};
 
-use alloc::ffi::CString;
+use alloc::{ffi::CString, vec, vec::Vec};
 use url::Url;
 
 use crate::{error::Error, util::callback_to_async::CallbackFuture};
@@ -55,12 +55,11 @@ pub fn request_access(
 }
 
 struct Callbacks {
-    connection_closed: Option<Box<dyn FnOnce()>>,
+    connection_closed: Option<Box<Box<dyn FnMut()>>>,
 }
 
 pub struct TCPConnection {
     handle: *mut sys::TCPConnection,
-    closed: bool,
     callbacks: Box<Callbacks>,
 }
 
@@ -74,7 +73,6 @@ impl TCPConnection {
             || url.query().is_some()
             || url.fragment().is_some()
         {
-            println!("Invalid URL: {:?}", url);
             return Err(ErrorKind::InvalidInput.into());
         }
         let host = url.host_str().unwrap_or("");
@@ -91,11 +89,7 @@ impl TCPConnection {
         });
         let callbacks_ptr = &*callbacks as *const Callbacks as *mut Callbacks;
         unsafe { tcp_handle().setUserdata.unwrap()(handle, callbacks_ptr as _) };
-        let connection = Self {
-            handle,
-            closed: true,
-            callbacks,
-        };
+        let connection = Self { handle, callbacks };
         Ok(connection)
     }
 
@@ -115,7 +109,7 @@ impl TCPConnection {
     }
 
     /// Attempts to open the connection to the server. Note that an error may be returned immediately, or in the open callback depending on where it occurs.
-    pub async fn open(&mut self) -> Result<(), NetworkError> {
+    pub async fn open(&mut self) -> Result<(), Error> {
         let future = CallbackFuture::<NetworkError>::new();
         let handle = future.get_handle();
         extern "C" fn callback_impl(
@@ -130,23 +124,22 @@ impl TCPConnection {
 
         if result != NetworkError::OK {
             future.set_result(result);
-            return Err(result);
         }
         let result = future.await;
         if result != NetworkError::OK {
-            return Err(result);
+            return Err(Error::NetworkError(result));
         }
         Ok(())
     }
 
     /// Sets a callback to be called when the connection is closed.
-    pub fn set_connection_closed_callback(&mut self, callback: Box<dyn FnOnce()>) {
-        self.callbacks.connection_closed = Some(callback);
-        unsafe extern "C" fn callback_impl(conn: *mut sys::TCPConnection, _: NetworkError) {
+    pub fn set_connection_closed_callback(&mut self, callback: Box<dyn FnMut()>) {
+        self.callbacks.connection_closed = Some(Box::new(callback));
+        unsafe extern "C" fn callback_impl(conn: *mut sys::TCPConnection, _e: NetworkError) {
             let callbacks_ptr =
                 unsafe { tcp_handle().getUserdata.unwrap()(conn) } as *mut Callbacks;
             let callbacks = unsafe { &mut *callbacks_ptr };
-            if let Some(cb) = callbacks.connection_closed.take() {
+            if let Some(mut cb) = callbacks.connection_closed.take() {
                 cb();
             }
         }
@@ -160,48 +153,72 @@ impl TCPConnection {
         unsafe { tcp_handle().setReadTimeout.unwrap()(self.handle, ms as _) };
     }
 
-    // Sets the size of the connection’s read buffer. The default buffer size is 64 KB.
+    /// Sets the size of the connection’s read buffer. The default buffer size is 64 KB.
     pub fn set_read_buffer_size(&mut self, bytes: usize) {
         unsafe { tcp_handle().setReadBufferSize.unwrap()(self.handle, bytes as _) };
     }
 
-    // Returns the number of bytes currently available for reading from the connection.
+    /// Returns the number of bytes currently available for reading from the connection.
     pub fn get_bytes_available(&self) -> usize {
         unsafe { tcp_handle().getBytesAvailable.unwrap()(self.handle) as _ }
     }
 
     /// Attempts to read up to length bytes from the connection into buffer. If length is more than the number of bytes available on the connection the function will wait for more data, up to the length of time set by setReadTimeout() (default one second). Returns the number of bytes actually read, or a (negative) PDNetErr value on error.
-    pub fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        let result = unsafe {
-            tcp_handle().read.unwrap()(self.handle, buf.as_mut_ptr() as *mut _, buf.len())
-        };
-        if result >= 0 {
-            Ok(result as usize)
-        } else {
-            Err(ErrorKind::Other.into())
+    pub fn recv<'a, 'b: 'a>(
+        &'a mut self,
+        buf: &'b mut [u8],
+    ) -> impl 'a + Future<Output = Result<usize, Error>> {
+        async move {
+            let result = unsafe {
+                tcp_handle().read.unwrap()(self.handle, buf.as_mut_ptr() as *mut _, buf.len())
+            };
+            if result >= 0 {
+                Ok(result as usize)
+            } else {
+                Err(ErrorKind::Other.into())
+            }
         }
     }
 
-    // Attempts to write up to length bytes to the connection. Returns the number of bytes actually written, which may be less than length, or a (negative) PDNetErr value on error.
-    pub fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        let result = unsafe {
-            tcp_handle().write.unwrap()(self.handle, buf.as_ptr() as *const _, buf.len())
-        };
-        if result >= 0 {
-            Ok(result as usize)
-        } else {
-            Err(ErrorKind::Other.into())
+    /// Attempts to write up to length bytes to the connection. Returns the number of bytes actually written, which may be less than length, or a (negative) PDNetErr value on error.
+    pub fn send<'a, 'b: 'a>(
+        &'a mut self,
+        buf: &'b [u8],
+    ) -> impl 'a + Future<Output = Result<usize, Error>> {
+        async move {
+            let result = unsafe {
+                tcp_handle().write.unwrap()(self.handle, buf.as_ptr() as *const _, buf.len())
+            };
+            if result >= 0 {
+                Ok(result as usize)
+            } else {
+                Err(ErrorKind::Other.into())
+            }
         }
+    }
+
+    pub async fn wait_for_data(&mut self) {
+        loop {
+            if self.get_bytes_available() > 0 {
+                break;
+            }
+            crate::PLAYDATE.yield_now().await;
+        }
+    }
+
+    pub async fn recv_all(&mut self) -> Result<Vec<u8>, Error> {
+        if self.get_bytes_available() == 0 {
+            return Ok(vec![]);
+        }
+        let mut buf = vec![0; self.get_bytes_available()];
+        self.recv(&mut buf).await?;
+        Ok(buf)
     }
 }
 
 impl Drop for TCPConnection {
     fn drop(&mut self) {
-        if !self.closed {
-            unsafe { tcp_handle().close.unwrap()(self.handle) };
-        }
-        unsafe {
-            tcp_handle().release.unwrap()(self.handle);
-        }
+        // Looks like releasing a connection will use-after-free on the handle
+        // unsafe { tcp_handle().release.unwrap()(self.handle) }
     }
 }
