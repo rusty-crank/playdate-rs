@@ -67,7 +67,7 @@ struct Callbacks {
     headers_read: Option<Box<dyn FnMut()>>,
     response: Option<Box<dyn FnMut()>>,
     request_complete: Option<Box<dyn FnMut()>>,
-    connection_closed: Option<Box<dyn FnMut()>>,
+    connection_closed: Option<Box<dyn FnOnce()>>,
 }
 
 pub struct HTTPConnection {
@@ -374,13 +374,13 @@ impl HTTPConnection {
     }
 
     /// Sets a function to be called when the server has closed the connection.
-    pub fn set_connection_closed_callback(&mut self, callback: Box<dyn FnMut()>) {
+    pub fn set_connection_closed_callback(&mut self, callback: Box<dyn FnOnce()>) {
         self.callbacks.connection_closed = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
             let callbacks_ptr =
                 unsafe { http_handle().getUserdata.unwrap()(conn) } as *mut Callbacks;
             let callbacks = unsafe { &mut *callbacks_ptr };
-            if let Some(cb) = callbacks.connection_closed.as_mut() {
+            if let Some(cb) = callbacks.connection_closed.take() {
                 cb();
             }
         }
