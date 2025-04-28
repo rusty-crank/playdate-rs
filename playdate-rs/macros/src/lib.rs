@@ -12,9 +12,8 @@ pub fn main(_attr: TokenStream, item: TokenStream) -> TokenStream {
     );
 
     let result = quote! {
-            #input
-        ::playdate_rs::register_playdate_app!( #name);
-
+        #input
+        ::playdate_rs::register_playdate_app!(#name);
     };
     result.into()
 }
