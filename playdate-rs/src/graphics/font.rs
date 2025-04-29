@@ -1,4 +1,4 @@
-use crate::util::Ref;
+use crate::{fs::AsPath, util::Ref};
 use alloc::ffi::CString;
 
 use crate::PLAYDATE;
@@ -16,9 +16,9 @@ unsafe impl Sync for Font {}
 
 impl Font {
     /// Returns the LCDFont object for the font file at path. In case of error, outErr points to a string describing the error.
-    pub fn load(path: impl AsRef<str>) -> Result<Font, Error> {
+    pub fn load(path: impl AsPath) -> Result<Font, Error> {
         unsafe {
-            let c_string = CString::new(path.as_ref()).unwrap();
+            let c_string = CString::new(path.as_str().as_ref()).unwrap();
             let mut err = core::ptr::null();
             let font =
                 ((*PLAYDATE.graphics.handle).loadFont.unwrap())(c_string.as_ptr() as _, &mut err);

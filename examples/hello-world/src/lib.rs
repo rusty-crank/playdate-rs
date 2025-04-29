@@ -8,7 +8,7 @@ use playdate_rs::PLAYDATE;
 
 #[main]
 async fn main() {
-    let image = Bitmap::open("rust").unwrap();
+    let image = Bitmap::load("rust").unwrap();
     let mut rotation = 0f32;
 
     println!("Hello, World!");

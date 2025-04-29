@@ -1,4 +1,7 @@
-use crate::{error::Error, fs::File};
+use crate::{
+    error::Error,
+    fs::{AsPath, File},
+};
 
 use alloc::{borrow::ToOwned, ffi::CString, string::String};
 
@@ -33,8 +36,8 @@ unsafe impl Sync for VideoPlayer {}
 
 impl VideoPlayer {
     /// Opens the pdv file at path and returns a new video player object for rendering its frames.
-    pub fn load(&self, path: impl AsRef<str>) -> Result<Self, Error> {
-        let c_string = CString::new(path.as_ref()).unwrap();
+    pub fn load(&self, path: impl AsPath) -> Result<Self, Error> {
+        let c_string = CString::new(path.as_str().as_ref()).unwrap();
         let handle =
             unsafe { (*PLAYDATE.graphics.video.handle).loadVideo.unwrap()(c_string.as_ptr()) };
         if handle.is_null() {

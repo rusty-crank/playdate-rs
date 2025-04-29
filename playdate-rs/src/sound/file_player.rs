@@ -1,8 +1,8 @@
-use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::{collections::BTreeMap, ffi::CString};
 use spin::Mutex;
 
+use crate::fs::AsPath;
 use crate::{error::Error, util::Ref, PLAYDATE};
 
 use super::{sound_source::SoundSourcePtr, SoundSource};
@@ -47,8 +47,8 @@ impl FilePlayer {
     }
 
     /// Prepares player to stream the file at path.
-    pub fn load(&self, path: impl AsRef<str>) -> Result<(), Error> {
-        let c_string = CString::new(path.as_ref()).unwrap();
+    pub fn load_from_file(&self, path: impl AsPath) -> Result<(), Error> {
+        let c_string = CString::new(path.as_str().as_ref()).unwrap();
         let result = unsafe {
             (*PLAYDATE.sound.file_player.handle).loadIntoPlayer.unwrap()(
                 self.handle,
@@ -58,14 +58,14 @@ impl FilePlayer {
         if result != 0 {
             Ok(())
         } else {
-            Err(Error::FileNotExists(path.as_ref().to_owned()))
+            Err(Error::FileNotExists(path.as_str().into_owned()))
         }
     }
 
     /// Create a new FilePlayer and load an audio file.
-    pub fn open(path: impl AsRef<str>) -> Result<Self, Error> {
+    pub fn load(path: impl AsPath) -> Result<Self, Error> {
         let player = Self::new();
-        player.load(path)?;
+        player.load_from_file(path)?;
         Ok(player)
     }
 

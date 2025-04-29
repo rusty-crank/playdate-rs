@@ -1,6 +1,6 @@
+use crate::fs::AsPath;
 use crate::{error::Error, PLAYDATE};
 
-use alloc::borrow::ToOwned;
 use alloc::ffi::CString;
 pub use sys::SoundFormat;
 
@@ -29,11 +29,11 @@ impl AudioSample {
     }
 
     /// Allocates and returns a new AudioSample, with the sound data loaded in memory. If there is no file at path, the function returns null.
-    pub fn open(path: impl AsRef<str>) -> Result<Self, Error> {
-        let c_string = CString::new(path.as_ref()).unwrap();
+    pub fn load(path: impl AsPath) -> Result<Self, Error> {
+        let c_string = CString::new(path.as_str().as_ref()).unwrap();
         let handle = unsafe { (*PLAYDATE.sound.sample.handle).load.unwrap()(c_string.as_ptr()) };
         if handle.is_null() {
-            Err(Error::FileNotExists(path.as_ref().to_owned()))
+            Err(Error::FileNotExists(path.as_str().into_owned()))
         } else {
             Ok(Self { handle })
         }
@@ -43,15 +43,15 @@ impl AudioSample {
     // Returns a new AudioSample referencing the given audio data. The sample keeps a pointer to the data instead of copying it, so the data must remain valid while the sample is active. format is one of the following values:
 
     /// Loads the sound data from the file at path into an existing AudioSample, sample.
-    pub fn load(&mut self, path: impl AsRef<str>) -> Result<(), Error> {
-        let c_string = CString::new(path.as_ref()).unwrap();
+    pub fn load_from_file(&mut self, path: impl AsPath) -> Result<(), Error> {
+        let c_string = CString::new(path.as_str().as_ref()).unwrap();
         let result = unsafe {
             (*PLAYDATE.sound.sample.handle).loadIntoSample.unwrap()(self.handle, c_string.as_ptr())
         };
         if result != 0 {
             Ok(())
         } else {
-            Err(Error::FileNotExists(path.as_ref().to_owned()))
+            Err(Error::FileNotExists(path.as_str().into_owned()))
         }
     }
 

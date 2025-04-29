@@ -1,6 +1,9 @@
 use core::{ffi::c_char, marker::PhantomData};
 
-use crate::math::{Size, Vec2};
+use crate::{
+    fs::AsPath,
+    math::{Size, Vec2},
+};
 use alloc::ffi::CString;
 
 use crate::{math::SideOffsets, util::Ref};
@@ -39,9 +42,9 @@ impl Bitmap {
     }
 
     /// Open an image as a bitmap.
-    pub fn open(path: impl AsRef<str>) -> Result<Self, Error> {
+    pub fn load(path: impl AsPath) -> Result<Self, Error> {
         unsafe {
-            let c_string = CString::new(path.as_ref()).unwrap();
+            let c_string = CString::new(path.as_str().as_ref()).unwrap();
             let mut err: *const c_char = core::ptr::null();
             let ptr =
                 ((*PLAYDATE.graphics.handle).loadBitmap.unwrap())(c_string.as_ptr() as _, &mut err);
@@ -126,8 +129,8 @@ impl Bitmap {
     }
 
     /// Loads the image at path into the previously allocated bitmap.
-    pub fn load(&self, path: impl AsRef<str>) -> Result<(), Error> {
-        let c_string = CString::new(path.as_ref()).unwrap();
+    pub fn load_from_file(&self, path: impl AsPath) -> Result<(), Error> {
+        let c_string = CString::new(path.as_str().as_ref()).unwrap();
         let mut err: *const c_char = core::ptr::null();
         unsafe {
             ((*PLAYDATE.graphics.handle).loadIntoBitmap.unwrap())(
@@ -280,9 +283,9 @@ impl BitmapTable {
     }
 
     /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
-    pub fn open(path: impl AsRef<str>) -> Result<BitmapTable, Error> {
+    pub fn load(path: impl AsPath) -> Result<BitmapTable, Error> {
         unsafe {
-            let c_string = CString::new(path.as_ref()).unwrap();
+            let c_string = CString::new(path.as_str().as_ref()).unwrap();
             let mut err = core::ptr::null();
             let ptr = ((*PLAYDATE.graphics.handle).loadBitmapTable.unwrap())(
                 c_string.as_ptr() as _,
@@ -324,8 +327,8 @@ impl BitmapTable {
     }
 
     /// Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
-    pub fn load(&mut self, path: impl AsRef<str>) -> Result<(), Error> {
-        let c_string = CString::new(path.as_ref()).unwrap();
+    pub fn load_from_file(&mut self, path: impl AsPath) -> Result<(), Error> {
+        let c_string = CString::new(path.as_str().as_ref()).unwrap();
         let mut err: *const c_char = core::ptr::null();
         unsafe {
             ((*PLAYDATE.graphics.handle).loadIntoBitmapTable.unwrap())(
