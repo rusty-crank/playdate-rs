@@ -465,8 +465,8 @@ impl HTTPConnection {
     }
 
     /// Sets a function to be called when the server has closed the connection.
-    pub fn set_connection_closed_callback(&mut self, callback: Box<dyn FnMut()>) {
-        self.state.borrow_mut().connection_closed = Some(callback);
+    pub fn set_connection_closed_callback(&mut self, callback: impl 'static + FnMut()) {
+        self.state.borrow_mut().connection_closed = Some(Box::new(callback));
     }
 }
 

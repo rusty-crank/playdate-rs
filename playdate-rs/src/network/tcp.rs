@@ -58,7 +58,7 @@ pub fn request_access(
 struct SharedState {
     closed: bool,
     should_release: bool,
-    connection_closed: Option<Box<Box<dyn FnMut()>>>,
+    connection_closed: Option<Box<dyn FnMut()>>,
 }
 
 pub struct TCPConnection {
@@ -175,7 +175,7 @@ impl TCPConnection {
     }
 
     /// Sets a callback to be called when the connection is closed.
-    pub fn set_connection_closed_callback(&mut self, callback: Box<dyn FnMut()>) {
+    pub fn set_connection_closed_callback(&mut self, callback: impl 'static + FnMut()) {
         self.state.borrow_mut().connection_closed = Some(Box::new(callback));
     }
 
