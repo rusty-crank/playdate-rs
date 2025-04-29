@@ -171,4 +171,12 @@ impl WebSocket {
             Err(_e) => Err(ErrorKind::InvalidData.into()),
         }
     }
+
+    pub fn close(&mut self) {
+        self.conn.close()
+    }
+
+    pub fn is_closed(&self) -> bool {
+        self.conn.is_closed()
+    }
 }
