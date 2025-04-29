@@ -1,16 +1,19 @@
-use core::{
-    cell::RefCell,
-    ffi::{c_char, c_void, CStr},
-};
+use core::ffi::{c_char, c_void, CStr};
 
-use alloc::{boxed::Box, ffi::CString, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, ffi::CString, vec::Vec};
 pub use sys::{
     LCDFontData as FontData, PDDateTime as DateTime, PDLanguage as Language,
     PDSystemEvent as SystemEvent,
 };
 use sys::{PDButtons, PDPeripherals};
 
-use crate::{graphics::Bitmap, math::Vec2, PLAYDATE};
+use crate::{graphics::Bitmap, math::Vec2};
+
+mod events;
+mod menu;
+
+pub use events::EventManager;
+pub use menu::MenuItem;
 
 pub struct PlaydateSystem {
     handle: *const sys::playdate_sys,
@@ -361,93 +364,6 @@ impl PlaydateSystem {
     }
 }
 
-struct MenuItemPayload {
-    handle: RefCell<*mut sys::PDMenuItem>,
-    handler: RefCell<Option<Box<dyn FnMut() -> ()>>>,
-}
-
-pub struct MenuItem {
-    handle: *mut sys::PDMenuItem,
-    payload: Arc<MenuItemPayload>,
-}
-
-unsafe impl Send for MenuItem {}
-unsafe impl Sync for MenuItem {}
-
-impl MenuItem {
-    fn new() -> Self {
-        MenuItem {
-            handle: core::ptr::null_mut(),
-            payload: Arc::new(MenuItemPayload {
-                handle: RefCell::new(core::ptr::null_mut()),
-                handler: RefCell::new(None),
-            }),
-        }
-    }
-
-    fn set_handle(&mut self, handle: *mut sys::PDMenuItem) {
-        self.handle = handle;
-        *self.payload.handle.borrow_mut() = handle;
-    }
-
-    fn payload_ptr(&self) -> *mut c_void {
-        let payload: &MenuItemPayload = self.payload.as_ref();
-        let payload_ptr: *mut MenuItemPayload = payload as *const _ as *mut _;
-        payload_ptr as *mut c_void
-    }
-
-    extern "C" fn callback(payload: *mut c_void) {
-        let payload: &MenuItemPayload = unsafe { &*(payload as *const MenuItemPayload) };
-        let mut handler = payload.handler.borrow_mut();
-        if let Some(ref mut f) = *handler {
-            f();
-        }
-    }
-
-    /// Gets the integer value of the menu item.
-    ///
-    /// For checkmark menu items, 1 means checked, 0 unchecked. For option menu items, the value indicates the array index of the currently selected option.
-    pub fn get_value(&self) -> i32 {
-        unsafe { (*PLAYDATE.system.handle).getMenuItemValue.unwrap()(self.handle) }
-    }
-
-    /// Sets the integer value of the menu item.
-    ///
-    /// For checkmark menu items, 1 means checked, 0 unchecked. For option menu items, the value indicates the array index of the currently selected option.
-    pub fn set_value(&self, value: i32) {
-        unsafe { (*PLAYDATE.system.handle).setMenuItemValue.unwrap()(self.handle, value) }
-    }
-
-    /// Gets the display title of the menu item.
-    pub fn get_title(&self) -> &str {
-        let c_buf = unsafe { (*PLAYDATE.system.handle).getMenuItemTitle.unwrap()(self.handle) };
-        let c_str: &CStr = unsafe { CStr::from_ptr(c_buf) };
-        let s: &str = c_str.to_str().unwrap();
-        s
-    }
-
-    /// Sets the display title of the menu item.
-    pub fn set_title(&self, title: impl AsRef<str>) {
-        let c_string = CString::new(title.as_ref()).unwrap();
-        unsafe {
-            (*PLAYDATE.system.handle).setMenuItemTitle.unwrap()(
-                self.handle,
-                c_string.as_ptr() as *mut c_char,
-            )
-        }
-    }
-
-    pub fn set_handler(&mut self, handler: impl 'static + FnMut() -> ()) {
-        *self.payload.handler.borrow_mut() = Some(Box::new(handler));
-    }
-}
-
-impl Drop for MenuItem {
-    fn drop(&mut self) {
-        unsafe { (*PLAYDATE.system.handle).removeMenuItem.unwrap()(self.handle) }
-    }
-}
-
 #[derive(Debug)]
 pub struct ButtonState {
     pub current: Buttons,
@@ -473,53 +389,4 @@ pub enum Peripherals {
 impl Peripherals {
     pub const NONE: Self = Peripherals::none();
     pub const ALL: Self = Peripherals::all_bits();
-}
-
-type EventHandler = Box<dyn FnMut(u32) -> ()>;
-
-pub struct EventManager {
-    handlers: [spin::Mutex<Vec<EventHandler>>; Self::NUM_EVENT_TYPES],
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CallbackHandle {
-    ptr: *const dyn FnMut(u32) -> (),
-}
-
-impl EventManager {
-    pub(crate) const NUM_EVENT_TYPES: usize = 12;
-
-    pub(crate) fn new() -> Self {
-        Self {
-            handlers: [const { spin::Mutex::new(Vec::new()) }; Self::NUM_EVENT_TYPES],
-        }
-    }
-
-    pub fn on(
-        &self,
-        event: SystemEvent,
-        handler: impl 'static + FnMut(u32) -> (),
-    ) -> CallbackHandle {
-        let handler: EventHandler = Box::new(handler);
-        let handle = CallbackHandle {
-            ptr: handler.as_ref() as *const dyn FnMut(u32) -> (),
-        };
-        self.handlers[event as usize].lock().push(handler);
-        handle
-    }
-
-    #[allow(ambiguous_wide_pointer_comparisons)]
-    pub fn off(&self, event: SystemEvent, handle: CallbackHandle) {
-        let retain = |h: &EventHandler| h.as_ref() as *const dyn FnMut(u32) -> () != handle.ptr;
-        let mut handlers = self.handlers[event as usize].lock();
-        handlers.retain(retain);
-    }
-
-    pub(crate) fn signal(&self, event: SystemEvent, arg: u32) {
-        let mut handlers = self.handlers[event as usize].lock();
-        for handler in handlers.iter_mut() {
-            let handler = handler.as_mut();
-            handler(arg);
-        }
-    }
 }
