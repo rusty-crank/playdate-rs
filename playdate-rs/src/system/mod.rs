@@ -7,7 +7,7 @@ pub use sys::{
 };
 use sys::{PDButtons, PDPeripherals};
 
-use crate::{graphics::Bitmap, math::Vec2};
+use crate::{graphics::Bitmap, math::Vec2, PLAYDATE};
 
 mod events;
 mod menu;
@@ -379,6 +379,20 @@ pub enum Buttons {
     Down = 1 << 3,
     B = 1 << 4,
     A = 1 << 5,
+}
+
+impl Buttons {
+    pub fn pushed(&self) -> bool {
+        PLAYDATE.system.get_button_state().pushed.contains(*self)
+    }
+
+    pub fn released(&self) -> bool {
+        PLAYDATE.system.get_button_state().released.contains(*self)
+    }
+
+    pub fn active(&self) -> bool {
+        PLAYDATE.system.get_button_state().current.contains(*self)
+    }
 }
 
 #[bitmask_enum::bitmask(u16)]

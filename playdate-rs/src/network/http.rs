@@ -372,20 +372,29 @@ impl HTTPConnection {
     }
 
     /// On success, returns up to length bytes (limited by the size of the read buffer) from the connection. If length is more than the number of bytes available the function will wait for more data up to the length of time set by setReadTimeout() (default one second).
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        let result = unsafe {
-            http_handle().read.unwrap()(self.handle, buf.as_mut_ptr() as *mut _, buf.len() as u32)
-        };
-        if result >= 0 {
-            Ok(result as usize)
-        } else {
-            Err(ErrorKind::Other.into())
+    pub fn read<'a, 'b: 'a>(
+        &'a mut self,
+        buf: &'b mut [u8],
+    ) -> impl 'a + Future<Output = Result<usize, Error>> {
+        async move {
+            let result = unsafe {
+                http_handle().read.unwrap()(
+                    self.handle,
+                    buf.as_mut_ptr() as *mut _,
+                    buf.len() as u32,
+                )
+            };
+            if result >= 0 {
+                Ok(result as usize)
+            } else {
+                Err(ErrorKind::Other.into())
+            }
         }
     }
 
-    fn read_all(&mut self) -> Result<Vec<u8>, Error> {
+    async fn read_all(&mut self) -> Result<Vec<u8>, Error> {
         let mut buf = vec![0; self.get_bytes_available()];
-        let read = self.read(&mut buf)?;
+        let read = self.read(&mut buf).await?;
         assert!(read == buf.len());
         Ok(buf)
     }
@@ -562,22 +571,21 @@ impl<'a> HTTPResponse<'a> {
         self.status_code >= 200 && self.status_code < 300
     }
 
-    fn read_all(&mut self) -> Result<(), Error> {
+    async fn read_all(&mut self) -> Result<(), Error> {
         if self.data_read {
             return Ok(());
         }
-        let buf = self.conn.read_all()?;
+        let buf = self.conn.read_all().await?;
         self.data = buf;
         self.data_read = true;
         Ok(())
     }
 
-    pub fn data(&mut self) -> impl Future<Output = Result<&[u8], Error>> {
-        let result = match self.read_all() {
+    pub async fn data(&mut self) -> Result<&[u8], Error> {
+        match self.read_all().await {
             Ok(()) => Ok(self.data.as_slice()),
             Err(e) => Err(e),
-        };
-        async move { result }
+        }
     }
 
     pub async fn string(&mut self) -> Result<&str, Error> {

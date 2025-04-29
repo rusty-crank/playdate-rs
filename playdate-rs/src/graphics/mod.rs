@@ -291,6 +291,9 @@ impl PlaydateGraphics {
         wrap: TextWrap,
         align: TextAlign,
     ) {
+        if text.as_ref().is_empty() {
+            return;
+        }
         let ptr = text.as_ref().as_ptr() as *const c_void;
         let len = text.as_ref().chars().count();
         unsafe {
