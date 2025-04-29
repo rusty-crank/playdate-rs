@@ -1,15 +1,13 @@
 use alloc::ffi::CString;
 use alloc::sync::Arc;
-use core::{
-    cell::RefCell,
-    ffi::{c_char, c_void, CStr},
-};
+use core::ffi::{c_char, c_void, CStr};
+use spin::Mutex;
 
 use crate::PLAYDATE;
 
 struct MenuItemPayload {
-    handle: RefCell<*mut sys::PDMenuItem>,
-    handler: RefCell<Option<Box<dyn FnMut()>>>,
+    handle: Mutex<*mut sys::PDMenuItem>,
+    handler: Mutex<Option<Box<dyn FnMut()>>>,
 }
 
 pub struct MenuItem {
@@ -25,15 +23,15 @@ impl MenuItem {
         MenuItem {
             handle: core::ptr::null_mut(),
             payload: Arc::new(MenuItemPayload {
-                handle: RefCell::new(core::ptr::null_mut()),
-                handler: RefCell::new(None),
+                handle: Mutex::new(core::ptr::null_mut()),
+                handler: Mutex::new(None),
             }),
         }
     }
 
     pub(crate) fn set_handle(&mut self, handle: *mut sys::PDMenuItem) {
         self.handle = handle;
-        *self.payload.handle.borrow_mut() = handle;
+        *self.payload.handle.lock() = handle;
     }
 
     pub(crate) fn payload_ptr(&self) -> *mut c_void {
@@ -44,7 +42,7 @@ impl MenuItem {
 
     pub(crate) extern "C" fn callback(payload: *mut c_void) {
         let payload: &MenuItemPayload = unsafe { &*(payload as *const MenuItemPayload) };
-        let mut handler = payload.handler.borrow_mut();
+        let mut handler = payload.handler.lock();
         if let Some(ref mut f) = *handler {
             f();
         }
@@ -84,7 +82,7 @@ impl MenuItem {
     }
 
     pub fn set_handler(&mut self, handler: impl 'static + FnMut()) {
-        *self.payload.handler.borrow_mut() = Some(Box::new(handler));
+        *self.payload.handler.lock() = Some(Box::new(handler));
     }
 }
 
