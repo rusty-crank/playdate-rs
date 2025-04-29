@@ -43,7 +43,7 @@ async fn main() {
     let output_clone = output.clone();
 
     spawn! {
-        let mut res = http::get("https://api.sampleapis.com/coffee/hot", &Headers::default()).await.unwrap();
+        let res = http::get("https://api.sampleapis.com/coffee/hot", &Headers::default()).await.unwrap();
         println!("Status Code: {:?}", res.status_code());
         println!("Headers: {:?}", res.headers());
         let coffee_list = res.json::<Vec<Coffee>>().await.unwrap();

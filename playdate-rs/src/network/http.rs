@@ -1,5 +1,6 @@
+use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use core::{cell::RefCell, future::Future};
+use core::{cell::RefCell, future::Future, marker::PhantomData};
 
 use alloc::ffi::CString;
 use url::Url;
@@ -536,8 +537,6 @@ pub struct HTTPResponse<'a> {
     conn: RefMutOrOwned<'a, HTTPConnection>,
     status_code: usize,
     headers: Headers,
-    data: Vec<u8>,
-    data_read: bool,
 }
 
 impl<'a> HTTPResponse<'a> {
@@ -548,10 +547,8 @@ impl<'a> HTTPResponse<'a> {
         url.set_query(path.query());
         Self {
             conn: RefMutOrOwned::Ref(conn),
-            data: vec![],
             headers: res_headers,
             status_code,
-            data_read: false,
             url,
         }
     }
@@ -562,10 +559,8 @@ impl<'a> HTTPResponse<'a> {
         url.set_query(path.query());
         Self {
             conn: RefMutOrOwned::Owned(conn),
-            data: vec![],
             headers: res_headers,
             status_code,
-            data_read: false,
             url,
         }
     }
@@ -582,28 +577,19 @@ impl<'a> HTTPResponse<'a> {
         self.status_code >= 200 && self.status_code < 300
     }
 
-    async fn read_all(&mut self) -> Result<(), Error> {
-        if self.data_read {
-            return Ok(());
-        }
-        let buf = self.conn.read_all().await?;
-        self.data = buf;
-        self.data_read = true;
-        Ok(())
+    async fn read_all(&mut self) -> Result<Vec<u8>, Error> {
+        self.conn.read_all().await
     }
 
-    pub async fn data(&mut self) -> Result<&[u8], Error> {
-        match self.read_all().await {
-            Ok(()) => Ok(self.data.as_slice()),
-            Err(e) => Err(e),
-        }
+    pub async fn data(mut self) -> Result<Vec<u8>, Error> {
+        self.read_all().await
     }
 
-    pub async fn string(&mut self) -> Result<&str, Error> {
+    pub async fn string(self) -> Result<String, Error> {
         let data = self.data().await?;
-        let result = core::str::from_utf8(data);
+        let result = core::str::from_utf8(&data);
         match result {
-            Ok(value) => Ok(value),
+            Ok(value) => Ok(value.to_owned()),
             Err(_) => Err(ErrorKind::InvalidData.into()),
         }
     }
@@ -616,12 +602,21 @@ impl<'a> HTTPResponse<'a> {
         self.headers.get(key)
     }
 
-    pub async fn json<T: serde::de::DeserializeOwned>(&mut self) -> Result<T, Error> {
+    pub async fn json<T: serde::de::DeserializeOwned>(self) -> Result<T, Error> {
         let data = self.string().await?;
-        let result = serde_json::from_str(data);
+        let result = serde_json::from_str(&data);
         match result {
             Ok(value) => Ok(value),
             Err(_e) => Err(ErrorKind::InvalidData.into()),
+        }
+    }
+
+    pub fn stream(self) -> HTTPEventStream<'a, Vec<u8>, HTTPRawEventStream<'a>> {
+        HTTPEventStream {
+            stream: HTTPRawEventStream { res: self },
+            map: MapFunc::Ref(&|s| Ok(s)),
+            p: PhantomData,
+            filter: None,
         }
     }
 
@@ -631,6 +626,178 @@ impl<'a> HTTPResponse<'a> {
 
     pub fn bytes_available(&self) -> usize {
         self.conn.get_bytes_available()
+    }
+}
+
+pub trait AsyncStream<'a> {
+    type Item;
+
+    #[allow(async_fn_in_trait)]
+    async fn next(&mut self) -> Result<Self::Item, Error>;
+}
+
+pub struct HTTPRawEventStream<'a> {
+    res: HTTPResponse<'a>,
+}
+
+impl<'a> AsyncStream<'a> for HTTPRawEventStream<'a> {
+    type Item = Vec<u8>;
+
+    async fn next(&mut self) -> Result<Vec<u8>, Error> {
+        loop {
+            if self.res.conn.get_bytes_available() > 0 {
+                break;
+            }
+            crate::PLAYDATE.yield_now().await;
+        }
+        let data = self.res.conn.read_all().await?;
+        Ok(data)
+    }
+}
+
+enum MapFunc<'a, T, U> {
+    Owned(Box<dyn Fn(T) -> Result<U, Error>>),
+    Ref(&'a dyn Fn(T) -> Result<U, Error>),
+}
+
+impl<'a, T, U> MapFunc<'a, T, U> {
+    fn call(&self, value: T) -> Result<U, Error> {
+        match self {
+            MapFunc::Owned(f) => f(value),
+            MapFunc::Ref(f) => f(value),
+        }
+    }
+}
+
+pub struct HTTPEventStream<'a, T: 'static, S: AsyncStream<'a>> {
+    stream: S,
+    map: MapFunc<'a, S::Item, T>,
+    filter: Option<Box<dyn Fn(&T) -> bool>>,
+    p: PhantomData<&'a T>,
+}
+
+impl<'a, T, S: AsyncStream<'a>> AsyncStream<'a> for HTTPEventStream<'a, T, S> {
+    type Item = T;
+    async fn next(&mut self) -> Result<T, Error> {
+        loop {
+            let value = self.stream.next().await?;
+            let mapped_value = self.map.call(value)?;
+            if let Some(ref filter) = self.filter {
+                if !filter(&mapped_value) {
+                    continue;
+                }
+            }
+            return Ok(mapped_value);
+        }
+    }
+}
+
+impl<'a, T: 'static, S: AsyncStream<'a>> HTTPEventStream<'a, T, S> {
+    pub fn map<U: 'a>(
+        self,
+        f: impl 'static + Fn(T) -> Result<U, Error>,
+    ) -> HTTPEventStream<'a, U, Self> {
+        HTTPEventStream {
+            stream: self,
+            map: MapFunc::Owned(Box::new(f)),
+            filter: None,
+            p: PhantomData,
+        }
+    }
+
+    pub fn filter(mut self, f: impl 'static + Fn(&T) -> bool) -> Self
+    where
+        T: 'static,
+    {
+        if self.filter.is_none() {
+            self.filter = Some(Box::new(f));
+        } else {
+            let filter = self.filter.take().unwrap();
+            self.filter = Some(Box::new(move |item| filter(&item) && f(item)));
+        }
+        self
+    }
+}
+
+impl<'a, S: AsyncStream<'a>> HTTPEventStream<'a, Vec<u8>, S> {
+    pub fn string(self) -> HTTPEventStream<'a, String, Self> {
+        self.map(|s| {
+            let result = core::str::from_utf8(&s);
+            match result {
+                Ok(value) => Ok(value.to_owned()),
+                Err(_) => Err(ErrorKind::InvalidData.into()),
+            }
+        })
+    }
+}
+
+impl<'a, S: AsyncStream<'a>> HTTPEventStream<'a, Vec<u8>, S> {
+    pub fn map_json<U: serde::de::DeserializeOwned>(
+        self,
+    ) -> HTTPEventStream<'a, U, HTTPEventStream<'a, String, HTTPEventStream<'a, Vec<u8>, S>>> {
+        self.string().map_json()
+    }
+}
+
+impl<'a, S: AsyncStream<'a>> HTTPEventStream<'a, String, S> {
+    pub fn map_json<U: serde::de::DeserializeOwned>(self) -> HTTPEventStream<'a, U, Self> {
+        HTTPEventStream {
+            stream: self,
+            map: MapFunc::Owned(Box::new(|s| {
+                let result = serde_json::from_str(&s);
+                match result {
+                    Ok(value) => Ok(value),
+                    Err(_e) => Err(ErrorKind::InvalidData.into()),
+                }
+            })),
+            filter: None,
+            p: PhantomData,
+        }
+    }
+}
+
+impl<'a, T, S: AsyncStream<'a>> HTTPEventStream<'a, Vec<T>, S> {
+    pub fn flatten(self) -> HTTPEventStream<'a, T, HTTPFlattenedEventStream<'a, T, Self>> {
+        let f = HTTPFlattenedEventStream {
+            stream: self,
+            buf: VecDeque::new(),
+            p: PhantomData,
+        };
+        HTTPEventStream {
+            stream: f,
+            map: MapFunc::Ref(&|s| Ok(s)),
+            filter: None,
+            p: PhantomData,
+        }
+    }
+}
+
+pub struct HTTPFlattenedEventStream<'a, T, S: AsyncStream<'a, Item = Vec<T>>> {
+    stream: S,
+    buf: VecDeque<T>,
+    p: PhantomData<&'a T>,
+}
+
+impl<'a, T: 'static, S: AsyncStream<'a, Item = Vec<T>>> AsyncStream<'a>
+    for HTTPFlattenedEventStream<'a, T, S>
+{
+    type Item = T;
+    async fn next(&mut self) -> Result<T, Error> {
+        if let Some(value) = self.buf.pop_front() {
+            return Ok(value);
+        }
+        loop {
+            let buf = self.stream.next().await?;
+            if buf.is_empty() {
+                continue;
+            }
+            for value in buf {
+                self.buf.push_back(value);
+            }
+            if let Some(value) = self.buf.pop_front() {
+                return Ok(value);
+            }
+        }
     }
 }
 

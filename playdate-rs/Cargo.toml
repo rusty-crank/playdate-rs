@@ -53,3 +53,7 @@ crate-type = ["cdylib", "staticlib"]
 [[example]]
 name = "websocket"
 crate-type = ["cdylib", "staticlib"]
+
+[[example]]
+name = "chatgpt"
+crate-type = ["cdylib", "staticlib"]
