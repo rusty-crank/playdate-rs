@@ -3,10 +3,13 @@ mod sample;
 mod sample_player;
 mod sound_source;
 
+use core::ffi::c_void;
+
 pub use file_player::FilePlayer;
 pub use sample::{AudioSample, AudioSampleData, SoundFormat};
 pub use sample_player::SamplePlayer;
 pub use sound_source::SoundSource;
+pub use sys::MicSource;
 
 pub struct PlaydateSound {
     #[allow(unused)]
@@ -71,7 +74,20 @@ impl PlaydateSound {
     // pub removeChannel: ::core::option::Option<
     //     unsafe extern "C" fn(channel: *mut SoundChannel) -> ::core::ffi::c_int,
     // >,
-    // pub setMicCallback: ::core::option::Option<
+    pub fn set_mic_callback(&self, source: MicSource, f: impl FnMut(&[u8]) + 'static) {
+        let f: Box<Box<dyn FnMut(&[u8])>> = Box::new(Box::new(f));
+        let ptr = Box::into_raw(f) as *mut Box<dyn FnMut(&[u8])> as *mut c_void;
+        unsafe extern "C" fn mic_callback_impl(ctx: *mut c_void, data: *mut i16, len: i32) -> i32 {
+            let f = ctx as *mut Box<dyn FnMut(&[u8])>;
+            let f = unsafe { &mut *f };
+            let slice = unsafe { core::slice::from_raw_parts(data as *mut u8, (len * 2) as _) };
+            f(slice);
+            1
+        }
+        unsafe { (*self.handle).setMicCallback.unwrap()(Some(mic_callback_impl), ptr, source) };
+    }
+
+    // : ::core::option::Option<
     //     unsafe extern "C" fn(
     //         callback: RecordCallback,
     //         context: *mut ::core::ffi::c_void,

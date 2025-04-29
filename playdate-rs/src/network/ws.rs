@@ -210,17 +210,24 @@ impl WebSocket {
     }
 
     pub async fn recv_string(&self) -> Result<String, Error> {
-        let data = self.recv().await?;
-        let s = core::str::from_utf8(&data).map_err(|_| ErrorKind::InvalidData)?;
+        let data = self.recv().await.unwrap();
+        let s = core::str::from_utf8(&data).map_err(|_| {
+            println!("Error parsing UTF-8: {} {}", data.len(), self.is_closed());
+            ErrorKind::InvalidData
+        })?;
         Ok(s.to_string())
     }
 
     pub async fn recv_json<T: serde::de::DeserializeOwned>(&self) -> Result<T, Error> {
-        let data = self.recv_string().await?;
+        let data = self.recv_string().await.unwrap();
         let result = serde_json::from_str(data.as_str());
         match result {
             Ok(value) => Ok(value),
-            Err(_e) => Err(ErrorKind::InvalidData.into()),
+            Err(_e) => {
+                println!("Error parsing JSON: {}", _e);
+                println!("Data: {}", data);
+                Err(ErrorKind::InvalidData.into())
+            }
         }
     }
 
