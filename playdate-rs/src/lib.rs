@@ -202,7 +202,11 @@ pub fn __playdate_handle_event<F: 'static + Future<Output = ()>>(
 
 unsafe extern "C" fn handle_frame_update(_: *mut core::ffi::c_void) -> i32 {
     EXECUTOR.signal_next_frame();
-    1
+    if PLAYDATE.display.should_update() {
+        1
+    } else {
+        0
+    }
 }
 
 #[macro_export]

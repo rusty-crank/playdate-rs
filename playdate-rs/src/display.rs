@@ -4,9 +4,35 @@ pub struct PlaydateDisplay {
     handle: *const sys::playdate_display,
 }
 
+static mut MANUAL_UPDATE_ENABLED: bool = false;
+static mut SHOULD_MANUAL_UPDATE: bool = false;
+
 impl PlaydateDisplay {
     pub(crate) fn new(handle: *const sys::playdate_display) -> Self {
         Self { handle }
+    }
+
+    pub(crate) fn should_update(&self) -> bool {
+        unsafe {
+            if !MANUAL_UPDATE_ENABLED {
+                return true;
+            }
+            let v = SHOULD_MANUAL_UPDATE;
+            SHOULD_MANUAL_UPDATE = false;
+            v
+        }
+    }
+
+    pub fn force_update(&self) {
+        unsafe {
+            SHOULD_MANUAL_UPDATE = true;
+        }
+    }
+
+    pub fn enable_manual_update(&self, enable: bool) {
+        unsafe {
+            MANUAL_UPDATE_ENABLED = enable;
+        }
     }
 
     /// Returns the height of the display, taking the current scale into account; e.g., if the scale is 2, this function returns 120 instead of 240.
