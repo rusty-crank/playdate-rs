@@ -1,4 +1,4 @@
-use core::{ffi::c_void, future::Future};
+use core::{cell::RefCell, ffi::c_void, future::Future};
 
 use alloc::{ffi::CString, vec, vec::Vec};
 use url::Url;
@@ -6,6 +6,7 @@ use url::Url;
 use crate::{error::Error, util::callback_to_async::CallbackFuture};
 use alloc::boxed::Box;
 use alloc::string::String;
+use alloc::sync::Arc;
 use no_std_io::io::ErrorKind;
 use sys::{accessReply as AccessReply, PDNetErr as NetworkError};
 
@@ -54,13 +55,15 @@ pub fn request_access(
     }
 }
 
-struct Callbacks {
+struct SharedState {
+    closed: bool,
+    should_release: bool,
     connection_closed: Option<Box<Box<dyn FnMut()>>>,
 }
 
 pub struct TCPConnection {
     handle: *mut sys::TCPConnection,
-    callbacks: Box<Callbacks>,
+    state: Arc<RefCell<SharedState>>,
 }
 
 impl TCPConnection {
@@ -84,13 +87,51 @@ impl TCPConnection {
         if handle.is_null() {
             return Err(ErrorKind::PermissionDenied.into());
         }
-        let callbacks = Box::new(Callbacks {
+        let state = Arc::new(RefCell::new(SharedState {
+            closed: true,
+            should_release: false,
             connection_closed: None,
-        });
-        let callbacks_ptr = &*callbacks as *const Callbacks as *mut Callbacks;
-        unsafe { tcp_handle().setUserdata.unwrap()(handle, callbacks_ptr as _) };
-        let connection = Self { handle, callbacks };
+        }));
+        let state_ptr = Box::leak(Box::new(state.clone())) as *mut Arc<RefCell<SharedState>>;
+        unsafe { tcp_handle().setUserdata.unwrap()(handle, state_ptr as _) };
+        unsafe extern "C" fn callback_impl(conn: *mut sys::TCPConnection, _e: NetworkError) {
+            let state_ptr = unsafe { tcp_handle().getUserdata.unwrap()(conn) }
+                as *mut Arc<RefCell<SharedState>>;
+            let state = unsafe { &*state_ptr };
+            let mut state = state.borrow_mut();
+            state.closed = true;
+            if state.should_release {
+                TCPConnection::release(conn);
+                return;
+            }
+            if let Some(cb) = state.connection_closed.as_mut() {
+                cb();
+            }
+        }
+        unsafe { tcp_handle().setConnectionClosedCallback.unwrap()(handle, Some(callback_impl)) }
+        let connection = Self { handle, state };
         Ok(connection)
+    }
+
+    fn release(conn: *mut sys::TCPConnection) {
+        unsafe {
+            let state_ptr =
+                tcp_handle().getUserdata.unwrap()(conn) as *mut Arc<RefCell<SharedState>>;
+            let _boxed = Box::from_raw(state_ptr);
+            tcp_handle().setUserdata.unwrap()(conn, core::ptr::null_mut());
+            tcp_handle().release.unwrap()(conn);
+        }
+    }
+
+    pub fn is_closed(&self) -> bool {
+        self.state.borrow().closed
+    }
+
+    pub fn close(&mut self) {
+        if self.is_closed() {
+            return;
+        }
+        unsafe { tcp_handle().close.unwrap()(self.handle) };
     }
 
     /// Returns the last error on the connection
@@ -126,6 +167,7 @@ impl TCPConnection {
             future.set_result(result);
         }
         let result = future.await;
+        self.state.borrow_mut().closed = false;
         if result != NetworkError::OK {
             return Err(Error::NetworkError(result));
         }
@@ -134,18 +176,7 @@ impl TCPConnection {
 
     /// Sets a callback to be called when the connection is closed.
     pub fn set_connection_closed_callback(&mut self, callback: Box<dyn FnMut()>) {
-        self.callbacks.connection_closed = Some(Box::new(callback));
-        unsafe extern "C" fn callback_impl(conn: *mut sys::TCPConnection, _e: NetworkError) {
-            let callbacks_ptr =
-                unsafe { tcp_handle().getUserdata.unwrap()(conn) } as *mut Callbacks;
-            let callbacks = unsafe { &mut *callbacks_ptr };
-            if let Some(mut cb) = callbacks.connection_closed.take() {
-                cb();
-            }
-        }
-        unsafe {
-            tcp_handle().setConnectionClosedCallback.unwrap()(self.handle, Some(callback_impl))
-        };
+        self.state.borrow_mut().connection_closed = Some(Box::new(callback));
     }
 
     /// Sets the length of time, in milliseconds, read() will wait for incoming data before returning. The default value is 1000, or one second.
@@ -218,7 +249,11 @@ impl TCPConnection {
 
 impl Drop for TCPConnection {
     fn drop(&mut self) {
-        // Looks like releasing a connection will use-after-free on the handle
-        // unsafe { tcp_handle().release.unwrap()(self.handle) }
+        if self.is_closed() {
+            TCPConnection::release(self.handle);
+        } else {
+            self.state.borrow_mut().should_release = true;
+            self.close();
+        }
     }
 }
