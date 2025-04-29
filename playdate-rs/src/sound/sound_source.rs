@@ -1,5 +1,4 @@
 use alloc::boxed::Box;
-use core::cell::RefCell;
 use core::ffi::c_void;
 
 use alloc::sync::Arc;
@@ -22,7 +21,7 @@ struct Callbacks {
 
 pub struct SoundSource {
     pub(crate) handle: *mut sys::SoundSource,
-    callbacks: Arc<RefCell<Callbacks>>,
+    callbacks: Arc<spin::Mutex<Callbacks>>,
 }
 
 unsafe impl Send for SoundSource {}
@@ -32,7 +31,7 @@ impl SoundSource {
     pub(crate) fn new(handle: *mut sys::SoundSource) -> Self {
         Self {
             handle,
-            callbacks: Arc::new(RefCell::new(Callbacks { finish: None })),
+            callbacks: Arc::new(spin::Mutex::new(Callbacks { finish: None })),
         }
     }
 
@@ -57,11 +56,11 @@ impl SoundSource {
     }
 
     pub(crate) fn set_finish_callback(&self, callback: impl FnMut() + 'static) {
-        self.callbacks.borrow_mut().finish = Some(Box::new(callback));
-        let callbacks = self.callbacks.as_ptr() as *const RefCell<Callbacks>;
+        self.callbacks.lock().finish = Some(Box::new(callback));
+        let callbacks = self.callbacks.as_ref() as *const spin::Mutex<Callbacks>;
         extern "C" fn callback_fn(_source: *mut sys::SoundSource, userdata: *mut c_void) {
-            let callback = unsafe { &*(userdata as *const RefCell<Callbacks>) };
-            if let Some(ref mut f) = callback.borrow_mut().finish {
+            let callback = unsafe { &*(userdata as *const spin::Mutex<Callbacks>) };
+            if let Some(ref mut f) = callback.lock().finish {
                 f();
             }
         }

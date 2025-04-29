@@ -17,11 +17,15 @@ impl PlaydateSample {
 pub struct AudioSample<'a> {
     pub(crate) handle: *mut sys::AudioSample,
     #[allow(dead_code)]
-    buf: Option<&'a [u8]>,
+    slice: Option<&'a [u8]>,
+    #[allow(dead_code)]
+    vec: Option<Vec<u8>>,
 }
 
+unsafe impl Send for AudioSample<'_> {}
+
 impl<'a> AudioSample<'a> {
-    pub fn from_data(buf: &'a [u8], format: SoundFormat, sample_rate: u32) -> Self {
+    pub fn from_data_slice(buf: &'a [u8], format: SoundFormat, sample_rate: u32) -> Self {
         let length = buf.len();
         let handle = unsafe {
             (*PLAYDATE.sound.sample.handle).newSampleFromData.unwrap()(
@@ -34,7 +38,25 @@ impl<'a> AudioSample<'a> {
         };
         Self {
             handle,
-            buf: Some(buf),
+            slice: Some(buf),
+            vec: None,
+        }
+    }
+    pub fn from_data_vec(buf: Vec<u8>, format: SoundFormat, sample_rate: u32) -> Self {
+        let length = buf.len();
+        let handle = unsafe {
+            (*PLAYDATE.sound.sample.handle).newSampleFromData.unwrap()(
+                buf.as_ptr() as _,
+                format,
+                sample_rate,
+                length as _,
+                0,
+            )
+        };
+        Self {
+            handle,
+            slice: None,
+            vec: Some(buf),
         }
     }
 
@@ -44,7 +66,8 @@ impl<'a> AudioSample<'a> {
             handle: unsafe {
                 (*PLAYDATE.sound.sample.handle).newSampleBuffer.unwrap()(length as _)
             },
-            buf: None,
+            slice: None,
+            vec: None,
         }
     }
 
@@ -55,7 +78,11 @@ impl<'a> AudioSample<'a> {
         if handle.is_null() {
             Err(Error::FileNotExists(path.as_str().into_owned()))
         } else {
-            Ok(Self { handle, buf: None })
+            Ok(Self {
+                handle,
+                slice: None,
+                vec: None,
+            })
         }
     }
 

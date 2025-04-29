@@ -1,6 +1,8 @@
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use core::{cell::RefCell, future::Future, marker::PhantomData};
+use core::cell::RefCell;
+use core::{future::Future, marker::PhantomData};
+use spin::Mutex;
 
 use alloc::ffi::CString;
 use url::Url;
@@ -98,7 +100,7 @@ impl HTTPMethod {
 pub struct HTTPConnection {
     pub(crate) handle: *mut sys::HTTPConnection,
     closed: bool,
-    state: Arc<RefCell<SharedState>>,
+    state: Arc<Mutex<SharedState>>,
     host: Url,
 }
 
@@ -136,7 +138,6 @@ impl HTTPConnection {
             || url.query().is_some()
             || url.fragment().is_some()
         {
-            println!("Invalid URL: {:?}", url);
             return Err(ErrorKind::InvalidInput.into());
         }
         let host = url.host_str().unwrap_or("");
@@ -149,7 +150,7 @@ impl HTTPConnection {
         if handle.is_null() {
             return Err(ErrorKind::PermissionDenied.into());
         }
-        let state = Arc::new(RefCell::new(SharedState {
+        let state = Arc::new(Mutex::new(SharedState {
             closed: true,
             should_release: false,
             header_received: None,
@@ -158,13 +159,13 @@ impl HTTPConnection {
             request_complete: None,
             connection_closed: None,
         }));
-        let state_ptr = Box::leak(Box::new(state.clone())) as *mut Arc<RefCell<SharedState>>;
+        let state_ptr = Box::leak(Box::new(state.clone())) as *mut Arc<Mutex<SharedState>>;
         unsafe { http_handle().setUserdata.unwrap()(handle, state_ptr as _) };
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
-            let state_ptr = unsafe { http_handle().getUserdata.unwrap()(conn) }
-                as *mut Arc<RefCell<SharedState>>;
+            let state_ptr =
+                unsafe { http_handle().getUserdata.unwrap()(conn) } as *mut Arc<Mutex<SharedState>>;
             let state = unsafe { &*state_ptr };
-            let mut state = state.borrow_mut();
+            let mut state = state.lock();
             state.closed = true;
             if state.should_release {
                 HTTPConnection::release(conn);
@@ -187,7 +188,7 @@ impl HTTPConnection {
     fn release(conn: *mut sys::HTTPConnection) {
         unsafe {
             let state_ptr =
-                http_handle().getUserdata.unwrap()(conn) as *mut Arc<RefCell<SharedState>>;
+                http_handle().getUserdata.unwrap()(conn) as *mut Arc<Mutex<SharedState>>;
             let _boxed = Box::from_raw(state_ptr);
             http_handle().setUserdata.unwrap()(conn, core::ptr::null_mut());
             http_handle().release.unwrap()(conn);
@@ -195,7 +196,7 @@ impl HTTPConnection {
     }
 
     pub fn is_closed(&self) -> bool {
-        self.state.borrow().closed
+        self.state.lock().closed
     }
 
     pub fn close(&mut self) {
@@ -293,7 +294,7 @@ impl HTTPConnection {
         if err != NetworkError::OK {
             return Err(Error::NetworkError(err));
         }
-        self.state.borrow_mut().closed = false;
+        self.state.lock().closed = false;
         // Wait for headers to be read
         future.await;
         // Return headers
@@ -405,16 +406,16 @@ impl HTTPConnection {
 
     /// Sets a callback to be called when the HTTP parser reads a header line from the connection
     fn set_header_received_callback(&mut self, callback: Box<dyn FnMut(&str, &str)>) {
-        self.state.borrow_mut().header_received = Some(callback);
+        self.state.lock().header_received = Some(callback);
         unsafe extern "C" fn callback_impl(
             conn: *mut sys::HTTPConnection,
             header: *const core::ffi::c_char,
             value: *const core::ffi::c_char,
         ) {
-            let state_ptr = unsafe { http_handle().getUserdata.unwrap()(conn) }
-                as *mut Arc<RefCell<SharedState>>;
+            let state_ptr =
+                unsafe { http_handle().getUserdata.unwrap()(conn) } as *mut Arc<Mutex<SharedState>>;
             let state = unsafe { &*state_ptr };
-            let mut state = state.borrow_mut();
+            let mut state = state.lock();
             let header = unsafe { ::core::ffi::CStr::from_ptr(header) };
             let value = unsafe { ::core::ffi::CStr::from_ptr(value) };
             let header = header.to_str().unwrap();
@@ -430,12 +431,12 @@ impl HTTPConnection {
 
     /// Sets a function to be called after the connection has parsed the headers from the server response. At this point, getResponseStatus() and getProgress() can be used to query the status and size of the response, and get()/post() can queue another request if connection:setKeepAlive(true) was set and the connection is still open.
     fn set_headers_read_callback(&mut self, callback: Box<dyn FnMut()>) {
-        self.state.borrow_mut().headers_read = Some(callback);
+        self.state.lock().headers_read = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
-            let state_ptr = unsafe { http_handle().getUserdata.unwrap()(conn) }
-                as *mut Arc<RefCell<SharedState>>;
+            let state_ptr =
+                unsafe { http_handle().getUserdata.unwrap()(conn) } as *mut Arc<Mutex<SharedState>>;
             let state = unsafe { &*state_ptr };
-            let mut state = state.borrow_mut();
+            let mut state = state.lock();
             if let Some(cb) = state.headers_read.as_mut() {
                 cb();
             }
@@ -446,12 +447,12 @@ impl HTTPConnection {
     /// Sets a function to be called when data is available for reading.
     #[allow(unused)]
     fn set_response_callback(&mut self, callback: Box<dyn FnMut()>) {
-        self.state.borrow_mut().response = Some(callback);
+        self.state.lock().response = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
-            let state_ptr = unsafe { http_handle().getUserdata.unwrap()(conn) }
-                as *mut Arc<RefCell<SharedState>>;
+            let state_ptr =
+                unsafe { http_handle().getUserdata.unwrap()(conn) } as *mut Arc<Mutex<SharedState>>;
             let state = unsafe { &*state_ptr };
-            let mut state = state.borrow_mut();
+            let mut state = state.lock();
             if let Some(cb) = state.response.as_mut() {
                 cb();
             }
@@ -462,12 +463,12 @@ impl HTTPConnection {
     /// Sets a function to be called when all data for the request has been received (if the response contained a Content-Length header and the size is known) or the request times out.
     #[allow(unused)]
     fn set_request_complete_callback(&mut self, callback: Box<dyn FnMut()>) {
-        self.state.borrow_mut().request_complete = Some(callback);
+        self.state.lock().request_complete = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
-            let state_ptr = unsafe { http_handle().getUserdata.unwrap()(conn) }
-                as *mut Arc<RefCell<SharedState>>;
+            let state_ptr =
+                unsafe { http_handle().getUserdata.unwrap()(conn) } as *mut Arc<Mutex<SharedState>>;
             let state = unsafe { &*state_ptr };
-            let mut state = state.borrow_mut();
+            let mut state = state.lock();
             if let Some(cb) = state.request_complete.as_mut() {
                 cb();
             }
@@ -479,7 +480,7 @@ impl HTTPConnection {
 
     /// Sets a function to be called when the server has closed the connection.
     pub fn set_connection_closed_callback(&mut self, callback: impl 'static + FnMut()) {
-        self.state.borrow_mut().connection_closed = Some(Box::new(callback));
+        self.state.lock().connection_closed = Some(Box::new(callback));
     }
 }
 
@@ -493,7 +494,7 @@ impl Drop for HTTPConnection {
         if self.is_closed() {
             HTTPConnection::release(self.handle);
         } else {
-            self.state.borrow_mut().should_release = true;
+            self.state.lock().should_release = true;
             self.close();
         }
     }

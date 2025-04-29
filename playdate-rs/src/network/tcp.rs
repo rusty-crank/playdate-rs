@@ -1,6 +1,7 @@
-use core::{cell::RefCell, ffi::c_void, future::Future};
+use core::{ffi::c_void, future::Future};
 
 use alloc::{ffi::CString, vec, vec::Vec};
+use spin::Mutex;
 use url::Url;
 
 use crate::{error::Error, util::callback_to_async::CallbackFuture};
@@ -63,7 +64,7 @@ struct SharedState {
 
 pub struct TCPConnection {
     handle: *mut sys::TCPConnection,
-    state: Arc<RefCell<SharedState>>,
+    state: Arc<Mutex<SharedState>>,
 }
 
 impl TCPConnection {
@@ -87,18 +88,18 @@ impl TCPConnection {
         if handle.is_null() {
             return Err(ErrorKind::PermissionDenied.into());
         }
-        let state = Arc::new(RefCell::new(SharedState {
+        let state = Arc::new(Mutex::new(SharedState {
             closed: true,
             should_release: false,
             connection_closed: None,
         }));
-        let state_ptr = Box::leak(Box::new(state.clone())) as *mut Arc<RefCell<SharedState>>;
+        let state_ptr = Box::leak(Box::new(state.clone())) as *mut Arc<Mutex<SharedState>>;
         unsafe { tcp_handle().setUserdata.unwrap()(handle, state_ptr as _) };
         unsafe extern "C" fn callback_impl(conn: *mut sys::TCPConnection, _e: NetworkError) {
-            let state_ptr = unsafe { tcp_handle().getUserdata.unwrap()(conn) }
-                as *mut Arc<RefCell<SharedState>>;
+            let state_ptr =
+                unsafe { tcp_handle().getUserdata.unwrap()(conn) } as *mut Arc<Mutex<SharedState>>;
             let state = unsafe { &*state_ptr };
-            let mut state = state.borrow_mut();
+            let mut state = state.lock();
             state.closed = true;
             if state.should_release {
                 TCPConnection::release(conn);
@@ -115,8 +116,7 @@ impl TCPConnection {
 
     fn release(conn: *mut sys::TCPConnection) {
         unsafe {
-            let state_ptr =
-                tcp_handle().getUserdata.unwrap()(conn) as *mut Arc<RefCell<SharedState>>;
+            let state_ptr = tcp_handle().getUserdata.unwrap()(conn) as *mut Arc<Mutex<SharedState>>;
             let _boxed = Box::from_raw(state_ptr);
             tcp_handle().setUserdata.unwrap()(conn, core::ptr::null_mut());
             tcp_handle().release.unwrap()(conn);
@@ -124,7 +124,7 @@ impl TCPConnection {
     }
 
     pub fn is_closed(&self) -> bool {
-        self.state.borrow().closed
+        self.state.lock().closed
     }
 
     pub fn close(&mut self) {
@@ -167,7 +167,7 @@ impl TCPConnection {
             future.set_result(result);
         }
         let result = future.await;
-        self.state.borrow_mut().closed = false;
+        self.state.lock().closed = false;
         if result != NetworkError::OK {
             return Err(Error::NetworkError(result));
         }
@@ -176,7 +176,7 @@ impl TCPConnection {
 
     /// Sets a callback to be called when the connection is closed.
     pub fn set_connection_closed_callback(&mut self, callback: impl 'static + FnMut()) {
-        self.state.borrow_mut().connection_closed = Some(Box::new(callback));
+        self.state.lock().connection_closed = Some(Box::new(callback));
     }
 
     /// Sets the length of time, in milliseconds, read() will wait for incoming data before returning. The default value is 1000, or one second.
@@ -258,7 +258,7 @@ impl Drop for TCPConnection {
         if self.is_closed() {
             TCPConnection::release(self.handle);
         } else {
-            self.state.borrow_mut().should_release = true;
+            self.state.lock().should_release = true;
             self.close();
         }
     }

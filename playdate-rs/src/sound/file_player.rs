@@ -1,7 +1,6 @@
 use alloc::boxed::Box;
 use alloc::ffi::CString;
 use alloc::sync::Arc;
-use core::cell::RefCell;
 use core::ffi::c_void;
 
 use crate::fs::AsPath;
@@ -27,7 +26,7 @@ struct Callbacks {
 pub struct FilePlayer {
     handle: *mut sys::FilePlayer,
     source: SoundSource,
-    callbacks: Arc<RefCell<Callbacks>>,
+    callbacks: Arc<spin::Mutex<Callbacks>>,
 }
 
 unsafe impl Send for FilePlayer {}
@@ -46,7 +45,7 @@ impl FilePlayer {
         Self {
             handle,
             source: SoundSource::new(handle as _),
-            callbacks: Arc::new(RefCell::new(Callbacks { fade: None })),
+            callbacks: Arc::new(spin::Mutex::new(Callbacks { fade: None })),
         }
     }
 
@@ -188,11 +187,11 @@ impl FilePlayer {
         let callback: Box<dyn FnMut()> = Box::new(move || {
             CallbackFuture::<()>::resolve(handle, ());
         });
-        self.callbacks.borrow_mut().fade = Some(callback);
-        let callbacks = self.callbacks.as_ptr() as *const RefCell<Callbacks>;
+        self.callbacks.lock().fade = Some(callback);
+        let callbacks = self.callbacks.as_ref() as *const spin::Mutex<Callbacks>;
         unsafe extern "C" fn callback_fn(_source: *mut sys::SoundSource, userdata: *mut c_void) {
-            let callback = unsafe { &*(userdata as *const RefCell<Callbacks>) };
-            if let Some(ref mut f) = callback.borrow_mut().fade {
+            let callback = unsafe { &*(userdata as *const spin::Mutex<Callbacks>) };
+            if let Some(ref mut f) = callback.lock().fade {
                 f();
             }
         }
