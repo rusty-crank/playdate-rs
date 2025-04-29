@@ -67,6 +67,9 @@ pub struct TCPConnection {
     state: Arc<Mutex<SharedState>>,
 }
 
+unsafe impl Send for TCPConnection {}
+unsafe impl Sync for TCPConnection {}
+
 impl TCPConnection {
     /// Returns a playdate.network.tcp object for connecting to the given server, or NULL if permission has been denied or not yet granted. No connection is attempted until open() is called.
     pub fn new(server: impl TryInto<Url>, ssl: bool) -> Result<Self, Error> {
@@ -127,7 +130,7 @@ impl TCPConnection {
         self.state.lock().closed
     }
 
-    pub fn close(&mut self) {
+    pub fn close(&self) {
         if self.is_closed() {
             return;
         }
@@ -145,12 +148,12 @@ impl TCPConnection {
     }
 
     /// Sets the length of time (in milliseconds) to wait for the connection to the server to be made.
-    pub fn set_timeout(&mut self, ms: usize) {
+    pub fn set_timeout(&self, ms: usize) {
         unsafe { tcp_handle().setConnectTimeout.unwrap()(self.handle, ms as _) };
     }
 
     /// Attempts to open the connection to the server. Note that an error may be returned immediately, or in the open callback depending on where it occurs.
-    pub async fn open(&mut self) -> Result<(), Error> {
+    pub async fn open(&self) -> Result<(), Error> {
         let future = CallbackFuture::<NetworkError>::new();
         let handle = future.get_handle();
         extern "C" fn callback_impl(
@@ -175,17 +178,17 @@ impl TCPConnection {
     }
 
     /// Sets a callback to be called when the connection is closed.
-    pub fn set_connection_closed_callback(&mut self, callback: impl 'static + FnMut()) {
+    pub fn set_connection_closed_callback(&self, callback: impl 'static + FnMut()) {
         self.state.lock().connection_closed = Some(Box::new(callback));
     }
 
     /// Sets the length of time, in milliseconds, read() will wait for incoming data before returning. The default value is 1000, or one second.
-    pub fn set_read_timeout(&mut self, ms: usize) {
+    pub fn set_read_timeout(&self, ms: usize) {
         unsafe { tcp_handle().setReadTimeout.unwrap()(self.handle, ms as _) };
     }
 
     /// Sets the size of the connection’s read buffer. The default buffer size is 64 KB.
-    pub fn set_read_buffer_size(&mut self, bytes: usize) {
+    pub fn set_read_buffer_size(&self, bytes: usize) {
         unsafe { tcp_handle().setReadBufferSize.unwrap()(self.handle, bytes as _) };
     }
 
@@ -196,7 +199,7 @@ impl TCPConnection {
 
     /// Attempts to read up to length bytes from the connection into buffer. If length is more than the number of bytes available on the connection the function will wait for more data, up to the length of time set by setReadTimeout() (default one second). Returns the number of bytes actually read, or a (negative) PDNetErr value on error.
     pub fn recv<'a, 'b: 'a>(
-        &'a mut self,
+        &'a self,
         buf: &'b mut [u8],
     ) -> impl 'a + Future<Output = Result<usize, Error>> {
         async move {
@@ -213,7 +216,7 @@ impl TCPConnection {
 
     /// Attempts to write up to length bytes to the connection. Returns the number of bytes actually written, which may be less than length, or a (negative) PDNetErr value on error.
     pub fn send<'a, 'b: 'a>(
-        &'a mut self,
+        &'a self,
         buf: &'b [u8],
     ) -> impl 'a + Future<Output = Result<usize, Error>> {
         async move {
@@ -228,7 +231,7 @@ impl TCPConnection {
         }
     }
 
-    pub async fn wait_for_data(&mut self) {
+    pub async fn wait_for_data(&self) {
         loop {
             if self.get_bytes_available() > 0 {
                 break;
@@ -237,7 +240,7 @@ impl TCPConnection {
         }
     }
 
-    pub async fn recv_all(&mut self) -> Result<Vec<u8>, Error> {
+    pub async fn recv_all(&self) -> Result<Vec<u8>, Error> {
         let mut buf = vec![0; self.get_bytes_available()];
         let mut cursor = 0;
         while cursor < buf.len() {

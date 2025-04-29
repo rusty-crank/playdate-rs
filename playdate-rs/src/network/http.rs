@@ -15,7 +15,7 @@ use alloc::format;
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
-use core::ops::{Deref, DerefMut};
+use core::ops::Deref;
 use no_std_io::io::ErrorKind;
 use sys::{accessReply as AccessReply, PDNetErr as NetworkError};
 
@@ -99,15 +99,17 @@ impl HTTPMethod {
 
 pub struct HTTPConnection {
     pub(crate) handle: *mut sys::HTTPConnection,
-    closed: bool,
     state: Arc<Mutex<SharedState>>,
     host: Url,
 }
 
+unsafe impl Send for HTTPConnection {}
+unsafe impl Sync for HTTPConnection {}
+
 macro_rules! impl_http_method {
     ($name:ident, $method:ident) => {
         pub async fn $name<B: serde::Serialize>(
-            &mut self,
+            &self,
             path: impl AsRef<str>,
             options: &HTTPOptions<B>,
         ) -> Result<HTTPResponse, Error> {
@@ -178,7 +180,6 @@ impl HTTPConnection {
         unsafe { http_handle().setConnectionClosedCallback.unwrap()(handle, Some(callback_impl)) }
         let connection = Self {
             handle,
-            closed: true,
             state,
             host: url,
         };
@@ -199,7 +200,7 @@ impl HTTPConnection {
         self.state.lock().closed
     }
 
-    pub fn close(&mut self) {
+    pub fn close(&self) {
         if self.is_closed() {
             return;
         }
@@ -207,17 +208,17 @@ impl HTTPConnection {
     }
 
     /// Sets the length of time (in milliseconds) to wait for the connection to the server to be made.
-    pub fn set_timeout(&mut self, ms: usize) {
+    pub fn set_timeout(&self, ms: usize) {
         unsafe { http_handle().setConnectTimeout.unwrap()(self.handle, ms as _) };
     }
 
     /// If `keepalive` is true, this causes the HTTP request to include a Connection: keep-alive header.
-    pub fn set_keep_alive(&mut self, keep_alive: bool) {
+    pub fn set_keep_alive(&self, keep_alive: bool) {
         unsafe { http_handle().setKeepAlive.unwrap()(self.handle, keep_alive) };
     }
 
     /// Adds a `Range: bytes=<start>-<end>` header to the HTTP request.
-    pub fn set_byte_range(&mut self, start: usize, end: usize) {
+    pub fn set_byte_range(&self, start: usize, end: usize) {
         unsafe { http_handle().setByteRange.unwrap()(self.handle, start as _, end as _) };
     }
 
@@ -230,7 +231,7 @@ impl HTTPConnection {
     }
 
     async fn query<B: serde::Serialize>(
-        &mut self,
+        &self,
         method: HTTPMethod,
         path: &str,
         headers: &Headers,
@@ -248,7 +249,6 @@ impl HTTPConnection {
             res_headers2.borrow_mut().insert(k, v);
         }));
         // Prepare request arguments
-        self.closed = false;
         let path_c_string = CString::new(path).unwrap();
         let path_ptr = path_c_string.as_ptr();
         let (_headers, headers_len, headers_ptr) = Self::build_headers(headers);
@@ -304,7 +304,7 @@ impl HTTPConnection {
 
     /// Opens the connection to the server if it’s not already open (e.g. from a previous request with keep-alive enabled) and sends a GET request with the given path and additional headers if specified.
     pub async fn get(
-        &mut self,
+        &self,
         path: impl AsRef<str>,
         headers: &Headers,
     ) -> Result<HTTPResponse, Error> {
@@ -359,18 +359,18 @@ impl HTTPConnection {
     }
 
     /// Sets the length of time, in milliseconds, the read() function will wait for incoming data before returning. The default value is 1000, or one second.
-    pub fn set_read_timeout(&mut self, ms: usize) {
+    pub fn set_read_timeout(&self, ms: usize) {
         unsafe { http_handle().setReadTimeout.unwrap()(self.handle, ms as _) };
     }
 
     /// Sets the size of the connection’s read buffer. The default buffer size is 64 KB.
-    pub fn set_read_buffer_size(&mut self, size: usize) {
+    pub fn set_read_buffer_size(&self, size: usize) {
         unsafe { http_handle().setReadBufferSize.unwrap()(self.handle, size as _) };
     }
 
     /// On success, returns up to length bytes (limited by the size of the read buffer) from the connection. If length is more than the number of bytes available the function will wait for more data up to the length of time set by setReadTimeout() (default one second).
     pub fn read<'a, 'b: 'a>(
-        &'a mut self,
+        &'a self,
         buf: &'b mut [u8],
     ) -> impl 'a + Future<Output = Result<usize, Error>> {
         async move {
@@ -389,7 +389,7 @@ impl HTTPConnection {
         }
     }
 
-    async fn read_all(&mut self) -> Result<Vec<u8>, Error> {
+    async fn read_all(&self) -> Result<Vec<u8>, Error> {
         let mut buf = vec![0; self.get_bytes_available()];
         let mut cursor = 0;
         while cursor < buf.len() {
@@ -405,7 +405,7 @@ impl HTTPConnection {
     }
 
     /// Sets a callback to be called when the HTTP parser reads a header line from the connection
-    fn set_header_received_callback(&mut self, callback: Box<dyn FnMut(&str, &str)>) {
+    fn set_header_received_callback(&self, callback: Box<dyn FnMut(&str, &str)>) {
         self.state.lock().header_received = Some(callback);
         unsafe extern "C" fn callback_impl(
             conn: *mut sys::HTTPConnection,
@@ -430,7 +430,7 @@ impl HTTPConnection {
     }
 
     /// Sets a function to be called after the connection has parsed the headers from the server response. At this point, getResponseStatus() and getProgress() can be used to query the status and size of the response, and get()/post() can queue another request if connection:setKeepAlive(true) was set and the connection is still open.
-    fn set_headers_read_callback(&mut self, callback: Box<dyn FnMut()>) {
+    fn set_headers_read_callback(&self, callback: Box<dyn FnMut()>) {
         self.state.lock().headers_read = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
             let state_ptr =
@@ -446,7 +446,7 @@ impl HTTPConnection {
 
     /// Sets a function to be called when data is available for reading.
     #[allow(unused)]
-    fn set_response_callback(&mut self, callback: Box<dyn FnMut()>) {
+    fn set_response_callback(&self, callback: Box<dyn FnMut()>) {
         self.state.lock().response = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
             let state_ptr =
@@ -462,7 +462,7 @@ impl HTTPConnection {
 
     /// Sets a function to be called when all data for the request has been received (if the response contained a Content-Length header and the size is known) or the request times out.
     #[allow(unused)]
-    fn set_request_complete_callback(&mut self, callback: Box<dyn FnMut()>) {
+    fn set_request_complete_callback(&self, callback: Box<dyn FnMut()>) {
         self.state.lock().request_complete = Some(callback);
         unsafe extern "C" fn callback_impl(conn: *mut sys::HTTPConnection) {
             let state_ptr =
@@ -479,7 +479,7 @@ impl HTTPConnection {
     }
 
     /// Sets a function to be called when the server has closed the connection.
-    pub fn set_connection_closed_callback(&mut self, callback: impl 'static + FnMut()) {
+    pub fn set_connection_closed_callback(&self, callback: impl 'static + FnMut()) {
         self.state.lock().connection_closed = Some(Box::new(callback));
     }
 }
@@ -500,46 +500,37 @@ impl Drop for HTTPConnection {
     }
 }
 
-enum RefMutOrOwned<'a, T> {
-    Ref(&'a mut T),
+enum RefOrOwned<'a, T> {
+    Ref(&'a T),
     Owned(T),
 }
 
-impl Deref for RefMutOrOwned<'_, HTTPConnection> {
+impl Deref for RefOrOwned<'_, HTTPConnection> {
     type Target = HTTPConnection;
 
     fn deref(&self) -> &Self::Target {
         match self {
-            RefMutOrOwned::Ref(conn) => conn,
-            RefMutOrOwned::Owned(conn) => conn,
-        }
-    }
-}
-
-impl DerefMut for RefMutOrOwned<'_, HTTPConnection> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            RefMutOrOwned::Ref(conn) => conn,
-            RefMutOrOwned::Owned(conn) => conn,
+            RefOrOwned::Ref(conn) => conn,
+            RefOrOwned::Owned(conn) => conn,
         }
     }
 }
 
 pub struct HTTPResponse<'a> {
     url: Url,
-    conn: RefMutOrOwned<'a, HTTPConnection>,
+    conn: RefOrOwned<'a, HTTPConnection>,
     status_code: usize,
     headers: Headers,
 }
 
 impl<'a> HTTPResponse<'a> {
-    fn from_ref(conn: &'a mut HTTPConnection, path: &Url, res_headers: Headers) -> Self {
+    fn from_ref(conn: &'a HTTPConnection, path: &Url, res_headers: Headers) -> Self {
         let status_code = conn.get_response_code();
         let mut url = conn.host.clone();
         url.set_path(path.path());
         url.set_query(path.query());
         Self {
-            conn: RefMutOrOwned::Ref(conn),
+            conn: RefOrOwned::Ref(conn),
             headers: res_headers,
             status_code,
             url,
@@ -551,7 +542,7 @@ impl<'a> HTTPResponse<'a> {
         url.set_path(path.path());
         url.set_query(path.query());
         Self {
-            conn: RefMutOrOwned::Owned(conn),
+            conn: RefOrOwned::Owned(conn),
             headers: res_headers,
             status_code,
             url,
@@ -570,11 +561,11 @@ impl<'a> HTTPResponse<'a> {
         self.status_code >= 200 && self.status_code < 300
     }
 
-    async fn read_all(&mut self) -> Result<Vec<u8>, Error> {
+    async fn read_all(&self) -> Result<Vec<u8>, Error> {
         self.conn.read_all().await
     }
 
-    pub async fn data(mut self) -> Result<Vec<u8>, Error> {
+    pub async fn data(self) -> Result<Vec<u8>, Error> {
         self.read_all().await
     }
 
@@ -862,7 +853,7 @@ pub async fn get<'a>(url: impl TryInto<Url>, headers: &Headers) -> Result<HTTPRe
     let mut host = url.clone();
     host.set_path("/");
     host.set_query(None);
-    let mut conn = HTTPConnection::new(host)?;
+    let conn = HTTPConnection::new(host)?;
     let path = url.path().to_string();
     let headers = conn
         .query::<()>(HTTPMethod::GET, path.as_ref(), headers, None)
@@ -880,7 +871,7 @@ macro_rules! impl_http_method2 {
             let mut host = url.clone();
             host.set_path("/");
             host.set_query(None);
-            let mut conn = HTTPConnection::new(host)?;
+            let conn = HTTPConnection::new(host)?;
             let path = url.path().to_string();
             let headers = conn
                 .query(
