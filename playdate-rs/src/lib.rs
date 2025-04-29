@@ -6,6 +6,9 @@ pub extern crate num_traits;
 #[doc(hidden)]
 pub extern crate playdate_rs_sys as sys;
 pub extern crate rand;
+pub extern crate serde;
+pub extern crate serde_derive;
+pub extern crate serde_json;
 
 #[macro_use]
 #[doc(hidden)]

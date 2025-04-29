@@ -6,7 +6,9 @@ use rand::Rng;
 use url::Url;
 
 use crate::error::Error;
+use crate::PLAYDATE;
 
+use super::http::Headers;
 use super::tcp::TCPConnection;
 
 pub struct WebSocket {
@@ -15,7 +17,7 @@ pub struct WebSocket {
 }
 
 impl WebSocket {
-    pub async fn connect(url: impl TryInto<Url>) -> Result<Self, Error> {
+    pub async fn connect(url: impl TryInto<Url>, headers: &Headers) -> Result<Self, Error> {
         let url: Url = url.try_into().map_err(|_| ErrorKind::InvalidInput)?;
         let mut host = url.clone();
         host.set_path("/");
@@ -25,7 +27,7 @@ impl WebSocket {
         conn.set_timeout(5000);
         conn.open().await?;
         let mut ws = Self { url, conn };
-        ws.handshake().await?;
+        ws.handshake(headers).await?;
         Ok(ws)
     }
 
@@ -45,15 +47,22 @@ impl WebSocket {
         key
     }
 
-    async fn handshake(&mut self) -> Result<(), Error> {
+    async fn handshake(&mut self, headers: &Headers) -> Result<(), Error> {
         let key = Self::create_ws_key(); // Example key, should be generated
-        let msg = format!(
-            "GET {} HTTP/1.1\r\nHost: {}\r\nOrigin: {}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {}\r\nSec-WebSocket-Version: 13\r\n\r\n",
-            self.url.path(),
+        let mut path_and_query = self.url.path().to_string();
+        if let Some(query) = self.url.query() {
+            path_and_query.push('?');
+            path_and_query.push_str(query);
+        }
+        let mut msg = format!(
+            "GET {} HTTP/1.1\r\nHost: {}\r\nOrigin: {}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {}\r\nSec-WebSocket-Version: 13\r\n",
+            path_and_query,
             self.url.host_str().unwrap_or(""),
             self.url.origin().ascii_serialization(),
             key
         );
+        msg.push_str(&headers.build());
+        msg.push_str("\r\n");
         self.conn.send(msg.as_bytes()).await.unwrap();
         self.conn.wait_for_data().await;
         // Receive the response
@@ -93,35 +102,60 @@ impl WebSocket {
         header
     }
 
-    fn parse_frame(data: &[u8]) -> Result<(usize, Vec<u8>), Error> {
-        // Parse a websocket frame, returning the opcode and payload
-        if data.len() < 2 {
-            return Err(ErrorKind::InvalidData.into());
+    async fn receive_exact(&mut self, buf: &mut [u8]) -> Result<(), Error> {
+        let mut len = 0;
+        let cap = buf.len();
+        while len < cap {
+            let read_size = usize::min(cap - len, self.conn.get_bytes_available());
+            let mut x = vec![0; read_size];
+            self.conn.recv(&mut x).await?;
+            buf[len..len + read_size].copy_from_slice(&x);
+            len += read_size;
+            PLAYDATE.yield_now().await;
         }
-        let (b1, b2) = (data[0], data[1]);
+        Ok(())
+    }
+
+    async fn receive_exact_vec(&mut self, buf: &mut Vec<u8>) -> Result<(), Error> {
+        assert_eq!(buf.len(), 0);
+        let cap = buf.capacity();
+        while buf.len() < cap {
+            let read_size = usize::min(cap - buf.len(), self.conn.get_bytes_available());
+            let mut x = vec![0; read_size];
+            self.conn.recv(&mut x).await?;
+            buf.extend_from_slice(&x);
+            PLAYDATE.yield_now().await;
+        }
+        Ok(())
+    }
+
+    async fn parse_frame(&mut self) -> Result<(usize, Vec<u8>), Error> {
+        // Parse a websocket frame, returning the opcode and payload
+        let mut x = [0u8; 2];
+        self.receive_exact(&mut x).await?;
+        let (b1, b2) = (x[0], x[1]);
         // let fin = (b1 & 0x80) != 0;
         let opcode = (b1 & 0x0F) as usize;
         let masked = (b2 & 0x80) != 0;
         let mut len = (b2 & 0x7F) as usize;
-        let mut cursor = 2;
         if len == 126 {
-            len = ((data[2] as usize) << 8) | (data[3] as usize);
-            cursor += 2;
+            let mut x = [0u8; 2];
+            self.receive_exact(&mut x).await?;
+            len = u16::from_be_bytes(x) as usize;
         } else if len == 127 {
-            len = u64::from_be_bytes(data[2..10].try_into().unwrap()) as usize;
-            cursor += 8;
+            let mut x = [0u8; 8];
+            self.receive_exact(&mut x).await?;
+            len = u64::from_be_bytes(x) as usize;
         }
         let mask = if masked {
-            let x = &data[cursor..cursor + 4];
-            cursor += 4;
+            let mut x = [0u8; 4];
+            self.receive_exact(&mut x).await?;
             Some(x)
         } else {
             None
         };
-        let mut payload = data[cursor..].to_vec();
-        if payload.len() != len {
-            return Err(ErrorKind::InvalidData.into());
-        }
+        let mut payload = Vec::with_capacity(len);
+        self.receive_exact_vec(&mut payload).await?;
         if let Some(mask) = mask {
             payload = payload
                 .iter()
@@ -148,12 +182,8 @@ impl WebSocket {
     }
 
     pub async fn recv(&mut self) -> Result<Vec<u8>, Error> {
-        // let t = crate::PLAYDATE.system.get_current_time_milliseconds();
         self.conn.wait_for_data().await;
-        // let t2 = crate::PLAYDATE.system.get_current_time_milliseconds();
-        // println!("waited for data: {}ms", t2 - t);
-        let buf = self.conn.recv_all().await.unwrap();
-        let (_op, data) = Self::parse_frame(&buf).unwrap();
+        let (_op, data) = self.parse_frame().await.unwrap();
         Ok(data)
     }
 

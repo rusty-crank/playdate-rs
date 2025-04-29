@@ -6,6 +6,7 @@ extern crate playdate_rs;
 extern crate alloc;
 
 use playdate_rs::graphics::{Color, Font};
+use playdate_rs::network::http::Headers;
 use playdate_rs::network::tcp;
 use playdate_rs::network::ws::WebSocket;
 use playdate_rs::system::Buttons;
@@ -26,7 +27,7 @@ async fn main() {
     PLAYDATE.graphics.clear(Color::White);
     PLAYDATE.graphics.draw_text("Loading ...", vec2![50, 50]);
 
-    let mut ws = WebSocket::connect("https://echo.websocket.org")
+    let mut ws = WebSocket::connect("https://echo.websocket.org", &Headers::default())
         .await
         .unwrap();
 

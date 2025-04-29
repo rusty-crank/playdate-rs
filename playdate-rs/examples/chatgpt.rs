@@ -12,10 +12,10 @@ use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 
-use no_std_io::io::ErrorKind;
 use playdate_rs::error::Error;
 use playdate_rs::graphics::{Color, Font};
 use playdate_rs::graphics::{TextAlign, TextWrap};
+use playdate_rs::io::ErrorKind;
 use playdate_rs::network::http::{self, Headers};
 use playdate_rs::network::http::{AsyncStream, HTTPOptions};
 use playdate_rs::system::Buttons;

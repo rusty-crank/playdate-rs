@@ -221,15 +221,7 @@ impl HTTPConnection {
     }
 
     fn build_headers(headers: &Headers) -> (CString, usize, *const core::ffi::c_char) {
-        let mut headers = headers
-            .headers
-            .iter()
-            .map(|(k, v)| format!("{}: {}", k, v))
-            .collect::<Vec<_>>()
-            .join("\r\n");
-        if !headers.is_empty() {
-            headers = format!("{}\r\n", headers);
-        }
+        let headers = headers.build();
         let c_string = CString::new(headers.as_str()).unwrap();
         let len = c_string.as_bytes().len();
         let ptr = c_string.as_ptr();
@@ -829,6 +821,23 @@ impl Headers {
 
     pub fn get(&self, key: &str) -> Option<&str> {
         self.headers.get(key).map(|s| s.as_str())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.headers.is_empty()
+    }
+
+    pub(crate) fn build(&self) -> String {
+        let mut headers = self
+            .headers
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k, v))
+            .collect::<Vec<_>>()
+            .join("\r\n");
+        if !headers.is_empty() {
+            headers = format!("{}\r\n", headers);
+        }
+        headers
     }
 }
 
