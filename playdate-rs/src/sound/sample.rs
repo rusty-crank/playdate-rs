@@ -14,17 +14,37 @@ impl PlaydateSample {
     }
 }
 
-pub struct AudioSample {
+pub struct AudioSample<'a> {
     pub(crate) handle: *mut sys::AudioSample,
+    #[allow(dead_code)]
+    buf: Option<&'a [u8]>,
 }
 
-impl AudioSample {
+impl<'a> AudioSample<'a> {
+    pub fn from_data(buf: &'a [u8], format: SoundFormat, sample_rate: u32) -> Self {
+        let length = buf.len();
+        let handle = unsafe {
+            (*PLAYDATE.sound.sample.handle).newSampleFromData.unwrap()(
+                buf.as_ptr() as _,
+                format,
+                sample_rate,
+                length as _,
+                0,
+            )
+        };
+        Self {
+            handle,
+            buf: Some(buf),
+        }
+    }
+
     /// Allocates and returns a new AudioSample with a buffer large enough to load a file of length bytes.
     pub fn new(length: usize) -> Self {
         Self {
             handle: unsafe {
                 (*PLAYDATE.sound.sample.handle).newSampleBuffer.unwrap()(length as _)
             },
+            buf: None,
         }
     }
 
@@ -35,7 +55,7 @@ impl AudioSample {
         if handle.is_null() {
             Err(Error::FileNotExists(path.as_str().into_owned()))
         } else {
-            Ok(Self { handle })
+            Ok(Self { handle, buf: None })
         }
     }
 
@@ -83,7 +103,7 @@ impl AudioSample {
     }
 }
 
-impl Drop for AudioSample {
+impl<'a> Drop for AudioSample<'a> {
     fn drop(&mut self) {
         unsafe { (*PLAYDATE.sound.sample.handle).freeSample.unwrap()(self.handle) }
     }

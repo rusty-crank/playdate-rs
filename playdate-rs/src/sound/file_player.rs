@@ -1,11 +1,14 @@
 use alloc::boxed::Box;
-use alloc::{collections::BTreeMap, ffi::CString};
-use spin::Mutex;
+use alloc::ffi::CString;
+use alloc::sync::Arc;
+use core::cell::RefCell;
+use core::ffi::c_void;
 
 use crate::fs::AsPath;
-use crate::{error::Error, util::Ref, PLAYDATE};
+use crate::util::callback_to_async::CallbackFuture;
+use crate::{error::Error, PLAYDATE};
 
-use super::{sound_source::SoundSourcePtr, SoundSource};
+use super::SoundSource;
 
 pub(crate) struct PlaydateFilePlayer {
     handle: *const sys::playdate_sound_fileplayer,
@@ -17,8 +20,14 @@ impl PlaydateFilePlayer {
     }
 }
 
+struct Callbacks {
+    fade: Option<Box<dyn FnMut()>>,
+}
+
 pub struct FilePlayer {
     handle: *mut sys::FilePlayer,
+    source: SoundSource,
+    callbacks: Arc<RefCell<Callbacks>>,
 }
 
 unsafe impl Send for FilePlayer {}
@@ -33,17 +42,16 @@ impl Default for FilePlayer {
 impl FilePlayer {
     /// Create a new FilePlayer.
     pub fn new() -> Self {
+        let handle = unsafe { (*PLAYDATE.sound.file_player.handle).newPlayer.unwrap()() };
         Self {
-            handle: unsafe { (*PLAYDATE.sound.file_player.handle).newPlayer.unwrap()() },
+            handle,
+            source: SoundSource::new(handle as _),
+            callbacks: Arc::new(RefCell::new(Callbacks { fade: None })),
         }
     }
 
-    fn new_ref<'a>(handle: *mut sys::FilePlayer) -> Ref<'a, Self> {
-        Ref::new(Self { handle })
-    }
-
-    pub(crate) fn as_sound_source(&self) -> Ref<SoundSource> {
-        SoundSource::new_ref(self.handle as *mut sys::SoundSource)
+    pub fn sound_source(&self) -> &SoundSource {
+        &self.source
     }
 
     /// Prepares player to stream the file at path.
@@ -75,8 +83,14 @@ impl FilePlayer {
     }
 
     /// Starts playing the file player. If repeat is greater than one, it loops the given number of times. If zero, it loops endlessly until it is stopped with `FilePlayer::stop()`.
-    pub fn play(&self, repeat: usize) {
+    pub async fn play(&self, repeat: usize) {
+        let future = CallbackFuture::<()>::new();
+        let handle = future.get_handle();
+        self.source.set_finish_callback(move || {
+            CallbackFuture::<()>::resolve(handle, ());
+        });
         unsafe { (*PLAYDATE.sound.file_player.handle).play.unwrap()(self.handle, repeat as _) };
+        future.await;
     }
 
     /// Returns true if player is playing, false if not.
@@ -96,13 +110,6 @@ impl FilePlayer {
     /// Returns the length, in seconds, of the file loaded into player.
     pub fn get_length(&self) -> f32 {
         unsafe { (*PLAYDATE.sound.file_player.handle).getLength.unwrap()(self.handle) }
-    }
-
-    /// Sets a function to be called when playback has completed. This is an alias for `SoundSource::set_finish_callback`.
-    pub fn set_finish_callback(&self, callback: impl Send + FnOnce(&Self) + 'static) {
-        self.as_sound_source().set_finish_callback(move |x| {
-            callback(&Self::new_ref(x.handle as *mut sys::FilePlayer));
-        });
     }
 
     /// Returns true if player has underrun, false if not.
@@ -175,65 +182,36 @@ impl FilePlayer {
     }
 
     /// Changes the volume of the fileplayer to left and right over a length of len sample frames, then calls the provided callback (if set).
-    pub fn fade_volume(
-        &self,
-        left: f32,
-        right: f32,
-        len: i32,
-        finish_callback: Option<impl Send + FnOnce(&Self) + 'static>,
-    ) {
-        unsafe extern "C" fn callback_fn(
-            source: *mut sys::SoundSource,
-            _userdata: *mut core::ffi::c_void,
-        ) {
-            let player = FilePlayer::new_ref(source as *mut sys::FilePlayer);
-            let callback = FADE_VOLUME_FINISH_CALLBACKS
-                .lock()
-                .remove(&SoundSourcePtr(source))
-                .unwrap();
-            callback(&player);
+    pub async fn fade_volume(&self, left: f32, right: f32, len: i32) {
+        let future = CallbackFuture::<()>::new();
+        let handle = future.get_handle();
+        let callback: Box<dyn FnMut()> = Box::new(move || {
+            CallbackFuture::<()>::resolve(handle, ());
+        });
+        self.callbacks.borrow_mut().fade = Some(callback);
+        let callbacks = self.callbacks.as_ptr() as *const RefCell<Callbacks>;
+        unsafe extern "C" fn callback_fn(_source: *mut sys::SoundSource, userdata: *mut c_void) {
+            let callback = unsafe { &*(userdata as *const RefCell<Callbacks>) };
+            if let Some(ref mut f) = callback.borrow_mut().fade {
+                f();
+            }
         }
-        if let Some(cb) = finish_callback {
-            let callback = Box::new(cb) as Box<dyn Send + FnOnce(&Self)>;
-            FADE_VOLUME_FINISH_CALLBACKS
-                .lock()
-                .insert(SoundSourcePtr(self.as_sound_source().handle), callback);
-
-            unsafe {
-                (*PLAYDATE.sound.file_player.handle).fadeVolume.unwrap()(
-                    self.handle,
-                    left,
-                    right,
-                    len,
-                    Some(callback_fn),
-                    core::ptr::null_mut(),
-                )
-            }
-        } else {
-            unsafe {
-                (*PLAYDATE.sound.file_player.handle).fadeVolume.unwrap()(
-                    self.handle,
-                    left,
-                    right,
-                    len,
-                    None,
-                    core::ptr::null_mut(),
-                )
-            }
-        };
+        unsafe {
+            (*PLAYDATE.sound.file_player.handle).fadeVolume.unwrap()(
+                self.handle,
+                left,
+                right,
+                len,
+                Some(callback_fn),
+                callbacks as *mut _,
+            )
+        }
+        future.await;
     }
 }
 
-type FadeVolumeFinishCallbacks = BTreeMap<SoundSourcePtr, Box<dyn FnOnce(&FilePlayer) + Send>>;
-
-static FADE_VOLUME_FINISH_CALLBACKS: Mutex<FadeVolumeFinishCallbacks> = Mutex::new(BTreeMap::new());
-
 impl Drop for FilePlayer {
     fn drop(&mut self) {
-        self.as_sound_source().drop_callbacks();
-        FADE_VOLUME_FINISH_CALLBACKS
-            .lock()
-            .remove(&SoundSourcePtr(self.as_sound_source().handle));
         unsafe { (*PLAYDATE.sound.file_player.handle).freePlayer.unwrap()(self.handle) }
     }
 }

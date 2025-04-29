@@ -1,4 +1,4 @@
-use crate::{util::Ref, PLAYDATE};
+use crate::{util::callback_to_async::CallbackFuture, PLAYDATE};
 
 use super::{AudioSample, SoundSource};
 
@@ -14,6 +14,7 @@ impl PlaydateSamplePlayer {
 
 pub struct SamplePlayer {
     handle: *mut sys::SamplePlayer,
+    source: SoundSource,
 }
 
 unsafe impl Send for SamplePlayer {}
@@ -28,17 +29,15 @@ impl Default for SamplePlayer {
 impl SamplePlayer {
     /// Allocates a new SamplePlayer.
     pub fn new() -> Self {
+        let handle = unsafe { (*(*PLAYDATE.sound.handle).sampleplayer).newPlayer.unwrap()() };
         Self {
-            handle: unsafe { (*(*PLAYDATE.sound.handle).sampleplayer).newPlayer.unwrap()() },
+            handle,
+            source: SoundSource::new(handle as _),
         }
     }
 
-    fn new_ref<'a>(handle: *mut sys::SamplePlayer) -> Ref<'a, Self> {
-        Ref::new(Self { handle })
-    }
-
-    pub(crate) fn as_sound_source(&self) -> Ref<SoundSource> {
-        SoundSource::new_ref(self.handle as *mut sys::SoundSource)
+    pub fn sound_source(&self) -> &SoundSource {
+        &self.source
     }
 
     /// Returns the length, in seconds, of the sample assigned to player.
@@ -56,17 +55,16 @@ impl SamplePlayer {
     /// If repeat is greater than one, it loops the given number of times. If zero, it loops endlessly until it is stopped with `SamplePlayer::stop`. If negative one, it does ping-pong looping.
     ///
     /// Sets the playback rate for the sample. 1.0 is normal speed, 0.5 is down an octave, 2.0 is up an octave, etc.
-    pub fn play(&self, repeat: usize, rate: f32) {
+    pub async fn play(&self, repeat: usize, rate: f32) {
+        let future = CallbackFuture::<()>::new();
+        let handle = future.get_handle();
+        self.source.set_finish_callback(move || {
+            CallbackFuture::<()>::resolve(handle, ());
+        });
         unsafe {
             (*PLAYDATE.sound.sample_player.handle).play.unwrap()(self.handle, repeat as _, rate)
         };
-    }
-
-    /// Sets a function to be called when playback has completed. This is an alias for `SoundSource::set_finish_callback`.
-    pub fn set_finish_callback(&self, callback: impl Send + FnOnce(&Self) + 'static) {
-        self.as_sound_source().set_finish_callback(move |x| {
-            callback(&Self::new_ref(x.handle as *mut sys::SamplePlayer));
-        });
+        future.await;
     }
 
     /// Sets the current offset of the SamplePlayer, in seconds.
@@ -143,7 +141,6 @@ impl SamplePlayer {
 
 impl Drop for SamplePlayer {
     fn drop(&mut self) {
-        self.as_sound_source().drop_callbacks();
         unsafe { (*(*PLAYDATE.sound.handle).sampleplayer).freePlayer.unwrap()(self.handle) }
     }
 }

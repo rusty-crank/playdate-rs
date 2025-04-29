@@ -1,11 +1,13 @@
 use alloc::boxed::Box;
-use alloc::collections::BTreeMap;
-use spin::Mutex;
+use core::cell::RefCell;
+use core::ffi::c_void;
 
-use crate::{util::Ref, PLAYDATE};
+use alloc::sync::Arc;
+
+use crate::PLAYDATE;
 
 pub(crate) struct PlaydateSoundSource {
-    handle: *const sys::playdate_sound_source,
+    pub(crate) handle: *const sys::playdate_sound_source,
 }
 
 impl PlaydateSoundSource {
@@ -14,38 +16,24 @@ impl PlaydateSoundSource {
     }
 }
 
+struct Callbacks {
+    finish: Option<Box<dyn FnMut()>>,
+}
+
 pub struct SoundSource {
     pub(crate) handle: *mut sys::SoundSource,
+    callbacks: Arc<RefCell<Callbacks>>,
 }
 
 unsafe impl Send for SoundSource {}
 unsafe impl Sync for SoundSource {}
 
-#[repr(transparent)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct SoundSourcePtr(pub(crate) *const sys::SoundSource);
-
-unsafe impl Send for SoundSourcePtr {}
-unsafe impl Sync for SoundSourcePtr {}
-
-type SoundSourcFinishCallbacks = BTreeMap<SoundSourcePtr, Box<dyn FnOnce(&SoundSource) + Send>>;
-
-static SOUND_SOURCE_FINISH_CALLBACKS: Mutex<SoundSourcFinishCallbacks> =
-    Mutex::new(BTreeMap::new());
-
 impl SoundSource {
-    // pub(crate) fn new(handle: *mut sys::SoundSource) -> Self {
-    //     Self { handle }
-    // }
-
-    pub(crate) fn new_ref<'a>(handle: *mut sys::SoundSource) -> Ref<'a, Self> {
-        Ref::new(Self { handle })
-    }
-
-    pub(crate) fn drop_callbacks(&self) {
-        SOUND_SOURCE_FINISH_CALLBACKS
-            .lock()
-            .remove(&SoundSourcePtr(self.handle));
+    pub(crate) fn new(handle: *mut sys::SoundSource) -> Self {
+        Self {
+            handle,
+            callbacks: Arc::new(RefCell::new(Callbacks { finish: None })),
+        }
     }
 
     /// Sets the playback volume (0.0 - 1.0) for left and right channels of the source.
@@ -68,27 +56,20 @@ impl SoundSource {
         unsafe { (*PLAYDATE.sound.source.handle).isPlaying.unwrap()(self.handle) == 1 }
     }
 
-    pub fn set_finish_callback(&self, callback: impl Send + FnOnce(&SoundSource) + 'static) {
-        let callback = Box::new(callback) as Box<dyn Send + FnOnce(&SoundSource)>;
-        SOUND_SOURCE_FINISH_CALLBACKS
-            .lock()
-            .insert(SoundSourcePtr(self.handle), callback);
-        extern "C" fn callback_fn(
-            source: *mut sys::SoundSource,
-            _userdata: *mut core::ffi::c_void,
-        ) {
-            let source = SoundSource::new_ref(source);
-            let callback = SOUND_SOURCE_FINISH_CALLBACKS
-                .lock()
-                .remove(&SoundSourcePtr(source.handle))
-                .unwrap();
-            callback(&source);
+    pub(crate) fn set_finish_callback(&self, callback: impl FnMut() + 'static) {
+        self.callbacks.borrow_mut().finish = Some(Box::new(callback));
+        let callbacks = self.callbacks.as_ptr() as *const RefCell<Callbacks>;
+        extern "C" fn callback_fn(_source: *mut sys::SoundSource, userdata: *mut c_void) {
+            let callback = unsafe { &*(userdata as *const RefCell<Callbacks>) };
+            if let Some(ref mut f) = callback.borrow_mut().finish {
+                f();
+            }
         }
         unsafe {
             (*PLAYDATE.sound.source.handle).setFinishCallback.unwrap()(
                 self.handle,
                 Some(callback_fn),
-                core::ptr::null_mut(),
+                callbacks as *mut _,
             )
         };
     }
