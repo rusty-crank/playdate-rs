@@ -220,12 +220,15 @@ impl HTTPConnection {
     }
 
     fn build_headers(headers: &Headers) -> (CString, usize, *const core::ffi::c_char) {
-        let headers = headers
+        let mut headers = headers
             .headers
             .iter()
             .map(|(k, v)| format!("{}: {}", k, v))
             .collect::<Vec<_>>()
             .join("\r\n");
+        if !headers.is_empty() {
+            headers = format!("{}\r\n", headers);
+        }
         let c_string = CString::new(headers.as_str()).unwrap();
         let len = c_string.as_bytes().len();
         let ptr = c_string.as_ptr();
@@ -394,8 +397,16 @@ impl HTTPConnection {
 
     async fn read_all(&mut self) -> Result<Vec<u8>, Error> {
         let mut buf = vec![0; self.get_bytes_available()];
-        let read = self.read(&mut buf).await?;
-        assert!(read == buf.len());
+        let mut cursor = 0;
+        while cursor < buf.len() {
+            let result = self.read(&mut buf[cursor..]).await?;
+            if result == 0 {
+                break;
+            }
+            cursor += result;
+        }
+        // trim
+        buf.truncate(cursor);
         Ok(buf)
     }
 

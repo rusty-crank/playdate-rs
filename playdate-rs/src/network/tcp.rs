@@ -238,11 +238,17 @@ impl TCPConnection {
     }
 
     pub async fn recv_all(&mut self) -> Result<Vec<u8>, Error> {
-        if self.get_bytes_available() == 0 {
-            return Ok(vec![]);
-        }
         let mut buf = vec![0; self.get_bytes_available()];
-        self.recv(&mut buf).await?;
+        let mut cursor = 0;
+        while cursor < buf.len() {
+            let result = self.recv(&mut buf[cursor..]).await?;
+            if result == 0 {
+                break;
+            }
+            cursor += result;
+        }
+        // trim
+        buf.truncate(cursor);
         Ok(buf)
     }
 }
