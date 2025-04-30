@@ -66,8 +66,7 @@ impl PlaydateDisplay {
     pub fn set_mosaic(&self, effect: Vec2<u32>) {
         debug_assert!(
             effect.x < 4 && effect.y < 4,
-            "invalid mosaic effect: {:?}",
-            effect
+            "invalid mosaic effect: {effect:?}"
         );
         unsafe { (*self.handle).setMosaic.unwrap()(effect.x, effect.y) }
     }

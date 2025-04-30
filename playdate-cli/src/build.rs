@@ -163,8 +163,7 @@ impl Build {
     fn load_pdxinfo(&self, pkg: &Package, target_name: &str) -> anyhow::Result<String> {
         if self.example.is_some() {
             let pdxinfo = format!(
-                "name={}\nauthor=playdate-rs\ndescription=playdate-rs-example\nbundleID=me.wenyu.playdate.example.{}\n",
-                target_name, target_name
+                "name={target_name}\nauthor=playdate-rs\ndescription=playdate-rs-example\nbundleID=me.wenyu.playdate.example.{target_name}\n",
             );
             return Ok(pdxinfo);
         }
@@ -191,7 +190,7 @@ impl Build {
                 .map(|v| v.as_str().unwrap().to_owned())
                 .unwrap_or_else(|| {
                     if let Some(warn) = warn {
-                        warn!("{}", warn);
+                        warn!("{warn}");
                     }
                     default.to_owned()
                 })
@@ -199,7 +198,7 @@ impl Build {
         let fmt_content_warning = |n: &str, s: &str| -> String {
             let s = s.trim();
             if !s.is_empty() {
-                format!("{}={}\n", n, s)
+                format!("{n}={s}\n")
             } else {
                 "".to_owned()
             }
@@ -212,7 +211,7 @@ impl Build {
             name => get_meta("name", target_name, None),
             author => get_meta("author", &pkg.authors.join(", "), None),
             description => get_meta("description", pkg.description.as_ref().unwrap_or(&"".to_owned()), None),
-            bundle_id => get_meta("bundle_id", &default_bundle_id, Some(&format!("Using default bundle id: {}", default_bundle_id))),
+            bundle_id => get_meta("bundle_id", &default_bundle_id, Some(&format!("Using default bundle id: {default_bundle_id}"))),
             image_path => get_meta("image_path", "", None),
             launch_sound_path => get_meta("launch_sound_path", "", None),
             content_warning => fmt_content_warning("contentWarning", &get_meta("content_warning", "", None)),
@@ -281,9 +280,9 @@ impl Build {
         .arg(lib_path)
         .arg("-o")
         .arg( target_dir
-            .join(format!("{}.elf", target_name)))
+            .join(format!("{target_name}.elf")))
         .check(true)?;
-        Ok(target_dir.join(format!("{}.elf", target_name)))
+        Ok(target_dir.join(format!("{target_name}.elf")))
     }
 
     fn copy_build_output(
@@ -294,7 +293,7 @@ impl Build {
         package: &Package,
     ) -> anyhow::Result<PathBuf> {
         // Create pdx folder
-        let pdx_src = target_dir.join(format!("{}.source", target_name));
+        let pdx_src = target_dir.join(format!("{target_name}.source"));
         Command::new("rm").arg("-rf").arg(&pdx_src).check(false)?;
         Command::new("mkdir").arg("-p").arg(&pdx_src).check(false)?;
         // Copy output files
@@ -334,7 +333,7 @@ impl Build {
         target_dir: &Path,
         pdx_src: &Path,
     ) -> anyhow::Result<PathBuf> {
-        let pdx_out = target_dir.join(format!("{}.pdx", target_name));
+        let pdx_out = target_dir.join(format!("{target_name}.pdx"));
         let playdate_sdk_path = crate::util::get_playdate_sdk_path()?;
         let pdx_bin = playdate_sdk_path.join("bin").join("pdc");
         Command::new(pdx_bin)
@@ -356,7 +355,7 @@ impl Runnable<BuildInfo> for Build {
         // Find target name and target output dir
         let target_name = self.get_target_name(&target)?;
         let target_dir = self.get_target_dir(&meta)?;
-        let mut binary = target_dir.join(format!("lib{}.{}", target_name, DYLIB_EXT));
+        let mut binary = target_dir.join(format!("lib{target_name}.{DYLIB_EXT}"));
         // Build rust project
         let crate_type = if self.device { "staticlib" } else { "cdylib" };
         Command::new("cargo")
@@ -368,7 +367,7 @@ impl Runnable<BuildInfo> for Build {
             .check(true)?;
         if self.device {
             // Link the staticlib using arm-none-eabi-gcc
-            let staticlib = target_dir.join(format!("lib{}.a", target_name));
+            let staticlib = target_dir.join(format!("lib{target_name}.a"));
             binary = self.link_arm_binary(&target_name, &target_dir, &staticlib)?;
         }
         // Create pdx folder and copy output files

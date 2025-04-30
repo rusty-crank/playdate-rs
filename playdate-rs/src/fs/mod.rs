@@ -111,7 +111,7 @@ pub fn read_dir(path: impl AsPath) -> io::Result<Vec<String>> {
             c_string.as_ptr(),
             Some(callback_wrapper),
             callback_dyn_ptr as *mut _,
-            1 as i32,
+            1i32,
         )
     };
     if result == 0 {

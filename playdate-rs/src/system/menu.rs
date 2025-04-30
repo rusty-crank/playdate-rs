@@ -20,6 +20,7 @@ unsafe impl Send for MenuItem {}
 unsafe impl Sync for MenuItem {}
 
 impl MenuItem {
+    #[allow(clippy::arc_with_non_send_sync)]
     pub(crate) fn new() -> Self {
         MenuItem {
             handle: core::ptr::null_mut(),

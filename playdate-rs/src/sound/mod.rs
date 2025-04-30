@@ -75,6 +75,7 @@ impl PlaydateSound {
     // pub removeChannel: ::core::option::Option<
     //     unsafe extern "C" fn(channel: *mut SoundChannel) -> ::core::ffi::c_int,
     // >,
+    #[allow(clippy::type_complexity)]
     pub fn set_mic_callback(&self, source: MicSource, f: impl FnMut(&[u8]) + 'static) {
         let f: Box<Box<dyn FnMut(&[u8])>> = Box::new(Box::new(f));
         let ptr = Box::into_raw(f) as *mut Box<dyn FnMut(&[u8])> as *mut c_void;

@@ -75,14 +75,14 @@ impl Init {
                 .arg("playdate-rs")
                 .check(true)?;
         }
-        println!("🎉 Initialized playdate project: {}", name);
+        println!("🎉 Initialized playdate project: {name}");
         let cmd = if new {
             format!("cd {} && cargo playdate run", path.to_string_lossy())
         } else {
             "cargo playdate run".to_owned()
         };
         println!("🚀 Getting started by running it in the playdate simulator:");
-        println!("   ➔  {}", cmd);
+        println!("   ➔  {cmd}");
         Ok(())
     }
 

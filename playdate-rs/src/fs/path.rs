@@ -69,12 +69,12 @@ impl Path {
 
     /// Check if the path is a file.
     pub fn is_file(&self) -> bool {
-        super::stat(self).map_or(false, |stat| stat.isdir == 0)
+        super::stat(self).is_ok_and(|stat| stat.isdir == 0)
     }
 
     /// Check if the path is a directory.
     pub fn is_dir(&self) -> bool {
-        super::stat(self).map_or(false, |stat| stat.isdir != 0)
+        super::stat(self).is_ok_and(|stat| stat.isdir != 0)
     }
 
     /// Extracts the extension (without the leading dot) of self.file_name, if possible.
@@ -227,7 +227,7 @@ impl core::fmt::Debug for Path {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let s = self.as_cow_str();
         let s = s.as_ref();
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -235,6 +235,6 @@ impl core::fmt::Display for Path {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let s = self.as_cow_str();
         let s = s.as_ref();
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }

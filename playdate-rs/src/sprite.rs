@@ -191,7 +191,7 @@ pub struct Sprite {
 
 impl PartialEq for Sprite {
     fn eq(&self, other: &Self) -> bool {
-        self.handle == other.handle
+        core::ptr::eq(self.handle, other.handle)
     }
 }
 

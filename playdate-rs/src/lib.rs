@@ -174,7 +174,7 @@ macro_rules! register_playdate_app {
 
 #[doc(hidden)]
 pub fn __playdate_handle_panic(info: &core::panic::PanicInfo) -> ! {
-    PLAYDATE.system.error(format!("{}", info));
+    PLAYDATE.system.error(format!("{info}"));
     unreachable!()
 }
 

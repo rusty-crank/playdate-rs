@@ -191,7 +191,7 @@ unsafe impl Sync for Bitmap {}
 
 impl PartialEq for Bitmap {
     fn eq(&self, other: &Self) -> bool {
-        self.handle == other.handle
+        core::ptr::eq(self.handle, other.handle)
     }
 }
 

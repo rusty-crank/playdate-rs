@@ -10,6 +10,12 @@ pub struct TileMap {
     image_table: Option<BitmapTable>,
 }
 
+impl Default for TileMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TileMap {
     pub fn new() -> Self {
         Self {
@@ -83,7 +89,7 @@ impl TileMap {
         unsafe {
             ((*(*PLAYDATE.graphics.handle).tilemap).setTiles.unwrap())(
                 self.handle,
-                indexes.as_ptr() as *const u16 as *mut u16,
+                indexes.as_ptr() as *mut u16,
                 indexes.len() as _,
                 row_width,
             )

@@ -40,6 +40,7 @@ impl Default for FilePlayer {
 
 impl FilePlayer {
     /// Create a new FilePlayer.
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn new() -> Self {
         let handle = unsafe { (*PLAYDATE.sound.file_player.handle).newPlayer.unwrap()() };
         Self {

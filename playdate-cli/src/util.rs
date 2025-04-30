@@ -31,7 +31,7 @@ impl CommandExt for Command {
                 .collect::<Vec<String>>()
                 .join(" ");
             if !env.is_empty() {
-                env = format!("{} ", env);
+                env = format!("{env} ");
             }
             format!(
                 "{}{} {}",
@@ -41,13 +41,13 @@ impl CommandExt for Command {
             )
         };
         if log_enabled!(log::Level::Debug) {
-            debug!("➔  {}", cmd);
+            debug!("➔  {cmd}");
         } else if log {
-            info!("➔  {}", cmd);
+            info!("➔  {cmd}");
         }
         let status = self.status()?;
         if !status.success() {
-            anyhow::bail!("failed to execute command: {}", cmd);
+            anyhow::bail!("failed to execute command: {cmd}");
         }
         Ok(())
     }

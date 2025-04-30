@@ -19,8 +19,7 @@ fn tcp_handle() -> &'static sys::playdate_tcp {
 }
 
 pub fn get_status() -> WifiStatus {
-    let status = unsafe { (*(*PLAYDATE.raw_api).network).getStatus.unwrap()() };
-    status
+    unsafe { (*(*PLAYDATE.raw_api).network).getStatus.unwrap()() }
 }
 
 /// Playdate will connect to the configured access point automatically as needed and turn off the wifi radio after a 30 second idle timeout. This function allows a game to start connecting to the access point sooner, since that can take upwards of 10 seconds, or turn off wifi as soon as it’s no longer needed instead of waiting 30 seconds. If flag is true, a callback function can be provided to check for an error connecting to the access point.

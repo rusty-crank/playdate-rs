@@ -16,10 +16,7 @@ pub fn get_playdate_sdk_path() -> String {
     let playdate_sdk_path =
         env::var("PLAYDATE_SDK_PATH").expect("Environment variable PLAYDATE_SDK_PATH is not set");
     if !is_correct_sdk_path(&PathBuf::from(&playdate_sdk_path)) {
-        panic!(
-            "PLAYDATE_SDK_PATH ({}) is not set to the root of the Playdate SDK",
-            playdate_sdk_path
-        )
+        panic!("PLAYDATE_SDK_PATH ({playdate_sdk_path}) is not set to the root of the Playdate SDK")
     }
     playdate_sdk_path
 }
@@ -82,10 +79,10 @@ impl bindgen::callbacks::ParseCallbacks for EnumRenameParseCallbacks {
 pub fn generate(device: bool, out_dir: impl AsRef<Path>, arm_gcc_path: Option<&str>) {
     let playdate_sdk_path = get_playdate_sdk_path();
 
-    let inc = |file: &str| format!("{}/C_API/{}", playdate_sdk_path, file);
+    let inc = |file: &str| format!("{playdate_sdk_path}/C_API/{file}");
 
     let manifest_path = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let wrapper = format!("{}/wrapper.h", manifest_path);
+    let wrapper = format!("{manifest_path}/wrapper.h");
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
@@ -95,7 +92,7 @@ pub fn generate(device: bool, out_dir: impl AsRef<Path>, arm_gcc_path: Option<&s
         // bindings for.
         .header(wrapper)
         // Header include path and macros
-        .clang_arg(format!("-I{}/C_API", playdate_sdk_path))
+        .clang_arg(format!("-I{playdate_sdk_path}/C_API"))
         .clang_arg("-DTARGET_EXTENSION=1");
     if device {
         builder = builder

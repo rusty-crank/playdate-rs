@@ -72,6 +72,7 @@ unsafe impl Sync for TCPConnection {}
 
 impl TCPConnection {
     /// Returns a playdate.network.tcp object for connecting to the given server, or NULL if permission has been denied or not yet granted. No connection is attempted until open() is called.
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn new(server: impl TryInto<Url>, ssl: bool) -> Result<Self, Error> {
         let url: Url = server.try_into().map_err(|_| ErrorKind::InvalidInput)?;
         if url.path() != "/"

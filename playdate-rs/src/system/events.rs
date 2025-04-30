@@ -25,7 +25,7 @@ impl EventManager {
     pub fn on(&self, event: SystemEvent, handler: impl 'static + FnMut(u32)) -> CallbackHandle {
         let handler: EventHandler = Box::new(handler);
         let handle = CallbackHandle {
-            ptr: handler.as_ref() as *const dyn FnMut(u32) -> (),
+            ptr: handler.as_ref() as *const dyn FnMut(u32),
         };
         self.handlers[event as usize].lock().push(handler);
         handle
@@ -33,7 +33,7 @@ impl EventManager {
 
     #[allow(ambiguous_wide_pointer_comparisons)]
     pub fn off(&self, event: SystemEvent, handle: CallbackHandle) {
-        let retain = |h: &EventHandler| h.as_ref() as *const dyn FnMut(u32) -> () != handle.ptr;
+        let retain = |h: &EventHandler| !core::ptr::eq(h.as_ref(), handle.ptr);
         let mut handlers = self.handlers[event as usize].lock();
         handlers.retain(retain);
     }

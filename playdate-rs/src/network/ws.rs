@@ -16,6 +16,12 @@ pub struct WebSocket {
     conn: Option<TCPConnection>,
 }
 
+impl Default for WebSocket {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WebSocket {
     pub fn new() -> Self {
         Self {
@@ -58,8 +64,7 @@ impl WebSocket {
         let mut rng = crate::util::rand::rng();
         let mut key = [0u8; 16];
         rng.fill(&mut key);
-        let key = BASE64_STANDARD.encode(&key);
-        key
+        BASE64_STANDARD.encode(key)
     }
 
     fn mask() -> [u8; 4] {
@@ -213,7 +218,7 @@ impl WebSocket {
                 .map(|(i, &b)| b ^ mask[i % 4])
                 .collect();
         }
-        return Ok((opcode, payload));
+        Ok((opcode, payload))
     }
 
     pub async fn send_pong(&self, data: &[u8]) -> Result<(), Error> {

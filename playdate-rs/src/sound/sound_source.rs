@@ -28,6 +28,7 @@ unsafe impl Send for SoundSource {}
 unsafe impl Sync for SoundSource {}
 
 impl SoundSource {
+    #[allow(clippy::arc_with_non_send_sync)]
     pub(crate) fn new(handle: *mut sys::SoundSource) -> Self {
         Self {
             handle,

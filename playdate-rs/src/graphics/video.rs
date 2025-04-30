@@ -122,6 +122,12 @@ pub struct VideoStreamPlayer {
     handle: *mut sys::LCDStreamPlayer,
 }
 
+impl Default for VideoStreamPlayer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VideoStreamPlayer {
     pub fn new() -> Self {
         Self {

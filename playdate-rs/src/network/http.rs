@@ -67,6 +67,7 @@ pub fn request_access(
     }
 }
 
+#[allow(clippy::type_complexity)]
 struct SharedState {
     closed: bool,
     should_release: bool,
@@ -77,6 +78,7 @@ struct SharedState {
     connection_closed: Option<Box<dyn FnMut()>>,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HTTPMethod {
     GET,
@@ -133,6 +135,7 @@ macro_rules! impl_http_method {
 
 impl HTTPConnection {
     /// Returns an HTTPConnection object for connecting to the given server, or NULL if permission has been denied or not yet granted. If port is 0, the connection will use port 80 if usessl is false, otherwise 443. No connection is attempted until get() or post() are called.
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn new(server: impl TryInto<Url>) -> Result<Self, Error> {
         let url: Url = server.try_into().map_err(|_| ErrorKind::InvalidInput)?;
         if url.path() != "/"
@@ -406,6 +409,7 @@ impl HTTPConnection {
     }
 
     /// Sets a callback to be called when the HTTP parser reads a header line from the connection
+    #[allow(clippy::type_complexity)]
     fn set_header_received_callback(&self, callback: Box<dyn FnMut(&str, &str)>) {
         self.state.lock().header_received = Some(callback);
         unsafe extern "C" fn callback_impl(
@@ -654,6 +658,7 @@ impl<'a, T, U> MapFunc<'a, T, U> {
     }
 }
 
+#[allow(clippy::type_complexity)]
 pub struct HTTPEventStream<'a, T: 'static, S: AsyncStream<'a>> {
     stream: S,
     map: MapFunc<'a, S::Item, T>,
@@ -698,7 +703,7 @@ impl<'a, T: 'static, S: AsyncStream<'a>> HTTPEventStream<'a, T, S> {
             self.filter = Some(Box::new(f));
         } else {
             let filter = self.filter.take().unwrap();
-            self.filter = Some(Box::new(move |item| filter(&item) && f(item)));
+            self.filter = Some(Box::new(move |item| filter(item) && f(item)));
         }
         self
     }
@@ -824,11 +829,11 @@ impl Headers {
         let mut headers = self
             .headers
             .iter()
-            .map(|(k, v)| format!("{}: {}", k, v))
+            .map(|(k, v)| format!("{k}: {v}"))
             .collect::<Vec<_>>()
             .join("\r\n");
         if !headers.is_empty() {
-            headers = format!("{}\r\n", headers);
+            headers = format!("{headers}\r\n");
         }
         headers
     }

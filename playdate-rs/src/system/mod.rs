@@ -306,6 +306,7 @@ impl PlaydateSystem {
 
     /// (2.4) As an alternative to polling for button presses using getButtonState(), this function allows a callback function to be set. The function is called for each button up/down event (possibly multiple events on the same button) that occurred during the previous update cycle. At the default 30 FPS, a queue size of 5 should be adequate. At lower frame rates/longer frame times, the queue size should be extended until all button presses are caught. The function should return 0 on success or a non-zero value to signal an error.
     #[allow(static_mut_refs)]
+    #[allow(clippy::type_complexity)]
     pub fn set_button_callback(
         &self,
         callback: Option<Box<dyn FnMut(Buttons, i32, u32)>>,
@@ -339,6 +340,7 @@ impl PlaydateSystem {
 
     /// (2.4) Provides a callback to receive messages sent to the device over the serial port using the msg command. If no device is connected, you can send these messages to a game in the simulator by entering !msg <message> in the Lua console.
     #[allow(static_mut_refs)]
+    #[allow(clippy::type_complexity)]
     pub fn set_serial_message_callback(&self, callback: Option<Box<dyn FnMut(&[u8])>>) {
         static mut CALLBACK: Option<Box<dyn FnMut(&[u8])>> = None;
         extern "C" fn callback_impl(data: *const c_char) {
