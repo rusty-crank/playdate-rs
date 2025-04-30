@@ -309,7 +309,7 @@ impl PlaydateSystem {
     #[allow(clippy::type_complexity)]
     pub fn set_button_callback(
         &self,
-        callback: Option<Box<dyn FnMut(Buttons, i32, u32)>>,
+        callback: Option<impl FnMut(Buttons, i32, u32) + 'static>,
         queue_size: usize,
     ) {
         static mut CALLBACK: Option<Box<dyn FnMut(Buttons, i32, u32)>> = None;
@@ -325,7 +325,7 @@ impl PlaydateSystem {
         }
         unsafe {
             let callback_exists = callback.is_some();
-            CALLBACK = callback;
+            CALLBACK = callback.map::<Box<dyn FnMut(Buttons, i32, u32)>, _>(|f| Box::new(f));
             ((*self.handle).setButtonCallback.unwrap())(
                 if callback_exists {
                     Some(callback_impl)
@@ -341,7 +341,7 @@ impl PlaydateSystem {
     /// (2.4) Provides a callback to receive messages sent to the device over the serial port using the msg command. If no device is connected, you can send these messages to a game in the simulator by entering !msg <message> in the Lua console.
     #[allow(static_mut_refs)]
     #[allow(clippy::type_complexity)]
-    pub fn set_serial_message_callback(&self, callback: Option<Box<dyn FnMut(&[u8])>>) {
+    pub fn set_serial_message_callback(&self, callback: Option<impl FnMut(&[u8]) + 'static>) {
         static mut CALLBACK: Option<Box<dyn FnMut(&[u8])>> = None;
         extern "C" fn callback_impl(data: *const c_char) {
             let callback = unsafe { CALLBACK.as_mut().unwrap() };
@@ -351,7 +351,7 @@ impl PlaydateSystem {
         }
         unsafe {
             let callback_exists = callback.is_some();
-            CALLBACK = callback;
+            CALLBACK = callback.map::<Box<dyn FnMut(&[u8])>, _>(|f| Box::new(f));
             ((*self.handle).setSerialMessageCallback.unwrap())(if callback_exists {
                 Some(callback_impl)
             } else {
