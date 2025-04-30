@@ -19,12 +19,12 @@ path = "src/bin/gen-thumbv7em-binding.rs"
 required-features = ["generate"]
 
 [dependencies]
-bindgen = { version = "0.65.1", optional = true }
-home = { version = "0.5.5", optional = true }
+bindgen = { version = "0.71.1", optional = true }
+home = { version = "0.5.11", optional = true }
 
 [build-dependencies]
-bindgen = "0.65.1"
-home = "0.5.5"
+bindgen = "0.71.1"
+home = "0.5.11"
 
 [features]
 generate = ["bindgen", "home"]

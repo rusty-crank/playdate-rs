@@ -3,7 +3,7 @@ use std::{
     process::Command,
 };
 
-use cargo_metadata::{Metadata, MetadataCommand, Package, Target};
+use cargo_metadata::{CrateType, Metadata, MetadataCommand, Package, Target};
 
 use crate::{util::CommandExt, Runnable};
 
@@ -117,7 +117,7 @@ impl Build {
             let t = package
                 .targets
                 .iter()
-                .find(|t| t.crate_types.contains(&"staticlib".to_owned()));
+                .find(|t| t.crate_types.contains(&CrateType::StaticLib));
             if t.is_none() {
                 anyhow::bail!("Current crate has no target with `crate-type = [\"staticlib\"]`");
             };

@@ -17,10 +17,10 @@ license.workspace = true
 num-traits = { version = "0.2", default-features = false, features = ["libm"] }
 playdate-rs-sys = { workspace = true }
 playdate-rs-macros = { workspace = true }
-spin = "0.9.8"
+spin = "0.10.0"
 no_std_io = { version = "0.6.0", features = ["alloc"] }
-bitmask-enum = "2.2.2"
-rand = { version = "0.8.5", features = ["small_rng"], default-features = false }
+bitmask-enum = "2.2.5"
+rand = { version = "0.9.1", features = ["small_rng"], default-features = false }
 futures-task = { version = "0.3.31", features = [
     "alloc",
 ], default-features = false }

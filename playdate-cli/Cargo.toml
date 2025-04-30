@@ -27,12 +27,12 @@ name = "pd"
 path = "src/bin/pd.rs"
 
 [dependencies]
-anyhow = { version = "1.0.75", features = ["backtrace"] }
-cargo_metadata = "0.17.0"
-clap = { version = "4.3.23", features = ["derive"] }
-clap-cargo = "0.11.0"
-env_logger = "0.10.0"
-log = "0.4.20"
-minijinja = "1.0.6"
-home = "0.5.5"
-toml = "0.7.6"
+anyhow = { version = "1.0.98", features = ["backtrace"] }
+cargo_metadata = "0.19.2"
+clap = { version = "4.5.37", features = ["derive"] }
+clap-cargo = "0.15.2"
+env_logger = "0.11.8"
+log = "0.4.27"
+minijinja = "2.9.0"
+home = "0.5.11"
+toml = "0.8.22"
