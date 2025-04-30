@@ -38,6 +38,10 @@ impl bindgen::callbacks::ParseCallbacks for EnumRenameParseCallbacks {
             ("kInt", "Int"),
             ("kFloat", "Float"),
             ("kStr", "Str"),
+            ("kSound8bitMono", "_8BitMono"),
+            ("kSound8bitStereo", "_8bitStereo"),
+            ("kSound16bitMono", "_16BitMono"),
+            ("kSound16bitStereo", "_16bitStereo"),
         ];
         for (from, to) in &renames {
             if original_variant_name == *from {

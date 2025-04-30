@@ -5645,16 +5645,16 @@ fn bindgen_test_layout_playdate_sprite() {
     );
 }
 impl SoundFormat {
-    pub const kSound8bitMono: SoundFormat = SoundFormat(0);
+    pub const _8BitMono: SoundFormat = SoundFormat(0);
 }
 impl SoundFormat {
-    pub const kSound8bitStereo: SoundFormat = SoundFormat(1);
+    pub const _8bitStereo: SoundFormat = SoundFormat(1);
 }
 impl SoundFormat {
-    pub const kSound16bitMono: SoundFormat = SoundFormat(2);
+    pub const _16BitMono: SoundFormat = SoundFormat(2);
 }
 impl SoundFormat {
-    pub const kSound16bitStereo: SoundFormat = SoundFormat(3);
+    pub const _16bitStereo: SoundFormat = SoundFormat(3);
 }
 impl SoundFormat {
     pub const kSoundADPCMMono: SoundFormat = SoundFormat(4);
