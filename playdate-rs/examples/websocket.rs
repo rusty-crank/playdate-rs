@@ -27,7 +27,7 @@ async fn main() {
     PLAYDATE.graphics.clear(Color::White);
     PLAYDATE.graphics.draw_text("Loading ...", vec2![50, 50]);
 
-    let mut ws = WebSocket::connect("https://echo.websocket.org", &Headers::default())
+    let ws = WebSocket::connect("https://echo.websocket.org", &Headers::default())
         .await
         .unwrap();
 
