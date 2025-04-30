@@ -208,7 +208,6 @@ impl WebSocket {
         } else {
             None
         };
-        println!("Opcode: {}, len: {}", opcode, len);
         let mut payload = Vec::with_capacity(len);
         self.receive_exact_vec(&mut payload).await?;
         if let Some(mask) = mask {
