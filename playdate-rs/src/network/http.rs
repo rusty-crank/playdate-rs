@@ -7,12 +7,13 @@ use spin::Mutex;
 use alloc::ffi::CString;
 use url::Url;
 
-use crate::alloc::string::ToString;
 use crate::error::Error;
+use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::String;
+use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::Deref;

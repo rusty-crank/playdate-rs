@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use sys::PDSystemEvent as SystemEvent;
 
 type EventHandler = Box<dyn FnMut(u32)>;

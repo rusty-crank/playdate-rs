@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use alloc::ffi::CString;
 use alloc::sync::Arc;
 use core::ffi::{c_char, c_void, CStr};

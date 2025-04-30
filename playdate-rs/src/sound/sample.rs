@@ -2,6 +2,7 @@ use crate::fs::AsPath;
 use crate::{error::Error, PLAYDATE};
 
 use alloc::ffi::CString;
+use alloc::vec::Vec;
 pub use sys::SoundFormat;
 
 pub struct PlaydateSample {

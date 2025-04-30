@@ -3,6 +3,7 @@ mod sample;
 mod sample_player;
 mod sound_source;
 
+use alloc::boxed::Box;
 use core::ffi::c_void;
 
 pub use file_player::FilePlayer;
