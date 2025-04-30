@@ -101,6 +101,33 @@ impl WebSocket {
         Ok(())
     }
 
+    fn create_pong_frame(data: &[u8]) -> Vec<u8> {
+        let mask = Self::mask();
+        let len = data.len();
+        let mut frame = vec![0x8A]; // FIN + PONG opcode
+        if len < 126 {
+            frame.push(0x80 | (len as u8)); // MASK bit set
+        } else if len < 65536 {
+            frame.push(0x80 | 126);
+            frame.extend_from_slice(&(len as u16).to_be_bytes());
+        } else {
+            frame.push(0x80 | 127);
+            frame.extend_from_slice(&(len as u64).to_be_bytes());
+        }
+
+        frame.extend_from_slice(&mask);
+
+        // Payload masking
+        let masked = data
+            .iter()
+            .enumerate()
+            .map(|(i, &b)| b ^ mask[i % 4])
+            .collect::<Vec<u8>>();
+        frame.extend(masked);
+
+        frame
+    }
+
     fn create_frame(data: &[u8]) -> Vec<u8> {
         // Create a websocket frame
         let mask = Self::mask();
@@ -176,6 +203,7 @@ impl WebSocket {
         } else {
             None
         };
+        println!("Opcode: {}, len: {}", opcode, len);
         let mut payload = Vec::with_capacity(len);
         self.receive_exact_vec(&mut payload).await?;
         if let Some(mask) = mask {
@@ -186,6 +214,12 @@ impl WebSocket {
                 .collect();
         }
         return Ok((opcode, payload));
+    }
+
+    pub async fn send_pong(&self, data: &[u8]) -> Result<(), Error> {
+        let frame = Self::create_pong_frame(data);
+        self.conn().send(&frame).await.unwrap();
+        Ok(())
     }
 
     pub async fn send(&self, data: &[u8]) -> Result<(), Error> {
@@ -204,15 +238,27 @@ impl WebSocket {
     }
 
     pub async fn recv(&self) -> Result<Vec<u8>, Error> {
-        self.conn().wait_for_data().await;
-        let (_op, data) = self.parse_frame().await.unwrap();
-        Ok(data)
+        loop {
+            self.conn().wait_for_data().await;
+            let (op, data) = self.parse_frame().await.unwrap();
+            if op == 9 {
+                // Ping
+                self.send_pong(&data).await.unwrap();
+                continue;
+            }
+            return Ok(data);
+        }
     }
 
     pub async fn recv_string(&self) -> Result<String, Error> {
         let data = self.recv().await.unwrap();
         let s = core::str::from_utf8(&data).map_err(|_| {
-            println!("Error parsing UTF-8: {} {}", data.len(), self.is_closed());
+            println!(
+                "Error parsing UTF-8: {} {} {}",
+                data.len(),
+                self.is_closed(),
+                self.conn().get_bytes_available()
+            );
             ErrorKind::InvalidData
         })?;
         Ok(s.to_string())
