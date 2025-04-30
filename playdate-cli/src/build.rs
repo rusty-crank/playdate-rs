@@ -364,6 +364,7 @@ impl Runnable<BuildInfo> for Build {
             .args(self.get_cargo_flags())
             .arg(format!("--crate-type={crate_type}"))
             .args(["--", "-Crelocation-model=pic"])
+            .env("RUSTFLAGS", "-Crelocation-model=pic")
             .check(true)?;
         if self.device {
             // Link the staticlib using arm-none-eabi-gcc
