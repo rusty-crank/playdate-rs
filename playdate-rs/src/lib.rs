@@ -35,6 +35,7 @@ pub mod async_runtime;
 use core::{cell::UnsafeCell, future::Future, ops::Deref};
 
 use alloc::format;
+pub use async_runtime::FrameGuard;
 use async_runtime::EXECUTOR;
 pub use no_std_io::io;
 pub use playdate_rs_macros::main;
@@ -85,7 +86,7 @@ impl PlaydateAPI {
         self.raw_api
     }
 
-    pub fn next_frame(&self) -> impl Future<Output = f32> {
+    pub fn next_frame(&self) -> impl Future<Output = FrameGuard> {
         EXECUTOR.next_frame()
     }
 
@@ -204,7 +205,7 @@ pub fn __playdate_handle_event<F: 'static + Future<Output = ()>>(
 
 unsafe extern "C" fn handle_frame_update(_: *mut core::ffi::c_void) -> i32 {
     EXECUTOR.signal_next_frame();
-    if PLAYDATE.display.should_update() {
+    if PLAYDATE.display.take_should_update() {
         1
     } else {
         0

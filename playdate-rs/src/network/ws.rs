@@ -90,7 +90,7 @@ impl WebSocket {
         );
         msg.push_str(&headers.build());
         msg.push_str("\r\n");
-        self.conn().send(msg.as_bytes()).await.unwrap();
+        self.conn().send(msg.as_bytes()).unwrap();
         self.conn().wait_for_data().await;
         // Receive the response
         let buf = self.conn().recv_all().await?;
@@ -221,25 +221,25 @@ impl WebSocket {
         Ok((opcode, payload))
     }
 
-    pub async fn send_pong(&self, data: &[u8]) -> Result<(), Error> {
+    pub fn send_pong(&self, data: &[u8]) -> Result<(), Error> {
         let frame = Self::create_pong_frame(data);
-        self.conn().send(&frame).await.unwrap();
+        self.conn().send(&frame).unwrap();
         Ok(())
     }
 
-    pub async fn send(&self, data: &[u8]) -> Result<(), Error> {
+    pub fn send(&self, data: &[u8]) -> Result<(), Error> {
         let frame = Self::create_frame(data);
-        self.conn().send(&frame).await.unwrap();
+        self.conn().send(&frame).unwrap();
         Ok(())
     }
 
-    pub async fn send_string(&self, data: impl AsRef<str>) -> Result<(), Error> {
-        self.send(data.as_ref().as_bytes()).await
+    pub fn send_string(&self, data: impl AsRef<str>) -> Result<(), Error> {
+        self.send(data.as_ref().as_bytes())
     }
 
-    pub async fn send_json<T: serde::Serialize>(&self, data: &T) -> Result<(), Error> {
+    pub fn send_json<T: serde::Serialize>(&self, data: &T) -> Result<(), Error> {
         let data = serde_json::to_string(data).map_err(|_| ErrorKind::InvalidData)?;
-        self.send_string(data).await
+        self.send_string(data)
     }
 
     pub async fn recv(&self) -> Result<Vec<u8>, Error> {
@@ -248,7 +248,7 @@ impl WebSocket {
             let (op, data) = self.parse_frame().await.unwrap();
             if op == 9 {
                 // Ping
-                self.send_pong(&data).await.unwrap();
+                self.send_pong(&data).unwrap();
                 continue;
             }
             return Ok(data);

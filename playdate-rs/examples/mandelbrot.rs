@@ -211,7 +211,7 @@ async fn main() {
     app.init();
 
     loop {
-        let delta = PLAYDATE.next_frame().await;
-        app.update(delta);
+        let guard = PLAYDATE.next_frame().await;
+        app.update(guard.delta());
     }
 }

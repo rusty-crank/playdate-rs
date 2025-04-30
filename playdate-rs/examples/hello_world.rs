@@ -14,7 +14,7 @@ async fn main() {
     println!("Hello, World!");
 
     loop {
-        let delta = PLAYDATE.next_frame().await;
+        let guard = PLAYDATE.next_frame().await;
         // Clear screen
         PLAYDATE.graphics.clear(Color::White);
         // Draw image
@@ -26,7 +26,7 @@ async fn main() {
             vec2![1.0, 1.0],
         );
         // Rotate image
-        rotation += delta * 90.0;
+        rotation += guard.delta() * 90.0;
         // Draw text
         PLAYDATE
             .graphics

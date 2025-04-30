@@ -76,7 +76,7 @@ impl Executor {
         self.run();
     }
 
-    pub fn next_frame(&self) -> impl Future<Output = f32> {
+    pub fn next_frame(&self) -> impl Future<Output = FrameGuard> {
         let prev_epoch = EXECUTOR.frame_epoch.load(Ordering::SeqCst);
         let prev_time = PLAYDATE.system.get_current_time_milliseconds();
         NextFrameFuture {
@@ -110,20 +110,23 @@ impl ArcWake for Task {
     }
 }
 
-pub struct NextFrameFuture {
+struct NextFrameFuture {
     prev_epoch: usize,
     prev_time: usize,
 }
 
 impl Future for NextFrameFuture {
-    type Output = f32;
+    type Output = FrameGuard;
 
     fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         let curr_epoch = EXECUTOR.frame_epoch.load(Ordering::SeqCst);
         if curr_epoch > self.prev_epoch {
             let curr_time = PLAYDATE.system.get_current_time_milliseconds();
             let delta = (curr_time - self.prev_time) as f32 / 1000.0;
-            Poll::Ready(delta)
+            Poll::Ready(FrameGuard {
+                delta,
+                update: true,
+            })
         } else {
             EXECUTOR.frame_wakers.lock().push(_cx.waker().clone());
             Poll::Pending
@@ -131,7 +134,7 @@ impl Future for NextFrameFuture {
     }
 }
 
-pub struct TimerFuture {
+struct TimerFuture {
     target: usize,
 }
 
@@ -149,7 +152,7 @@ impl Future for TimerFuture {
     }
 }
 
-pub struct YieldFuture {
+struct YieldFuture {
     yielded: bool,
 }
 
@@ -163,6 +166,33 @@ impl Future for YieldFuture {
             self.yielded = true;
             EXECUTOR.frame_wakers.lock().push(_cx.waker().clone());
             Poll::Pending
+        }
+    }
+}
+
+/// Guards the frame generation code.
+/// Automatically updates the display when dropped.
+pub struct FrameGuard {
+    delta: f32,
+    update: bool,
+}
+
+impl FrameGuard {
+    /// The time since the last frame in seconds.
+    pub fn delta(&self) -> f32 {
+        self.delta
+    }
+
+    /// Skips the update for this frame.
+    pub fn skip_update(&mut self) {
+        self.update = false;
+    }
+}
+
+impl Drop for FrameGuard {
+    fn drop(&mut self) {
+        if self.update {
+            PLAYDATE.display.force_update();
         }
     }
 }

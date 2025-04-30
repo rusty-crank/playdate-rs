@@ -4,34 +4,34 @@ pub struct PlaydateDisplay {
     handle: *const sys::playdate_display,
 }
 
-static mut MANUAL_UPDATE_ENABLED: bool = false;
-static mut SHOULD_MANUAL_UPDATE: bool = false;
+static mut SHOULD_UPDATE: bool = false;
+static mut ALWAYS_UPDATE: bool = false;
 
 impl PlaydateDisplay {
     pub(crate) fn new(handle: *const sys::playdate_display) -> Self {
         Self { handle }
     }
 
-    pub(crate) fn should_update(&self) -> bool {
+    pub fn set_always_update(&self, enabled: bool) {
         unsafe {
-            if !MANUAL_UPDATE_ENABLED {
+            ALWAYS_UPDATE = enabled;
+        }
+    }
+
+    pub(crate) fn take_should_update(&self) -> bool {
+        unsafe {
+            if ALWAYS_UPDATE {
                 return true;
             }
-            let v = SHOULD_MANUAL_UPDATE;
-            SHOULD_MANUAL_UPDATE = false;
+            let v = SHOULD_UPDATE;
+            SHOULD_UPDATE = false;
             v
         }
     }
 
-    pub fn force_update(&self) {
+    pub(crate) fn force_update(&self) {
         unsafe {
-            SHOULD_MANUAL_UPDATE = true;
-        }
-    }
-
-    pub fn enable_manual_update(&self, enable: bool) {
-        unsafe {
-            MANUAL_UPDATE_ENABLED = enable;
+            SHOULD_UPDATE = true;
         }
     }
 

@@ -45,7 +45,7 @@ async fn main() {
             count += 1;
             let msg = format!("Hello, WebSocket! {}", count);
             let t = PLAYDATE.system.get_current_time_milliseconds();
-            ws.send(msg.as_bytes()).await.unwrap();
+            ws.send(msg.as_bytes()).unwrap();
             let send_time = PLAYDATE.system.get_current_time_milliseconds() - t;
             println!("Sent: {}", msg);
             let t = PLAYDATE.system.get_current_time_milliseconds();

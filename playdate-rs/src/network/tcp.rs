@@ -216,19 +216,14 @@ impl TCPConnection {
     }
 
     /// Attempts to write up to length bytes to the connection. Returns the number of bytes actually written, which may be less than length, or a (negative) PDNetErr value on error.
-    pub fn send<'a, 'b: 'a>(
-        &'a self,
-        buf: &'b [u8],
-    ) -> impl 'a + Future<Output = Result<usize, Error>> {
-        async move {
-            let result = unsafe {
-                tcp_handle().write.unwrap()(self.handle, buf.as_ptr() as *const _, buf.len())
-            };
-            if result >= 0 {
-                Ok(result as usize)
-            } else {
-                Err(ErrorKind::Other.into())
-            }
+    pub fn send(&self, buf: &[u8]) -> Result<usize, Error> {
+        let result = unsafe {
+            tcp_handle().write.unwrap()(self.handle, buf.as_ptr() as *const _, buf.len())
+        };
+        if result >= 0 {
+            Ok(result as usize)
+        } else {
+            Err(ErrorKind::Other.into())
         }
     }
 

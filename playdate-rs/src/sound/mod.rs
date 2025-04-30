@@ -76,15 +76,18 @@ impl PlaydateSound {
     //     unsafe extern "C" fn(channel: *mut SoundChannel) -> ::core::ffi::c_int,
     // >,
     #[allow(clippy::type_complexity)]
-    pub fn set_mic_callback(&self, source: MicSource, f: impl FnMut(&[u8]) + 'static) {
-        let f: Box<Box<dyn FnMut(&[u8])>> = Box::new(Box::new(f));
+    pub fn set_mic_callback(&self, source: MicSource, f: impl FnMut(&[u8]) -> bool + 'static) {
+        let f: Box<Box<dyn FnMut(&[u8]) -> bool>> = Box::new(Box::new(f));
         let ptr = Box::into_raw(f) as *mut Box<dyn FnMut(&[u8])> as *mut c_void;
         unsafe extern "C" fn mic_callback_impl(ctx: *mut c_void, data: *mut i16, len: i32) -> i32 {
-            let f = ctx as *mut Box<dyn FnMut(&[u8])>;
+            let f = ctx as *mut Box<dyn FnMut(&[u8]) -> bool>;
             let f = unsafe { &mut *f };
             let slice = unsafe { core::slice::from_raw_parts(data as *mut u8, (len * 2) as _) };
-            f(slice);
-            1
+            if f(slice) {
+                1
+            } else {
+                0
+            }
         }
         unsafe { (*self.handle).setMicCallback.unwrap()(Some(mic_callback_impl), ptr, source) };
     }
