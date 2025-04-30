@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -359,17 +358,13 @@ impl Runnable<BuildInfo> for Build {
         let target_dir = self.get_target_dir(&meta)?;
         let mut binary = target_dir.join(format!("lib{}.{}", target_name, DYLIB_EXT));
         // Build rust project
+        let crate_type = if self.device { "staticlib" } else { "cdylib" };
         Command::new("cargo")
             .arg("+nightly")
-            .arg("build")
+            .arg("rustc")
             .args(self.get_cargo_flags())
-            .envs(&if self.device {
-                let mut map = HashMap::new();
-                map.insert("RUSTFLAGS", ["-Crelocation-model=pic"].join(" "));
-                map
-            } else {
-                Default::default()
-            })
+            .arg(format!("--crate-type={crate_type}"))
+            .args(["--", "-Crelocation-model=pic"])
             .check(true)?;
         if self.device {
             // Link the staticlib using arm-none-eabi-gcc

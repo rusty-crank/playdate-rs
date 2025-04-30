@@ -7,7 +7,6 @@ pub extern crate num_traits;
 pub extern crate playdate_rs_sys as sys;
 pub extern crate rand;
 pub extern crate serde;
-pub extern crate serde_derive;
 pub extern crate serde_json;
 
 #[macro_use]
@@ -145,7 +144,7 @@ macro_rules! register_playdate_app {
 
         #[cfg(all(target_arch = "arm", target_os = "none"))]
         #[no_mangle]
-        pub extern "C" fn _sbrk() {}
+        extern "C" fn _sbrk() {}
 
         #[cfg(all(target_arch = "arm", target_os = "none"))]
         #[no_mangle]

@@ -17,6 +17,5 @@ unsafe impl GlobalAlloc for PlaydateHeapAllocator {
     }
 }
 
-#[cfg(target_os = "none")]
 #[global_allocator]
 static GLOBAL: PlaydateHeapAllocator = PlaydateHeapAllocator;

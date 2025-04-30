@@ -22,8 +22,8 @@ use playdate_rs::system::Buttons;
 use playdate_rs::util::icons::FontIcons;
 use playdate_rs::PLAYDATE;
 
-use serde_derive::Deserialize;
-use serde_derive::Serialize;
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum State {
